@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment (jangan pernah commit secret)
+.env
+.env.local
+
+# Artefak test Playwright
+test-results/
+playwright-report*/
+blob-report/
+out/
+
+# Test case Excel hasil generator
+test-cases/*.xlsx
+
+# Lainnya
+*.log
+.DS_Store

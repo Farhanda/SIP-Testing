@@ -1,0 +1,39 @@
+{
+  "name": "automation-dashboard-fe",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Base automation Web UI testing dengan Playwright (TypeScript) untuk aplikasi SIP Insight (localhost:3000)",
+  "scripts": {
+    "test": "playwright test",
+    "test:fe": "playwright test -c playwright.fe.config.ts",
+    "test:be": "playwright test -c playwright.be.config.ts",
+    "test:ai": "playwright test -c playwright.ai.config.ts",
+    "test:smoke": "playwright test -c playwright.fe.config.ts --project=smoke",
+    "test:login": "playwright test -c playwright.fe.config.ts --project=login",
+    "test:dashboard": "playwright test -c playwright.fe.config.ts --project=dashboard",
+    "test:keyword": "playwright test -c playwright.fe.config.ts --project=keyword",
+    "test:control": "playwright test -c playwright.fe.config.ts --project=control",
+    "test:user": "playwright test -c playwright.fe.config.ts --project=user",
+    "test:profile": "playwright test -c playwright.fe.config.ts --project=profile",
+    "test:headed": "playwright test -c playwright.fe.config.ts --headed",
+    "report:fe": "playwright show-report playwright-report-fe",
+    "report:be": "playwright show-report playwright-report-be",
+    "report:ai": "playwright show-report playwright-report-ai",
+    "report": "node scripts/open-reports.mjs",
+    "typecheck": "tsc --noEmit",
+    "test-cases": "node scripts/generate-test-cases.mjs",
+    "test-cases:fe": "node scripts/generate-test-cases.mjs --platform=fe",
+    "test-cases:be": "node scripts/generate-test-cases.mjs --platform=be",
+    "test-cases:ai": "node scripts/generate-test-cases.mjs --platform=ai"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^24.0.0",
+    "exceljs": "^4.4.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "csv-parse": "^7.0.2",
+    "dotenv": "^17.4.2"
+  }
+}

@@ -1,0 +1,434 @@
+{
+    "schemes": ["http","https"],
+    "swagger": "2.0",
+    "info": {
+        "description": "API for the Dashboard Service backend.",
+        "title": "Dashboard Service API",
+        "contact": {},
+        "version": "0.1.0"
+    },
+    "host": "",
+    "basePath": "/",
+    "paths": {
+        "/health/live": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Check API liveness",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bootstrap.healthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/ready": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Check API readiness",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bootstrap.healthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/bootstrap.apiErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dashboard/conversation-trend": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get dashboard conversation trend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by discovered keyword, matched exactly (surrounding whitespace trimmed)",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by platform(s), comma-separated (e.g. instagram,x)",
+                        "name": "platform",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter period: relative token (24h, 3d, 7d, 1m, 1y, ...), a date (YYYY-MM-DD), or a custom range (YYYY-MM-DD/YYYY-MM-DD). Missing or malformed values fall back to the last 1 month.",
+                        "name": "period",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.trendResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_dashboard_delivery_http.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_dashboard_delivery_http.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dashboard/conversation-trend-hourly": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get dashboard conversation trend, hourly breakdown for one day",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by discovered keyword, matched exactly (surrounding whitespace trimmed)",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by platform(s), comma-separated (e.g. instagram,x)",
+                        "name": "platform",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Calendar day to break down, YYYY-MM-DD",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.hourlyTrendResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_dashboard_delivery_http.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_dashboard_delivery_http.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dashboard/summary": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get dashboard conversation summary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by discovered keyword, matched exactly (surrounding whitespace trimmed)",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by platform(s), comma-separated (e.g. instagram,x)",
+                        "name": "platform",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter period: relative token (24h, 3d, 7d, 1m, 1y, ...), a date (YYYY-MM-DD), or a custom range (YYYY-MM-DD/YYYY-MM-DD). Missing or malformed values fall back to the last 1 month.",
+                        "name": "period",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.summaryEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_dashboard_delivery_http.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_dashboard_delivery_http.errorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "bootstrap.apiError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "bootstrap.apiErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/bootstrap.apiError"
+                }
+            }
+        },
+        "bootstrap.healthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.countMetricResponse": {
+            "type": "object",
+            "properties": {
+                "delta_direction": {
+                    "type": "string"
+                },
+                "delta_pct": {
+                    "type": "number"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "http.hourlyTrendMeta": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "generated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.hourlyTrendPointResponse": {
+            "type": "object",
+            "properties": {
+                "engagement": {
+                    "type": "integer"
+                },
+                "hour": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "volume": {
+                    "type": "integer"
+                }
+            }
+        },
+        "http.hourlyTrendResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.hourlyTrendPointResponse"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/http.hourlyTrendMeta"
+                }
+            }
+        },
+        "http.percentMetricResponse": {
+            "type": "object",
+            "properties": {
+                "delta_direction": {
+                    "type": "string"
+                },
+                "delta_pct": {
+                    "type": "number"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "http.platformCoverageResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "http.scaleMetricResponse": {
+            "type": "object",
+            "properties": {
+                "delta_direction": {
+                    "type": "string"
+                },
+                "delta_pct": {
+                    "type": "number"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "http.summaryData": {
+            "type": "object",
+            "properties": {
+                "active_platforms": {
+                    "$ref": "#/definitions/http.platformCoverageResponse"
+                },
+                "engagement_rate": {
+                    "$ref": "#/definitions/http.percentMetricResponse"
+                },
+                "total_engagement": {
+                    "$ref": "#/definitions/http.scaleMetricResponse"
+                },
+                "total_post": {
+                    "$ref": "#/definitions/http.countMetricResponse"
+                },
+                "views": {
+                    "$ref": "#/definitions/http.scaleMetricResponse"
+                }
+            }
+        },
+        "http.summaryEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/http.summaryData"
+                },
+                "meta": {
+                    "$ref": "#/definitions/http.summaryMeta"
+                }
+            }
+        },
+        "http.summaryMeta": {
+            "type": "object",
+            "properties": {
+                "generated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.trendPointResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "engagement": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "volume": {
+                    "type": "integer"
+                }
+            }
+        },
+        "http.trendResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.trendPointResponse"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/http.summaryMeta"
+                }
+            }
+        },
+        "internal_dashboard_delivery_http.errorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string"
+                        },
+                        "message": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

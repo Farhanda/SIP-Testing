@@ -1,0 +1,12 @@
+[
+  {
+    "status": "active",
+    "visibleKeyword": "SIP Indonesia",
+    "hiddenKeyword": "Transformasi Digital"
+  },
+  {
+    "status": "hold",
+    "visibleKeyword": "Transformasi Digital",
+    "hiddenKeyword": "SIP Indonesia"
+  }
+]

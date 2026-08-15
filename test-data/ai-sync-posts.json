@@ -1,0 +1,106 @@
+[
+  {
+    "post_id": "sync-post-001",
+    "text": "Rumah sakit kewalahan menangani pasien DBD dan demam berdarah",
+    "platform": "twitter",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Kesehatan",
+    "notes": "Isu kesehatan (DBD) — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-002",
+    "text": "DPR mengesahkan RUU baru tentang ketahanan pangan nasional",
+    "platform": "instagram",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Politik Pemerintahan",
+    "notes": "Isu politik (RUU/DPR) — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-003",
+    "text": "Harga cabai naik drastis di pasar tradisional",
+    "platform": "tiktok",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Ekonomi Bisnis",
+    "notes": "Isu ekonomi (harga pangan) — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-004",
+    "text": "Gempa bumi mengguncang wilayah timur Indonesia tadi malam",
+    "platform": "twitter",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Bencana Lingkungan",
+    "notes": "Isu bencana alam — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-005",
+    "text": "Timnas Indonesia menang telak di laga kualifikasi",
+    "platform": "twitter",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Olahraga",
+    "notes": "Isu olahraga — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-006",
+    "text": "Sekolah mulai menerapkan kurikulum baru tahun depan",
+    "platform": "instagram",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Pendidikan",
+    "notes": "Isu pendidikan (kurikulum) — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-007",
+    "text": "Konser musik festival akhir pekan ini ramai pengunjung",
+    "platform": "tiktok",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Hiburan Selebriti",
+    "notes": "Isu hiburan — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-008",
+    "text": "test 123 aduh pusing kepala",
+    "platform": "twitter",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Kesehatan",
+    "notes": "Contoh post user (teks pendek/simpel) — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-009",
+    "text": "Aplikasi e-commerce baru diluncurkan dengan fitur pembayaran digital",
+    "platform": "twitter",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Teknologi Digital",
+    "notes": "Isu teknologi digital — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-010",
+    "text": "Warga gotong royong membersihkan lingkungan setelah banjir",
+    "platform": "instagram",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Bencana Lingkungan",
+    "notes": "Isu banjir / sosial — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-011",
+    "text": "Resep rendang khas Padang ini mudah diikuti untuk pemula",
+    "platform": "tiktok",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Kuliner Lifestyle",
+    "notes": "Isu kuliner/lifestyle — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-012",
+    "text": "Pengadilan menjatuhkan vonis kepada tersangka korupsi",
+    "platform": "twitter",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": "Kriminal Hukum",
+    "notes": "Isu hukum/kriminal — terverifikasi 2026-08-14"
+  },
+  {
+    "post_id": "sync-post-013",
+    "text": "Pemerintah menggalakkan kampanye kesetaraan dan toleransi beragama",
+    "platform": "instagram",
+    "created_at": "2026-08-14T02:20:25.599Z",
+    "expectedTopic": ["Politik Pemerintahan", "Agama Budaya"],
+    "notes": "Isu sosial/pemerintahan — topik bisa ambigu antara Politik Pemerintahan & Agama Budaya (model LLM); terverifikasi 2026-08-14"
+  }
+]

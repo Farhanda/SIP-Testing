@@ -1,0 +1,606 @@
+import type { Page } from '@playwright/test';
+
+/**
+ * Mock API simulasi SIP Insight.
+ *
+ * Aplikasi target (localhost:3000) mengonsumsi endpoint API route Next.js
+ * (`/api/dashboard/*`, `/api/admin/*`) yang sengaja mensimulasikan latensi
+ * dan kegagalan acak (failRate 5–15%). Untuk test fungsional yang
+ * deterministik, endpoint tersebut di-mock di sini dengan data fixture yang
+ * bentuknya SAMA dengan respons asli — sehingga perilaku UI tetap diuji
+ * (render, filter, validasi, integrasi UI→API) tanpa flakiness dari
+ * kegagalan acak.
+ *
+ * Test yang memang ingin memvalidasi integrasi dengan API asli ada di
+ * `tests/fe/smoke/*` (assert terhadap elemen yang stabil).
+ */
+
+// ---------------------------------------------------------------------------
+// Fixture data (bentuk: mengikuti src/pages/api/dashboard/* di aplikasi)
+// ---------------------------------------------------------------------------
+
+const TRENDING_24H = [
+  { id: 'trend-24h-01', topic: 'Transformasi layanan publik', volume: 3204, delta: '+2' },
+  { id: 'trend-24h-02', topic: '#KebijakanBaru', volume: 2876, delta: 'new' },
+  { id: 'trend-24h-03', topic: 'Diskusi RUU Digital', volume: 2140, delta: '+5' },
+  { id: 'trend-24h-04', topic: 'Partisipasi warga kota', volume: 1890, delta: '-1' },
+  { id: 'trend-24h-05', topic: 'Edukasi digital nasional', volume: 1502, delta: '0' },
+];
+
+const TRENDING_7D = [
+  { id: 'trend-7d-01', topic: '#SIPIndonesia', volume: 18420, delta: '0' },
+  { id: 'trend-7d-02', topic: 'Layanan publik digital', volume: 14210, delta: '+1' },
+  { id: 'trend-7d-03', topic: 'Kebijakan ekonomi digital', volume: 11760, delta: '-1' },
+  { id: 'trend-7d-04', topic: '#TransformasiDigital', volume: 9840, delta: '+3' },
+];
+
+const META = () => ({ generated_at: new Date().toISOString() });
+
+const TREND_SERIES = () =>
+  [
+    { date: '2026-08-01', label: '01 Agu', volume: 320, engagement: 190 },
+    { date: '2026-08-02', label: '02', volume: 340, engagement: 250 },
+    { date: '2026-08-03', label: '03', volume: 300, engagement: 220 },
+    { date: '2026-08-04', label: '04', volume: 460, engagement: 340 },
+  ];
+
+const SENTIMENT_SERIES = () =>
+  [
+    { date: '2026-08-01', label: '01 Agu', positive: 42, negative: 35 },
+    { date: '2026-08-02', label: '02', positive: 44, negative: 33 },
+    { date: '2026-08-03', label: '03', positive: 41, negative: 36 },
+    { date: '2026-08-04', label: '04', positive: 46, negative: 30 },
+  ];
+
+const HOURLY_SERIES = (positive: boolean) =>
+  Array.from({ length: 24 }, (_, hour) => ({
+    hour: String(hour).padStart(2, '0'),
+    label: `${String(hour).padStart(2, '0')}:00`,
+    ...(positive ? { positive: 45 + (hour % 10), negative: 30 - (hour % 5) } : { volume: 40 + (hour % 15), engagement: 20 + (hour % 10) }),
+  }));
+
+const TOP_POSTS = [
+  { id: 'post-1', platform: 'X', post: 'Transformasi layanan publik perlu dimulai dari data...', emotion: 'Anger', topic: 'Layanan publik', engagement: 8432 },
+  { id: 'post-2', platform: 'Instagram', post: 'Antusiasme warga dalam diskusi digital hari ini...', emotion: 'Joy', topic: 'Partisipasi', engagement: 6208 },
+];
+
+const TOPICS = [
+  { id: 'topic-1', label: 'Layanan publik', pct: 72, count: 640 },
+  { id: 'topic-2', label: 'Edukasi digital', pct: 47, count: 459 },
+];
+
+const TOP_ACCOUNTS = [
+  { id: 'acc-1', handle: '@sip_indonesia', platform: 'X', posts: 120 },
+  { id: 'acc-2', handle: '@beritakota_id', platform: 'TikTok', posts: 84 },
+];
+
+const TOP_HASHTAGS = [
+  { id: 'hash-1', tag: '#SIPIndonesia', count: 1420 },
+  { id: 'hash-2', tag: '#SuaraWarga', count: 954 },
+];
+
+const KPI_SUMMARY = {
+  totalPost: { value: 2846, label: '2,846', deltaPct: 18.4, deltaDirection: 'up' },
+  totalEngagement: { value: 48200, label: '48.2K', deltaPct: 12.1, deltaDirection: 'up' },
+  views: { value: 1240000, label: '1.24M', deltaPct: 24.8, deltaDirection: 'up' },
+  engagementRate: { value: 3.89, label: '3.89%', deltaPct: 0.4, deltaDirection: 'down' },
+  activePlatforms: { active: 3, total: 3 },
+};
+
+// ---------------------------------------------------------------------------
+// Handler per endpoint dashboard
+// ---------------------------------------------------------------------------
+
+function dashboardResponse(path: string, url: URL, keyword: string): unknown {
+  switch (path) {
+    case '/api/dashboard/trending-topic': {
+      // UI mengirim period dengan huruf besar ('24H', '7D') — bandingkan
+      // case-insensitive supaya 7 Days benar-benar menampilkan data 7d.
+      const period = (url.searchParams.get('period') ?? '').toLowerCase();
+      return {
+        data: period === '7d' ? TRENDING_7D : TRENDING_24H,
+        meta: META(),
+      };
+    }
+    case '/api/dashboard/collection-summary':
+      return {
+        data: {
+          // collectionId sengaja "menggema" keyword dari query param →
+          // test bisa membuktikan UI mengirim filter ke API & merender responsnya.
+          collectionId: `SIP-${keyword}`,
+          platformsProcessed: 3,
+          postsAnalyzed: 2846,
+          status: 'completed',
+        },
+        meta: META(),
+      };
+    case '/api/dashboard/kpi-summary':
+      return { data: KPI_SUMMARY, meta: META() };
+    case '/api/dashboard/emotion-map':
+      // negative = 25 + 12 + 8 = 45 → protocol level "Alert" (30–49)
+      return { data: { anger: 25, neutral: 30, fear: 12, joy: 25, sadness: 8 }, meta: META() };
+    case '/api/dashboard/sentiment-map':
+      return { data: { positive: 52, neutral: 30, negative: 18 }, meta: META() };
+    case '/api/dashboard/sentiment-trend':
+      return { data: SENTIMENT_SERIES(), meta: META() };
+    case '/api/dashboard/sentiment-trend-hourly':
+      return { data: HOURLY_SERIES(true), meta: META() };
+    case '/api/dashboard/conversation-trend':
+      return { data: TREND_SERIES(), meta: META() };
+    case '/api/dashboard/conversation-trend-hourly':
+      return { data: HOURLY_SERIES(false), meta: META() };
+    case '/api/dashboard/top-posts':
+      return { data: TOP_POSTS, meta: META() };
+    case '/api/dashboard/topic-intelligence':
+      return { data: TOPICS, meta: META() };
+    case '/api/dashboard/top-accounts':
+      return { data: TOP_ACCOUNTS, meta: META() };
+    case '/api/dashboard/top-hashtags':
+      return { data: TOP_HASHTAGS, meta: META() };
+    default:
+      return { data: {}, meta: META() };
+  }
+}
+
+/** Mock seluruh endpoint `/api/dashboard/*` dengan data deterministik. */
+export function mockDashboardApis(page: Page) {
+  return page.route('**/api/dashboard/**', async (route) => {
+    const url = new URL(route.request().url());
+    const keyword = url.searchParams.get('keyword') ?? 'mock-keyword';
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(dashboardResponse(url.pathname, url, keyword)),
+    });
+  });
+}
+
+/**
+ * Mock daftar keyword option (dropdown dashboard). Kosong → tanpa auto-select.
+ *
+ * ⚠️ Format mengikuti respons asli `as-option-list` (dicek 2026-08-14):
+ *   { data: [{ id, code, name }] }  — mis. { id: "kw-002", code: "layanan-publik", name: "Layanan Publik" }
+ * (Dulu mock memakai field `keyword`; UI sekarang membaca `code` + `name`.)
+ */
+export function mockKeywordOptions(page: Page, keywords: string[] = ['Layanan Publik', 'Edukasi Digital']) {
+  const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return page.route('**/api/admin/keyword/as-option-list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: keywords.map((name, i) => ({ id: `k-${i + 1}`, code: slug(name), name })),
+      }),
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler keyword (halaman Monitoring Keyword — tab Scheduled)
+// ---------------------------------------------------------------------------
+
+export type MockSchedulerItem = {
+  id: string;
+  keyword: string;
+  platforms: string[];
+  meta: string;
+  cron: string;
+  state: 'active' | 'hold';
+};
+
+export const MOCK_SCHEDULER_ITEMS: MockSchedulerItem[] = [
+  // Platform pakai LABEL (X/Instagram/TikTok) — UI menampilkan label ini.
+  // Filter di bawah membandingkan case-insensitive karena UI mengirim slug
+  // lowercase (x/instagram/tiktok) sebagai query param (dicek 2026-08-14).
+  { id: 'sch-1', keyword: 'SIP Indonesia', platforms: ['X', 'Instagram', 'TikTok'], meta: 'Last: Today, 09:00 · Next: 10:00', cron: 'Every 1 hour', state: 'active' },
+  { id: 'sch-2', keyword: 'Layanan Publik', platforms: ['X', 'TikTok'], meta: 'Last: Today, 08:30 · Next: 12:30', cron: 'Every 4 hours', state: 'active' },
+  { id: 'sch-3', keyword: 'Transformasi Digital', platforms: ['Instagram', 'TikTok'], meta: 'Held by manual job', cron: 'Every 2 hours', state: 'hold' },
+  { id: 'sch-4', keyword: 'Ekonomi Kreatif', platforms: ['X', 'Instagram'], meta: 'Last: Yesterday, 20:00 · Next: Today, 20:00', cron: 'Every day', state: 'active' },
+  { id: 'sch-5', keyword: 'Isu Pendidikan', platforms: ['X'], meta: 'Last: Aug 01, 09:00 · Next: paused', cron: 'Every 6 hours', state: 'hold' },
+];
+
+/**
+ * Mock daftar scheduler dengan filter query param (keyword/status/platform)
+ * — mensimulasikan perilaku API asli sehingga test filter bisa deterministik.
+ */
+export function mockSchedulerList(page: Page, items: MockSchedulerItem[] = MOCK_SCHEDULER_ITEMS) {
+  return page.route('**/api/admin/keyword/scheduler**', async (route) => {
+    // Mock hanya daftar (GET); aksi lain (PATCH/POST) diteruskan ke API asli
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    const url = new URL(route.request().url());
+    const keyword = url.searchParams.get('keyword') ?? '';
+    const status = url.searchParams.get('status') ?? '';
+    const platform = url.searchParams.get('platform') ?? '';
+    const pageNum = Number(url.searchParams.get('page') ?? 1);
+    const size = Number(url.searchParams.get('size') ?? 5);
+
+    const filtered = items.filter(
+      (item) =>
+        (!keyword || item.keyword.toLowerCase().includes(keyword.toLowerCase())) &&
+        (!status || status === 'all' || item.state === status) &&
+        // UI mengirim slug lowercase (tiktok) — data mock label (TikTok):
+        // bandingkan case-insensitive supaya filter platform tetap match.
+        (!platform || platform === 'all' || item.platforms.some((p) => p.toLowerCase() === platform.toLowerCase())),
+    );
+    const start = (pageNum - 1) * size;
+    const data = filtered.slice(start, start + size);
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data,
+        meta: {
+          page: pageNum,
+          size,
+          total: filtered.length,
+          totalPages: Math.max(1, Math.ceil(filtered.length / size)),
+        },
+      }),
+    });
+  });
+}
+
+/**
+ * Mock POST /api/admin/keyword/scheduler (buat scheduled keyword).
+ * Daftarkan SETELAH `mockSchedulerList` supaya menang untuk method POST
+ * (Playwright memberi prioritas ke route yang terakhir didaftarkan).
+ */
+export function mockCreateScheduler(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route('**/api/admin/keyword/scheduler', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Failed to load data.' }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: { id: 'sch-new', keyword: 'created', platforms: [], state: 'active' },
+      }),
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Unscheduled keyword (tab On Demand)
+// ---------------------------------------------------------------------------
+
+export type MockUnscheduledItem = {
+  id: string;
+  keyword: string;
+  platforms: string[];
+  periodLabel: string;
+  createdAt: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  runCount: number;
+  progressPct: number;
+};
+
+export const MOCK_UNSCHEDULED_ITEMS: MockUnscheduledItem[] = [
+  { id: 'un-1', keyword: 'Bantuan Sosial 2026', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'completed', runCount: 2, progressPct: 100 },
+  { id: 'un-2', keyword: 'Kenaikan Harga', platforms: ['Instagram', 'TikTok'], periodLabel: 'Last 7 days', createdAt: new Date().toISOString(), status: 'queued', runCount: 1, progressPct: 0 },
+  { id: 'un-3', keyword: 'Subsidi BBM', platforms: ['X', 'TikTok'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'failed', runCount: 1, progressPct: 0 },
+];
+
+/**
+ * Mock POST /api/admin/keyword/unscheduled (buat keyword on-demand).
+ * Daftarkan SETELAH `mockUnscheduledList` supaya menang untuk method POST
+ * (Playwright memberi prioritas ke route yang terakhir didaftarkan).
+ */
+export function mockCreateUnscheduled(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route('**/api/admin/keyword/unscheduled', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Failed to load data.' }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: { id: 'un-new', keyword: 'created', platforms: [], status: 'queued' },
+      }),
+    });
+  });
+}
+
+/**
+ * Mock PATCH /api/admin/keyword/scheduler/:id (edit scheduler keyword).
+ * Daftarkan SETELAH `mockSchedulerList` supaya menang untuk method PATCH.
+ */
+export function mockUpdateScheduler(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/api\/admin\/keyword\/scheduler\/[^/?]+$/, async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.continue();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Failed to load data.' }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'sch-1', keyword: 'updated', state: 'active' } }),
+    });
+  });
+}
+
+export function mockUnscheduledList(page: Page, items: MockUnscheduledItem[] = MOCK_UNSCHEDULED_ITEMS) {
+  return page.route('**/api/admin/keyword/unscheduled**', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    const url = new URL(route.request().url());
+    if (url.searchParams.get('history') === 'true') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+      return;
+    }
+    const keyword = url.searchParams.get('keyword') ?? '';
+    const status = url.searchParams.get('status') ?? '';
+    const pageNum = Number(url.searchParams.get('page') ?? 1);
+    const size = Number(url.searchParams.get('size') ?? 5);
+
+    const filtered = items.filter(
+      (item) =>
+        (!keyword || item.keyword.toLowerCase().includes(keyword.toLowerCase())) &&
+        (!status || status === 'all' || item.status === status),
+    );
+    const start = (pageNum - 1) * size;
+    const data = filtered.slice(start, start + size);
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data,
+        meta: {
+          page: pageNum,
+          size,
+          total: filtered.length,
+          totalPages: Math.max(1, Math.ceil(filtered.length / size)),
+          // Ringkasan statistik kartu tab On Demand (Total/Processing/Completed/Failed)
+          totalCount: items.length,
+          processingCount: items.filter((i) => i.status === 'queued' || i.status === 'processing').length,
+          completedCount: items.filter((i) => i.status === 'completed').length,
+          failedCount: items.filter((i) => i.status === 'failed' || i.status === 'cancelled').length,
+        },
+      }),
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Aksi On Demand: run history, detail, cancel, retry
+// ⚠️ Daftarkan SETELAH mockUnscheduledList supaya menang — Playwright memberi
+//    prioritas ke route yang paling terakhir didaftarkan.
+// ---------------------------------------------------------------------------
+
+export const MOCK_HISTORY_RUNS: MockUnscheduledItem[] = [
+  { id: 'run-2', keyword: 'Bantuan Sosial 2026', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: '2026-08-11T09:00:00.000Z', status: 'completed', runCount: 2, progressPct: 100 },
+  { id: 'run-1', keyword: 'Bantuan Sosial 2026', platforms: ['X'], periodLabel: 'Last 7 days', createdAt: '2026-08-04T09:00:00.000Z', status: 'failed', runCount: 2, progressPct: 0 },
+];
+
+/** Mock GET /unscheduled?keyword=...&history=true — daftar run untuk modal Run history. */
+export function mockUnscheduledHistory(page: Page, runs: MockUnscheduledItem[] = MOCK_HISTORY_RUNS) {
+  return page.route(/unscheduled.*history=true/, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: runs }),
+    });
+  });
+}
+
+/**
+ * Mock GET /unscheduled/:id — halaman detail keyword on-demand.
+ * Opsi `failFirst` membuat N request pertama gagal 500 lalu sukses
+ * (dipakai test error state + tombol Retry).
+ * Catatan: regex juga cocok dengan path /cancel & /retry — aman selama mock
+ * cancel/retry TIDAK didaftarkan bersamaan dengan mock ini (pola per-test
+ * saat ini: tiap test hanya mendaftarkan mock yang dipakainya).
+ */
+export function mockUnscheduledDetail(
+  page: Page,
+  item: MockUnscheduledItem,
+  { failFirst = 0 }: { failFirst?: number } = {},
+) {
+  let calls = 0;
+  return page.route(/\/api\/admin\/keyword\/unscheduled\/[^/?]+$/, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    calls += 1;
+    if (calls <= failFirst) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to load data.' }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: item }),
+    });
+  });
+}
+
+/** Mock POST /unscheduled/:id/cancel — aksi Cancel baris queued/processing. */
+export function mockCancelUnscheduled(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/api\/admin\/keyword\/unscheduled\/[^/?]+\/cancel$/, async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to load data.' }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'un-2', keyword: 'cancelled', platforms: [], status: 'cancelled' } }),
+    });
+  });
+}
+
+/** Mock POST /unscheduled/:id/retry — aksi Retry baris failed. */
+export function mockRetryUnscheduled(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/api\/admin\/keyword\/unscheduled\/[^/?]+\/retry$/, async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to load data.' }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'un-3', keyword: 'reprocessed', platforms: [], status: 'queued' } }),
+    });
+  });
+}
+
+/**
+ * Mock POST /api/auth/login — kredensial valid → token (dipakai test regresi
+ * login A1). Catatan: aplikasi saat ini belum memanggil endpoint ini; mock
+ * adalah jaring pengaman supaya fix login nanti (redirect ke dashboard)
+ * tidak bergantung pada API auth asli. Kontrak: redirect HARUS ke
+ * /monitoring/dashboard (lihat test REGRESI A1).
+ */
+export function mockAuthLogin(page: Page, { succeed = true }: { succeed?: boolean } = {}) {
+  return page.route('**/api/auth/login', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ message: 'Invalid credentials' }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: 'mock-jwt-token', user: { username: 'admin', role: 'Super Admin' } }),
+    });
+  });
+}
+
+/** Mock POST /api/profile/change-password — dipakai test form Change password (deterministik). */
+export function mockChangePassword(page: Page, { succeed = true }: { succeed?: boolean } = {}) {
+  return page.route('**/api/profile/change-password', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to change password.' }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Password changed successfully.' }),
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Admin user (halaman User Management)
+// ---------------------------------------------------------------------------
+
+export type MockUserItem = {
+  id: string;
+  username: string;
+  name: string;
+  role: 'Super Admin' | 'Manager' | 'Operator';
+  status: 'Active' | 'Inactive';
+};
+
+export const MOCK_USER_ITEMS: MockUserItem[] = [
+  { id: 'usr-001', username: 'admin', name: 'Super Admin', role: 'Super Admin', status: 'Active' },
+  { id: 'usr-002', username: 'siti.rahma', name: 'Siti Rahma', role: 'Operator', status: 'Active' },
+  { id: 'usr-003', username: 'budi.santoso', name: 'Budi Santoso', role: 'Manager', status: 'Active' },
+  { id: 'usr-004', username: 'dewi.lestari', name: 'Dewi Lestari', role: 'Operator', status: 'Inactive' },
+  { id: 'usr-005', username: 'agus.wijaya', name: 'Agus Wijaya', role: 'Manager', status: 'Active' },
+];
+
+/** Mock daftar user dengan filter query param (keyword/role/status). */
+export function mockUserList(page: Page, items: MockUserItem[] = MOCK_USER_ITEMS) {
+  return page.route('**/api/admin/user**', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    const url = new URL(route.request().url());
+    const keyword = url.searchParams.get('keyword') ?? '';
+    const role = url.searchParams.get('role') ?? '';
+    const status = url.searchParams.get('status') ?? '';
+    const pageNum = Number(url.searchParams.get('page') ?? 1);
+    const size = Number(url.searchParams.get('size') ?? 10);
+
+    const filtered = items.filter(
+      (item) =>
+        (!keyword ||
+          item.username.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.name.toLowerCase().includes(keyword.toLowerCase())) &&
+        (!role || role === 'all' || item.role === role) &&
+        (!status || status === 'all' || item.status === status),
+    );
+    const start = (pageNum - 1) * size;
+    const data = filtered.slice(start, start + size);
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data,
+        meta: { page: pageNum, size, total: filtered.length, totalPages: Math.max(1, Math.ceil(filtered.length / size)) },
+      }),
+    });
+  });
+}
