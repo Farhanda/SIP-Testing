@@ -14,6 +14,9 @@ out/
 # Test case Excel hasil generator
 test-cases/*.xlsx
 
+# Weekly developer report
+SIP_Weekly_Developer_Report*.xlsx
+
 # Lainnya
 *.log
 .DS_Store

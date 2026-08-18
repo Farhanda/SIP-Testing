@@ -1,4 +1,8 @@
 import { test, expect, apiUrl } from '../fixtures';
+import { loadJsonData } from '../../../src/helpers/data';
+
+// Kombinasi keyword x platform (data-driven, port dari eksplorasi 2026-08-18)
+const combos = loadJsonData<{ keyword: string; platform: string }[]>('be-dashboard-combos.json');
 
 /**
  * Test API Backend — endpoint baru (ditemukan saat eksplorasi ulang 2026-08-14):
@@ -171,5 +175,117 @@ test.describe('Dashboard Conversation Trend API', () => {
     const body = (await res.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe('invalid_request');
     expect(body.error.message).toContain('YYYY-MM-DD');
+  });
+});
+
+test.describe('Dashboard Conversation Trend — parameter lanjutan (data-driven & varian period)', () => {
+  // Data-driven: satu test per kombinasi keyword x platform (test-data/be-dashboard-combos.json)
+  for (const data of combos) {
+    test(`conversation-trend keyword "${data.keyword}" platform ${data.platform} → 200`, async ({ api }) => {
+      const res = await api.get(
+        apiUrl(`${TREND_PATH}?keyword=${encodeURIComponent(data.keyword)}&platform=${data.platform}&period=7d`),
+      );
+      expect(res.status()).toBe(200);
+
+      const body = (await res.json()) as TrendResponse;
+      expect(Array.isArray(body.data)).toBe(true);
+      for (const point of body.data) expectTrendPoint(point, 0);
+    });
+  }
+
+  test('conversation-trend period=24h → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TREND_PATH}?period=24h`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TrendResponse;
+    // Window 24 jam selalu menghasilkan 1-2 point (kemarin & hari ini)
+    expect(body.data.length).toBeGreaterThanOrEqual(1);
+    expect(body.data.length).toBeLessThanOrEqual(2);
+  });
+
+  test('conversation-trend period=3d → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TREND_PATH}?period=3d`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TrendResponse;
+    expect(body.data.length).toBeGreaterThanOrEqual(1);
+    expect(body.data.length).toBeLessThanOrEqual(4);
+  });
+
+  test('conversation-trend period=1y → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TREND_PATH}?period=1y`));
+    expect(res.status()).toBe(200);
+
+    // Window setahun → deret harian panjang (>= 31 hari)
+    expect((await res.json() as TrendResponse).data.length).toBeGreaterThanOrEqual(31);
+  });
+
+  test('conversation-trend period=2026-08-12 (date tunggal) → 200 & tepat 1 point', async ({ api }) => {
+    // Tanggal tunggal = window 1 hari → deret tepat 1 bucket
+    const res = await api.get(apiUrl(`${TREND_PATH}?period=2026-08-12`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TrendResponse;
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].date).toBe('2026-08-12');
+    // Seed dev punya 5 post pada 2026-08-12
+    expect(body.data[0].volume).toBeGreaterThanOrEqual(1);
+  });
+
+  test('conversation-trend period=2026-08-01/2026-08-18 (range) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TREND_PATH}?period=2026-08-01/2026-08-18`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TrendResponse;
+    expect(body.data.length).toBeGreaterThanOrEqual(15);
+    for (const point of body.data) expectTrendPoint(point, 0);
+  });
+
+  test('conversation-trend platform multi (comma-separated) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TREND_PATH}?platform=instagram,x`));
+    expect(res.status()).toBe(200);
+    expect((await res.json() as TrendResponse).data.length).toBeGreaterThan(0);
+  });
+
+  test('conversation-trend period=24h + keyword → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TREND_PATH}?period=24h&keyword=${KNOWN_KEYWORD}`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TrendResponse;
+    expect(body.data.length).toBeGreaterThanOrEqual(1);
+    expect(body.data.length).toBeLessThanOrEqual(2);
+  });
+});
+
+test.describe('Dashboard Conversation Trend Hourly — validasi lanjutan', () => {
+  test('conversation-trend-hourly date=7d (relative token) → 400', async ({ api }) => {
+    // date wajib SATU tanggal YYYY-MM-DD — token relatif ditolak
+    const res = await api.get(apiUrl(`${HOURLY_PATH}?date=7d`));
+    expect(res.status()).toBe(400);
+
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe('invalid_request');
+  });
+
+  test('conversation-trend-hourly date range → 400', async ({ api }) => {
+    // date range (A/B) bukan tanggal tunggal → ditolak
+    const res = await api.get(apiUrl(`${HOURLY_PATH}?date=2026-08-01/2026-08-02`));
+    expect(res.status()).toBe(400);
+
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe('invalid_request');
+  });
+
+  test('conversation-trend-hourly date tanpa data → 200 & 24 point nol', async ({ api }) => {
+    // 2026-01-01 jauh sebelum seed → semua bucket 0 (tetap 24 point)
+    const res = await api.get(apiUrl(`${HOURLY_PATH}?date=2026-01-01`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TrendResponse;
+    expect(body.data).toHaveLength(24);
+    for (const point of body.data) {
+      expect(point.volume).toBe(0);
+      expect(point.engagement).toBe(0);
+    }
   });
 });

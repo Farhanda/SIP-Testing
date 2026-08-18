@@ -1,6 +1,6 @@
 # Automation Web UI Testing — Playwright
 
-Automation **Web UI (E2E)** testing dengan **Playwright + TypeScript** untuk aplikasi **SIP Insight** (Next.js) yang berjalan di `http://localhost:3000`. Project ini adalah implementasi dari `PRD-Web-UI-Testing.md` (versi base) dan **konsisten dengan konvensi project API testing** (`Automation-Simulation-BE`): fixtures, data-driven, report HTML, generator Excel.
+Automation **Web UI (E2E)** testing dengan **Playwright + TypeScript** untuk aplikasi **SIP Insight** (Next.js) yang berjalan di `http://localhost:3000`. Project ini adalah implementasi dari `PRD-Web-UI-Testing.md` (versi base) dan menguji **3 target**: FE `localhost:3000`, BE `localhost:8080` (dashboard-service), dan AI `10.200.102.2:8100` — dengan konvensi fixtures, data-driven, report HTML, dan generator Excel.
 
 ## Fitur
 
@@ -145,6 +145,13 @@ generator Excel), `test-results/results-be.json` (BE, dibaca platform AI),
 dan `test-results/results-ai.json` (AI). Untuk Excel test case, jalankan run
 per platform (`npm run test:fe|be|ai`) lalu `npm run test-cases` agar kolom
 eksekusi terisi per platform-nya.
+
+> ⚠️ **`results.json` hanya ditulis oleh run FE lengkap (`npm run test:fe`).**
+> Run per project (`npm run test:smoke|login|dashboard|keyword|control|user|profile|headed`)
+> memakai `--reporter=list` sehingga **tidak menimpa** report FE — kalau tertimpa
+> run partial, generator Excel kehilangan status 52+ test case lain (warning
+> "TIDAK ter-map ke report"). Cukup jalankan `npm run test:fe` lalu
+> `npm run test-cases` untuk memulihkannya.
 
 ## Test Case dalam Format Excel
 

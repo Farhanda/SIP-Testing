@@ -87,13 +87,36 @@ const KPI_SUMMARY = {
   activePlatforms: { active: 3, total: 3 },
 };
 
+// Shape snake_case sesuai kontrak Go dashboard-service — app mengonversi ke
+// KPI_SUMMARY (camelCase) via transformResponse di src/services/dashboard.ts.
+const KPI_SUMMARY_API = {
+  total_post: { value: 2846, label: '2,846', delta_pct: 18.4, delta_direction: 'up' },
+  total_engagement: { value: 48200, label: '48.2K', delta_pct: 12.1, delta_direction: 'up' },
+  views: { value: 1240000, label: '1.24M', delta_pct: 24.8, delta_direction: 'up' },
+  engagement_rate: { value: 3.89, label: '3.89%', delta_pct: 0.4, delta_direction: 'down' },
+  active_platforms: { active: 3, total: 3 },
+};
+
 // ---------------------------------------------------------------------------
 // Handler per endpoint dashboard
 // ---------------------------------------------------------------------------
 
+/**
+ * Response per endpoint. Path dicocokkan terhadap DUA lapisan:
+ * - `/v1/dashboard/<ep>` — arsitektur baru: app memanggil Go dashboard-service
+ *   LANGSUNG via `env.dashboardApiUrl` (absolute URL, lihat src/services/dashboard.ts
+ *   — semua endpoint kecuali collection-summary memakai `${env.dashboardApiUrl}/...`).
+ * - `/api/dashboard/<ep>` — rute Next.js lama; masih dipakai collection-summary
+ *   (relative URL, baseUrl '/api/dashboard').
+ */
 function dashboardResponse(path: string, url: URL, keyword: string): unknown {
-  switch (path) {
-    case '/api/dashboard/trending-topic': {
+  // Normalisasi: ambil segmen terakhir (nama endpoint) — sama untuk
+  // '/v1/dashboard/summary' maupun '/api/dashboard/kpi-summary'.
+  const segments = path.split('/').filter(Boolean);
+  const ep = segments[segments.length - 1];
+
+  switch (ep) {
+    case 'trending-topic': {
       // UI mengirim period dengan huruf besar ('24H', '7D') — bandingkan
       // case-insensitive supaya 7 Days benar-benar menampilkan data 7d.
       const period = (url.searchParams.get('period') ?? '').toLowerCase();
@@ -102,7 +125,7 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
         meta: META(),
       };
     }
-    case '/api/dashboard/collection-summary':
+    case 'collection-summary':
       return {
         data: {
           // collectionId sengaja "menggema" keyword dari query param →
@@ -114,37 +137,50 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
         },
         meta: META(),
       };
-    case '/api/dashboard/kpi-summary':
-      return { data: KPI_SUMMARY, meta: META() };
-    case '/api/dashboard/emotion-map':
+    case 'kpi-summary':
+    case 'summary':
+      // ⚠️ KPI memakai shape snake_case (kontrak Go dashboard-service) — app
+      // mengonversi via transformResponse di src/services/dashboard.ts.
+      return { data: KPI_SUMMARY_API, meta: META() };
+    case 'emotion-map':
       // negative = 25 + 12 + 8 = 45 → protocol level "Alert" (30–49)
       return { data: { anger: 25, neutral: 30, fear: 12, joy: 25, sadness: 8 }, meta: META() };
-    case '/api/dashboard/sentiment-map':
+    case 'sentiment-map':
       return { data: { positive: 52, neutral: 30, negative: 18 }, meta: META() };
-    case '/api/dashboard/sentiment-trend':
+    case 'sentiment-trend':
       return { data: SENTIMENT_SERIES(), meta: META() };
-    case '/api/dashboard/sentiment-trend-hourly':
+    case 'sentiment-trend-hourly':
       return { data: HOURLY_SERIES(true), meta: META() };
-    case '/api/dashboard/conversation-trend':
+    case 'conversation-trend':
       return { data: TREND_SERIES(), meta: META() };
-    case '/api/dashboard/conversation-trend-hourly':
+    case 'conversation-trend-hourly':
       return { data: HOURLY_SERIES(false), meta: META() };
-    case '/api/dashboard/top-posts':
+    case 'top-posts':
       return { data: TOP_POSTS, meta: META() };
-    case '/api/dashboard/topic-intelligence':
-      return { data: TOPICS, meta: META() };
-    case '/api/dashboard/top-accounts':
+    case 'topic-intelligence': {
+      // Label sengaja "menggema" keyword dari query param → test data-driven
+      // bisa membuktikan filter terkirim & respons ter-render (kartu
+      // CollectionSummary yang dulu meng-echo sudah tidak dirender lagi).
+      return { data: TOPICS.map((t) => ({ ...t, label: `${keyword} — ${t.label}` })), meta: META() };
+    }
+    case 'top-accounts':
       return { data: TOP_ACCOUNTS, meta: META() };
-    case '/api/dashboard/top-hashtags':
+    case 'top-hashtags':
       return { data: TOP_HASHTAGS, meta: META() };
     default:
       return { data: {}, meta: META() };
   }
 }
 
-/** Mock seluruh endpoint `/api/dashboard/*` dengan data deterministik. */
+/**
+ * Mock seluruh endpoint dashboard dengan data deterministik.
+ *
+ * Mengintersep DUA pola URL:
+ * - Pola v1 (Go dashboard-service, absolute URL dari env.dashboardApiUrl).
+ * - Pola api/dashboard (rute Next.js lama — masih dipakai collection-summary).
+ */
 export function mockDashboardApis(page: Page) {
-  return page.route('**/api/dashboard/**', async (route) => {
+  return page.route(/\/v1\/dashboard\/[^?#]+|\/api\/dashboard\/[^?#]+/, async (route) => {
     const url = new URL(route.request().url());
     const keyword = url.searchParams.get('keyword') ?? 'mock-keyword';
     await route.fulfill({

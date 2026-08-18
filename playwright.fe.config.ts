@@ -57,6 +57,10 @@ export default defineConfig({
     timeout: Env.defaultTimeout,
   },
 
+  // PERHATIAN: results.json hanya boleh ditulis oleh run LENGKAP (npm run test:fe).
+  // Run per project (npm run test:smoke|login|dashboard|...) harus override reporter
+  // dengan `--reporter=list` (lihat package.json) supaya TIDAK menimpa report FE
+  // lengkap — kalau tertimpa, generator Excel kehilangan status 52 test case lain.
   reporter: [
     ['list'],
     // Report HTML (FR-21) — buka dengan `npm run report:fe`

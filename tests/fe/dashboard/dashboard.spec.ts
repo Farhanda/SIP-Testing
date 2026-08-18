@@ -73,11 +73,14 @@ test.describe('Dashboard', () => {
 
       // Hasil tampil: heading kartu + data dari mock benar-benar ter-render
       await dashboardPage.expectResultsRendered();
-      // collectionId di mock "menggema" keyword dari query param → bukti filter
-      // terkirim & respons ter-render. UI mengirim SLUG (code) sebagai keyword,
-      // jadi CollectionSummaryCard merender "Collection #SIP-<code>"
-      // (mis. "Collection #SIP-layanan-publik").
-      await dashboardPage.expectTextVisible(`Collection #SIP-${data.code}`);
+      // Mock topic-intelligence "menggema" keyword dari query param ke label
+      // chart (aria-label, mis. "layanan-publik — Layanan publik: 72% (640 post)")
+      // → bukti filter terkirim & respons ter-render. UI mengirim SLUG (code)
+      // sebagai keyword. (Kartu CollectionSummary yang dulu meng-echo keyword
+      // sudah dihapus dari dashboard — diganti echo di chart ini.)
+      await expect(
+        dashboardPage.page.getByRole('img', { name: new RegExp(`${data.code} —` ) }),
+      ).toBeVisible();
     });
   }
 
@@ -110,12 +113,20 @@ test.describe('Dashboard', () => {
     await dashboardPage.expectResultsRendered();
     await expect(dashboardPage.topPerformersHeading).toBeVisible();
 
+    // Hide/Show punya DUA tombol di halaman (Search filters & Top Performers,
+    // lihat index.tsx line 420 & 643) — scope ke tombol di dalam div header
+    // Top Performers (heading + tombol adalah sibling) supaya unik:
+    // naik satu level dari heading (parent div-nya), lalu cari tombol di sana.
+    const topPerformersHeader = dashboardPage.topPerformersHeading.locator('..');
+    const toggleButton = (name: 'Hide' | 'Show') =>
+      topPerformersHeader.getByRole('button', { name });
+
     // Hide
-    await dashboardPage.page.getByRole('button', { name: 'Hide' }).click();
-    await expect(dashboardPage.page.getByRole('button', { name: 'Show' })).toBeVisible();
+    await toggleButton('Hide').click();
+    await expect(toggleButton('Show')).toBeVisible();
 
     // Show kembali
-    await dashboardPage.page.getByRole('button', { name: 'Show' }).click();
-    await expect(dashboardPage.page.getByRole('button', { name: 'Hide' })).toBeVisible();
+    await toggleButton('Show').click();
+    await expect(toggleButton('Hide')).toBeVisible();
   });
 });

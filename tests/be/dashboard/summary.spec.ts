@@ -1,4 +1,8 @@
 import { test, expect, apiUrl } from '../fixtures';
+import { loadJsonData } from '../../../src/helpers/data';
+
+// Kombinasi keyword x platform (data-driven, port dari eksplorasi 2026-08-18)
+const combos = loadJsonData<{ keyword: string; platform: string }[]>('be-dashboard-combos.json');
 
 /**
  * Contoh test API Backend (platform BE).
@@ -129,5 +133,120 @@ test.describe('Dashboard Summary API', () => {
     // (respons 404 yang wajar, bukan hang / 500).
     const res = await api.get(apiUrl('/v1/endpoint-belum-ada'));
     expect(res.status()).toBe(404);
+  });
+});
+
+test.describe('Dashboard Summary — parameter lanjutan (data-driven & varian period)', () => {
+  // KPI lengkap: 4 kartu metrik + active_platforms + generated_at ISO UTC.
+  function expectKpis(body: DashboardSummaryResponse) {
+    for (const key of METRIC_KEYS) {
+      expect(body.data[key], `data.${key} harus ada`).toBeTruthy();
+    }
+    expect(body.data.active_platforms).toBeTruthy();
+    expect(body.data.active_platforms.total).toBe(3); // x, instagram, tiktok
+    expect(body.meta.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/);
+  }
+
+  // Data-driven: satu test per kombinasi keyword x platform (test-data/be-dashboard-combos.json)
+  for (const data of combos) {
+    test(`summary keyword "${data.keyword}" platform ${data.platform} → 200 & total_post >= 1`, async ({ api }) => {
+      const res = await api.get(
+        apiUrl(`${SUMMARY_PATH}?keyword=${encodeURIComponent(data.keyword)}&platform=${data.platform}`),
+      );
+      expect(res.status()).toBe(200);
+
+      const body = (await res.json()) as DashboardSummaryResponse;
+      expectKpis(body);
+      // Setiap (keyword, platform) di seed dev punya minimal 1 post
+      expect(body.data.total_post.value).toBeGreaterThanOrEqual(1);
+    });
+  }
+
+  test('summary period=7d → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?period=7d`));
+    expect(res.status()).toBe(200);
+    expectKpis((await res.json()) as DashboardSummaryResponse);
+  });
+
+  test('summary period=3d → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?period=3d`));
+    expect(res.status()).toBe(200);
+    expectKpis((await res.json()) as DashboardSummaryResponse);
+  });
+
+  test('summary period=1y → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?period=1y`));
+    expect(res.status()).toBe(200);
+    expectKpis((await res.json()) as DashboardSummaryResponse);
+  });
+
+  test('summary period=2026-08-12 (date tunggal) → 200 & ada data', async ({ api }) => {
+    // Period tanggal tunggal = window 1 hari [2026-08-12, 2026-08-13)
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?period=2026-08-12`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as DashboardSummaryResponse;
+    expectKpis(body);
+    expect(body.data.total_post.value).toBeGreaterThanOrEqual(1);
+  });
+
+  test('summary period=2026-08-01/2026-08-18 (range) → 200', async ({ api }) => {
+    // Custom range [from, to) — setengah terbuka: post di to tidak dihitung
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?period=2026-08-01/2026-08-18`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as DashboardSummaryResponse;
+    expectKpis(body);
+    expect(body.data.total_post.value).toBeGreaterThanOrEqual(10);
+  });
+
+  test('summary platform multi (comma-separated) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?platform=instagram,x`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as DashboardSummaryResponse;
+    expectKpis(body);
+    expect(body.data.total_post.value).toBeGreaterThanOrEqual(10);
+  });
+
+  test('summary period tidak valid → 200 (fallback default 1m)', async ({ api }) => {
+    // Kontrak: period malformed fallback ke "1m", BUKAN error 400
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?period=999d`));
+    expect(res.status()).toBe(200);
+    expectKpis((await res.json()) as DashboardSummaryResponse);
+  });
+
+  test('summary platform tidak dikenal → 200 (lenient, tanpa error)', async ({ api }) => {
+    // Platform tidak divalidasi: filter tidak cocok → 200 dengan nilai nol
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?platform=facebook`));
+    expect(res.status()).toBe(200);
+    expectKpis((await res.json()) as DashboardSummaryResponse);
+  });
+
+  test('summary keyword tanpa data → 200 dengan nilai nol (bukan 404)', async ({ api }) => {
+    // Beda dari mock service lama (yang 404): dashboard-service balas 200 + nol
+    const res = await api.get(apiUrl(`${SUMMARY_PATH}?keyword=query_tidak_ada`));
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as DashboardSummaryResponse;
+    expect(body.data.total_post.value).toBe(0);
+  });
+
+  test('summary format label KPI konsisten (value ↔ label)', async ({ api }) => {
+    const res = await api.get(apiUrl(SUMMARY_PATH));
+    expect(res.status()).toBe(200);
+
+    const d = (await res.json() as DashboardSummaryResponse).data;
+    // label total_post = integer thousand-grouped ("18", "2,846")
+    expect(d.total_post.label).toMatch(/^[\d,]+$/);
+    // label views = count / K / M ("2.17M", "1,240")
+    expect(d.views.label).toMatch(/^[\d.,]+[KM]?$/);
+    // label engagement_rate = persen 2 desimal ("2.78%")
+    expect(d.engagement_rate.label).toMatch(/^\d+\.\d{2}%$/);
+    // arah delta selalu salah satu dari up/down/flat
+    for (const m of [d.total_post, d.total_engagement, d.views, d.engagement_rate]) {
+      expect(['up', 'down', 'flat']).toContain(m.delta_direction);
+      expect(typeof m.delta_pct).toBe('number');
+    }
   });
 });
