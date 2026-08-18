@@ -114,6 +114,30 @@ test.describe('Dashboard — GET /v1/dashboard/topic-intelligence', () => {
     expect(Array.isArray((await res.json() as TopicIntelligenceResponse).data)).toBe(true);
   });
 
+  test('topic-intelligence period=3d → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOPIC_PATH}?period=3d`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopicIntelligenceResponse).data)).toBe(true);
+  });
+
+  test('topic-intelligence period=1y → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOPIC_PATH}?period=1y`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopicIntelligenceResponse).data)).toBe(true);
+  });
+
+  test('topic-intelligence period date tunggal (2026-08-12) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOPIC_PATH}?period=2026-08-12`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopicIntelligenceResponse).data)).toBe(true);
+  });
+
+  test('topic-intelligence period range (2026-08-01/2026-08-18) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOPIC_PATH}?period=2026-08-01/2026-08-18`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopicIntelligenceResponse).data)).toBe(true);
+  });
+
   test('topic-intelligence platform multi (comma-separated) → 200', async ({ api }) => {
     const res = await api.get(apiUrl(`${TOPIC_PATH}?platform=instagram,x`));
     expect(res.status()).toBe(200);

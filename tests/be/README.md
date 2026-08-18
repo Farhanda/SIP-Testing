@@ -58,6 +58,14 @@ topic-intelligence-detail** ditambahkan saat eksplorasi ulang):
 > hanya keyword/topic/platform/period yang memengaruhi scope stats, jadi nilai
 > yang tidak cocok pun tetap 200 (posts kosong), bukan 404.
 
+> ✅ **Coverage parameter Swagger (2026-08-18):** audit ulang `swagger/doc.json`
+> — 10 endpoint aktif, semua sudah di-test. Kekosongan yang ditutup di sesi ini:
+> **top-accounts/hashtags/posts** kini diuji dengan `period=7d`, `period range
+> (date/date)`, dan `platform multi (comma-separated)` (sebelumnya hanya
+> filter tunggal) — 9 test baru (TC-BE-D94–D102); **topic-intelligence** kini
+> diuji dengan `period=3d/1y/date tunggal/range` — 4 test baru
+> (TC-BE-D103–D106). Total 108 case (Health 2 · Dashboard 106).
+
 ### ⚠️ GAP: endpoint dipanggil FE tapi belum ada di Go (dokumentasi audit FE↔BE 2026-08-18)
 
 FE dashboard (`localhost:3000`) memanggil 5 endpoint ini langsung ke

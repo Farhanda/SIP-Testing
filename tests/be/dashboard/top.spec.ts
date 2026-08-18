@@ -90,6 +90,24 @@ test.describe('Dashboard — GET /v1/dashboard/top-accounts', () => {
     expect(res.status()).toBe(200);
     expect(Array.isArray((await res.json() as TopAccountsResponse).data)).toBe(true);
   });
+
+  test('top-accounts period=7d → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_ACCOUNTS_PATH}?period=7d`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopAccountsResponse).data)).toBe(true);
+  });
+
+  test('top-accounts period range (date/date) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_ACCOUNTS_PATH}?period=2026-08-01/2026-08-18`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopAccountsResponse).data)).toBe(true);
+  });
+
+  test('top-accounts platform multi (comma-separated) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_ACCOUNTS_PATH}?platform=instagram,x`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopAccountsResponse).data)).toBe(true);
+  });
 });
 
 test.describe('Dashboard — GET /v1/dashboard/top-hashtags', () => {
@@ -132,6 +150,24 @@ test.describe('Dashboard — GET /v1/dashboard/top-hashtags', () => {
 
   test('top-hashtags filter platform → 200', async ({ api }) => {
     const res = await api.get(apiUrl(`${TOP_HASHTAGS_PATH}?platform=instagram`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopHashtagsResponse).data)).toBe(true);
+  });
+
+  test('top-hashtags period=7d → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_HASHTAGS_PATH}?period=7d`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopHashtagsResponse).data)).toBe(true);
+  });
+
+  test('top-hashtags period range (date/date) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_HASHTAGS_PATH}?period=2026-08-01/2026-08-18`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopHashtagsResponse).data)).toBe(true);
+  });
+
+  test('top-hashtags platform multi (comma-separated) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_HASHTAGS_PATH}?platform=instagram,x`));
     expect(res.status()).toBe(200);
     expect(Array.isArray((await res.json() as TopHashtagsResponse).data)).toBe(true);
   });
@@ -188,5 +224,23 @@ test.describe('Dashboard — GET /v1/dashboard/top-posts', () => {
     for (const item of body.data) {
       expect(item.platform).toBe('TikTok');
     }
+  });
+
+  test('top-posts period=7d → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_POSTS_PATH}?period=7d`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopPostsResponse).data)).toBe(true);
+  });
+
+  test('top-posts period range (date/date) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_POSTS_PATH}?period=2026-08-01/2026-08-18`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopPostsResponse).data)).toBe(true);
+  });
+
+  test('top-posts platform multi (comma-separated) → 200', async ({ api }) => {
+    const res = await api.get(apiUrl(`${TOP_POSTS_PATH}?platform=instagram,x`));
+    expect(res.status()).toBe(200);
+    expect(Array.isArray((await res.json() as TopPostsResponse).data)).toBe(true);
   });
 });
