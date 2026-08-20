@@ -7,7 +7,7 @@ import { BasePage } from './BasePage';
  * (keyword sekali-jalan), masing-masing dengan filter & tabel.
  */
 export class KeywordPage extends BasePage {
-  readonly heading = this.page.getByRole('heading', { name: 'Monitoring Keyword' });
+  readonly heading = this.page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ });
   readonly tabScheduled = this.page.getByRole('tab', { name: 'Scheduled' });
   readonly tabOnDemand = this.page.getByRole('tab', { name: 'On Demand' });
   readonly searchInput = this.page.getByPlaceholder('Search keyword');

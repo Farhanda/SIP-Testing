@@ -26,6 +26,20 @@ export class DashboardPage extends BasePage {
   readonly contentGroupHeading = this.page.getByRole('heading', { name: 'Content Intelligence' });
   readonly topPerformersHeading = this.page.getByRole('heading', { name: 'Top Performers' });
 
+  // Kartu Top Posts (table dari API BE — GET /v1/dashboard/top-posts)
+  readonly topPostsHeading = this.page.getByRole('heading', { name: 'Top posts' });
+  readonly topPostsTable = this.page.locator('table');
+  readonly viewAllButton = this.page.getByRole('button', { name: 'View all →' });
+
+  // Kartu Top Accounts (daftar dari API BE — GET /v1/dashboard/top-accounts)
+  readonly topAccountsHeading = this.page.getByRole('heading', { name: 'Top accounts' });
+
+  // Kartu Top Hashtags (daftar dari API BE — GET /v1/dashboard/top-hashtags)
+  readonly topHashtagsHeading = this.page.getByRole('heading', { name: 'Top hashtags' });
+
+  // Kartu Topic Intelligence (chart dari API BE — GET /v1/dashboard/topic-intelligence)
+  readonly topicIntelligenceHeading = this.page.getByRole('heading', { name: 'Topic intelligence' });
+
   // Kartu KPI (data dari API BE — GET /v1/dashboard/summary)
   // Struktur DOM: satu <article> per metrik berisi label + nilai.
   readonly totalPostCard = this.page.locator('article').filter({ hasText: 'Total post' }).first();

@@ -1,94 +1,134 @@
 import { test, expect, apiUrl } from '../fixtures';
 
 /**
- * Test API Backend — GAP: endpoint yang DIPANGGIL FE dashboard tapi BELUM
- * ada di dashboard-service (Go, port 8080).
+ * Test API Backend — endpoint yang sebelumnya GAP (404) kini SUDAH
+ * diimplementasikan di dashboard-service (Go, port 8080).
  *
- * Audit integrasi FE↔BE 2026-08-18: sejak FE di-integrasikan langsung ke
- * dashboard-service (`env.dashboardApiUrl = http://localhost:8080/v1/dashboard`),
- * halaman dashboard memanggil 5 endpoint ini — tetapi TIDAK terdaftar di
- * router Go (`internal/bootstrap/http.go`) sehingga saat ini balas 404.
+ * Audit integrasi FE↔BE 2026-08-18: 5 endpoint dipanggil FE tapi tidak
+ * ada di router Go → semua 404. Pada 2026-08-20, keenamnya sudah aktif.
+ * Test ini diupdate menjadi regression guard (ekspektasi 200 + struktur).
  *
- *   Endpoint (dipanggil src/services/dashboard.ts)   Status saat ini
+ *   Endpoint                                  Status lama → baru
  *   ----------------------------------------------------------------
- *   /v1/dashboard/trending-topic?period=24H|7D        404 (FE: trending topic gagal)
- *   /v1/dashboard/emotion-map                          404 (FE: kartu Emotion map error)
- *   /v1/dashboard/sentiment-map                        404 (FE: kartu Sentiment map error)
- *   /v1/dashboard/sentiment-trend                      404 (FE: kartu Sentiment trend error)
- *   /v1/dashboard/sentiment-trend-hourly               404 (FE: detail hourly error)
- *
- * Konsekuensi di FE: kartu tersebut menampilkan error state
- * ("Failed to load ...") — terlihat di dashboard localhost:3000.
- *
- * Test di bawah MENDOKUMENTASIKAN gap tersebut: ekspektasi saat ini 404
- * (respons wajar, bukan hang/500). Begitu endpoint diimplementasikan di Go,
- * test ini HARUS diperbarui ke ekspektasi 200 + struktur respons agar tetap
- * menjadi regression guard. Kontrak yang diharapkan FE (lihat
- * src/types/dashboard.ts di Front-End):
- *   - trending-topic     → { data: [{ id, topic, volume, delta }], meta: { period, total, generated_at } }
- *   - emotion-map        → { data: { anger, neutral, fear, joy, sadness }, meta }
- *   - sentiment-map      → { data: { positive, neutral, negative }, meta }
- *   - sentiment-trend    → { data: [{ date, label, positive, negative }], meta }
- *   - sentiment-trend-hourly → { data: [{ hour, label, positive, negative }], meta: { date } }
+ *   /v1/dashboard/trending-topic              404 → 200 ✅
+ *   /v1/dashboard/emotion-map                 404 → 200 ✅
+ *   /v1/dashboard/sentiment-map               404 → 200 ✅
+ *   /v1/dashboard/sentiment-trend             404 → 200 ✅
+ *   /v1/dashboard/sentiment-trend-hourly      404 → 200 ✅
  */
 
-const GAP_ENDPOINTS = [
-  {
-    path: '/v1/dashboard/trending-topic?period=7D',
-    label: 'trending-topic',
-    expectedShape: '{ data: [{ id, topic, volume, delta }], meta: { period, total, generated_at } }',
-  },
-  {
-    path: '/v1/dashboard/emotion-map?keyword=layanan-publik&period=7d',
-    label: 'emotion-map',
-    expectedShape: '{ data: { anger, neutral, fear, joy, sadness }, meta: { generated_at } }',
-  },
-  {
-    path: '/v1/dashboard/sentiment-map?keyword=layanan-publik&period=7d',
-    label: 'sentiment-map',
-    expectedShape: '{ data: { positive, neutral, negative }, meta: { generated_at } }',
-  },
-  {
-    path: '/v1/dashboard/sentiment-trend?keyword=layanan-publik&period=7d',
-    label: 'sentiment-trend',
-    expectedShape: '{ data: [{ date, label, positive, negative }], meta: { generated_at } }',
-  },
-  {
-    path: '/v1/dashboard/sentiment-trend-hourly?keyword=layanan-publik&period=7d&date=2026-08-18',
-    label: 'sentiment-trend-hourly',
-    expectedShape: '{ data: [{ hour, label, positive, negative }], meta: { generated_at, date } }',
-  },
-];
+test.describe('Dashboard — ex-GAP endpoints (sudah diimplementasikan di Go)', () => {
+  test('GET /v1/dashboard/trending-topic?period=7D → 200, struktur valid', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/trending-topic?period=7D'));
+    expect(res.status()).toBe(200);
 
-test.describe('Dashboard — GAP endpoint (dipanggil FE, belum ada di Go service)', () => {
-  for (const ep of GAP_ENDPOINTS) {
-    test(`GET ${ep.path.split('?')[0]} → 404 (endpoint belum diimplementasikan di Go)`, async ({ api }) => {
-      // ⚠️ Gap dokumentasi: FE memanggil endpoint ini; Go belum punya router-nya.
-      // Ekspektasi saat ini = 404 (respons wajar, bukan hang/500).
-      const res = await api.get(apiUrl(ep.path));
-      expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('meta');
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.meta.period).toBe('7D');
+    expect(typeof body.meta.total).toBe('number');
+    expect(typeof body.meta.generated_at).toBe('string');
 
-      // Body 404 Go saat ini: plain text "404 page not found" — bukan JSON error.
-      const text = await res.text();
-      expect(text).toContain('404');
-    });
-  }
-
-  test('semua endpoint GAP konsisten: 404 tanpa hang (respons cepat, bukan 500)', async ({ api }) => {
-    // Satu test agregat sebagai smoke — memastikan 5 endpoint GAP semuanya
-    // 404 dengan cepat (tidak ada yang hang / crash ke 500).
-    for (const ep of GAP_ENDPOINTS) {
-      const started = Date.now();
-      const res = await api.get(apiUrl(ep.path));
-      expect(res.status(), `${ep.label} harus 404`).toBe(404);
-      expect(Date.now() - started, `${ep.label} harus merespons cepat`).toBeLessThan(5000);
+    // Validasi shape item jika ada data
+    for (const item of body.data) {
+      expect(typeof item.id).toBe('string');
+      expect(typeof item.topic).toBe('string');
+      expect(typeof item.volume).toBe('number');
+      expect(typeof item.delta).toBe('string');
     }
   });
 
-  test('trending-topic tanpa param period → 404 (belum ada; kontrak FE: default 24H)', async ({ api }) => {
-    // FE selalu mengirim period ('24H' | '7D'); tanpa param pun endpoint ini
-    // belum ada di Go → tetap 404 sampai diimplementasikan.
+  test('GET /v1/dashboard/emotion-map → 200, data punya 5 emotion fields', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/emotion-map'));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('meta');
+
+    const d = body.data;
+    expect(typeof d.anger).toBe('number');
+    expect(typeof d.neutral).toBe('number');
+    expect(typeof d.fear).toBe('number');
+    expect(typeof d.joy).toBe('number');
+    expect(typeof d.sadness).toBe('number');
+    expect(body.meta.generated_at).toBeTruthy();
+  });
+
+  test('GET /v1/dashboard/sentiment-map → 200, data punya 3 sentiment fields', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/sentiment-map'));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('meta');
+
+    const d = body.data;
+    expect(typeof d.positive).toBe('number');
+    expect(typeof d.neutral).toBe('number');
+    expect(typeof d.negative).toBe('number');
+    expect(body.meta.generated_at).toBeTruthy();
+  });
+
+  test('GET /v1/dashboard/sentiment-trend → 200, data berupa array of points', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/sentiment-trend'));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.meta.generated_at).toBeTruthy();
+
+    // Minimal ada 1 point jika ada data di DB
+    if (body.data.length > 0) {
+      const p = body.data[0];
+      expect(typeof p.date).toBe('string');
+      expect(typeof p.label).toBe('string');
+      expect(typeof p.positive).toBe('number');
+      expect(typeof p.negative).toBe('number');
+    }
+  });
+
+  test('GET /v1/dashboard/sentiment-trend-hourly?date=2026-08-20 → 200, 24 points', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/sentiment-trend-hourly?date=2026-08-20'));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data).toHaveLength(24);
+    expect(body.meta.date).toBe('2026-08-20');
+    expect(body.meta.generated_at).toBeTruthy();
+
+    // Tiap point punya hour, label, positive, negative
+    for (const p of body.data) {
+      expect(typeof p.hour).toBe('string');
+      expect(typeof p.label).toBe('string');
+      expect(typeof p.positive).toBe('number');
+      expect(typeof p.negative).toBe('number');
+    }
+  });
+
+  test('semua ex-GAP endpoints konsisten: 200 tanpa hang (respons cepat)', async ({ api }) => {
+    const endpoints = [
+      '/v1/dashboard/trending-topic?period=24H',
+      '/v1/dashboard/emotion-map',
+      '/v1/dashboard/sentiment-map',
+      '/v1/dashboard/sentiment-trend',
+      '/v1/dashboard/sentiment-trend-hourly?date=2026-08-20',
+    ];
+    for (const ep of endpoints) {
+      const started = Date.now();
+      const res = await api.get(apiUrl(ep));
+      expect(res.status(), `${ep} harus 200`).toBe(200);
+      expect(Date.now() - started, `${ep} harus merespons cepat`).toBeLessThan(5000);
+    }
+  });
+
+  test('trending-topic tanpa param period → 200 & fallback ke 24H', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/trending-topic'));
-    expect(res.status()).toBe(404);
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(body.meta.period).toBe('24H');
   });
 });

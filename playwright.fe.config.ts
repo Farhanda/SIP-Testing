@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import { Env } from './src/config/env';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 /**
  * Konfigurasi Web UI testing (platform FE) — multi-project per modul halaman

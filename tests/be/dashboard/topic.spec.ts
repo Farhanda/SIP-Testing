@@ -63,7 +63,7 @@ interface ErrorBody {
 
 const TOPIC_PATH = '/v1/dashboard/topic-intelligence';
 const TOPIC_DETAIL_PATH = '/v1/dashboard/topic-intelligence-detail';
-const KNOWN_KEYWORD = 'kebijakan-ekonomi'; // keyword dengan data di BE
+const KNOWN_KEYWORD = 'RUU Digital'; // keyword dengan data di BE
 // Topic yang ADA di seed dev dashboard-service (scraped_contents.topic)
 const EXISTING_TOPIC = 'Ekonomi';
 
@@ -201,7 +201,7 @@ test.describe('Dashboard — GET /v1/dashboard/topic-intelligence-detail', () =>
   test('topic-intelligence-detail keyword tidak cocok → 404', async ({ api }) => {
     // Topic valid tapi scope keyword/platform/period kosong → dianggap tidak ada
     const res = await api.get(
-      apiUrl(`${TOPIC_DETAIL_PATH}?topic=${EXISTING_TOPIC}&keyword=transformasi-layanan-publik`),
+      apiUrl(`${TOPIC_DETAIL_PATH}?topic=${EXISTING_TOPIC}&keyword=Ketenagakerjaan`),
     );
     expect(res.status()).toBe(404);
     expect((await res.json() as ErrorBody).error.code).toBe('not_found');

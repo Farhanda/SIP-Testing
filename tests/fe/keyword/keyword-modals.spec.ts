@@ -123,10 +123,10 @@ test.describe('Monitoring Keyword — Modal', () => {
       await mockSchedulerList(keywordPage.page);
       await keywordPage.goto();
 
-      await keywordPage.openEditModal('SIP Indonesia');
+      await keywordPage.openEditModal('RUU Digital');
 
       // Data baris ter-prefill
-      await expect(keywordPage.editKeywordInput).toHaveValue('SIP Indonesia');
+      await expect(keywordPage.editKeywordInput).toHaveValue('RUU Digital');
       for (const platform of ['X', 'Instagram', 'TikTok']) {
         await expect(keywordPage.platformCheckbox(platform)).toBeChecked();
       }
@@ -141,13 +141,13 @@ test.describe('Monitoring Keyword — Modal', () => {
       await mockUpdateScheduler(keywordPage.page, { succeed: true });
       await keywordPage.goto();
 
-      await keywordPage.openEditModal('SIP Indonesia');
+      await keywordPage.openEditModal('RUU Digital');
 
       // Skenario 1 — platform kosong (keyword terisi) → validasi JS (silent return)
       await keywordPage.deselectAllPlatforms();
       await keywordPage.saveEdit();
       await keywordPage.expectEditModalOpen(true);
-      await keywordPage.expectToast('Keyword "SIP Indonesia" updated successfully.', false);
+      await keywordPage.expectToast('Keyword "RUU Digital" updated successfully.', false);
 
       // Skenario 2 — keyword kosong (input required) → submit tetap diblokir
       for (const platform of ['X', 'Instagram', 'TikTok']) {
@@ -172,18 +172,18 @@ test.describe('Monitoring Keyword — Modal', () => {
         }
       });
 
-      await keywordPage.openEditModal('SIP Indonesia');
-      await keywordPage.editKeywordInput.fill('SIP Indonesia Baru');
+      await keywordPage.openEditModal('RUU Digital');
+      await keywordPage.editKeywordInput.fill('RUU Digital Baru');
       await keywordPage.editFrequencySelect.selectOption('30');
       await keywordPage.saveEdit();
 
-      await keywordPage.expectToast('Keyword "SIP Indonesia Baru" updated successfully.', true);
+      await keywordPage.expectToast('Keyword "RUU Digital Baru" updated successfully.', true);
       await keywordPage.expectEditModalOpen(false);
 
       // Parameter yang dikirim ke API benar — UI sekarang mengirim slug
       // lowercase (x/instagram/tiktok), bukan label (dicek 2026-08-14).
       expect(patchBody).toEqual({
-        keyword: 'SIP Indonesia Baru',
+        keyword: 'RUU Digital Baru',
         platforms: ['x', 'instagram', 'tiktok'],
         cron: 'Every 30 minutes',
       });

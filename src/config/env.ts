@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 /**
  * Konfigurasi terpusat yang dibaca dari .env.
@@ -8,8 +8,8 @@ dotenv.config();
  * (pola sama dengan src/config/env.ts di project API testing).
  */
 export const Env = {
-  // Base URL aplikasi web target
-  baseUrl: process.env.BASE_URL_UI ?? 'http://localhost:3000',
+  // Base URL aplikasi web target (deployed)
+  baseUrl: process.env.BASE_URL_UI ?? 'http://10.200.101.13:3000',
 
   // Daftar browser: "chromium" (default) | "firefox" | "webkit"
   browsers: (process.env.UI_BROWSERS ?? 'chromium')
@@ -27,14 +27,14 @@ export const Env = {
   defaultTimeout: Number(process.env.UI_TIMEOUT ?? 15000),
 
   // ----- Backend API (testing platform BE & AI) -----
-  // Base URL API backend target (BE lokal, mis. http://localhost:8080)
-  beBaseUrl: process.env.BASE_URL_BE ?? 'http://localhost:8080',
+  // Base URL API backend target (deployed)
+  beBaseUrl: process.env.BASE_URL_BE ?? 'http://10.200.101.13:8091',
 
   // Prefiks versi API backend (default /v1)
   beApiPrefix: process.env.BE_API_PREFIX ?? '/v1',
 
   // ----- AI Service (SIP AI Service, platform AI) -----
-  // Base URL service AI (mis. http://10.200.102.2:8100)
+  // Base URL service AI (deployed)
   aiBaseUrl: process.env.BASE_URL_AI ?? 'http://10.200.102.2:8100',
 
   // Token service AI — dikirim via header X-Service-Token (semua endpoint

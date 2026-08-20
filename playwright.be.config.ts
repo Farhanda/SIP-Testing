@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 import dotenv from 'dotenv';
 import { Env } from './src/config/env';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 /**
  * Konfigurasi testing API Backend (platform BE).

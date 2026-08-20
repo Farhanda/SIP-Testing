@@ -1,4 +1,5 @@
 [
-  { "keyword": "Layanan Publik", "code": "layanan-publik" },
-  { "keyword": "Edukasi Digital", "code": "edukasi-digital" }
+  { "keyword": "RUU Digital", "code": "ruu-digital" },
+  { "keyword": "BPJS Kesehatan", "code": "bpjs-kesehatan" },
+  { "keyword": "Ketenagakerjaan", "code": "ketenagakerjaan" }
 ]

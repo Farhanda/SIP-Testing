@@ -198,7 +198,7 @@ export function mockDashboardApis(page: Page) {
  *   { data: [{ id, code, name }] }  — mis. { id: "kw-002", code: "layanan-publik", name: "Layanan Publik" }
  * (Dulu mock memakai field `keyword`; UI sekarang membaca `code` + `name`.)
  */
-export function mockKeywordOptions(page: Page, keywords: string[] = ['Layanan Publik', 'Edukasi Digital']) {
+export function mockKeywordOptions(page: Page, keywords: string[] = ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']) {
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return page.route('**/api/admin/keyword/as-option-list', async (route) => {
     await route.fulfill({
@@ -228,11 +228,11 @@ export const MOCK_SCHEDULER_ITEMS: MockSchedulerItem[] = [
   // Platform pakai LABEL (X/Instagram/TikTok) — UI menampilkan label ini.
   // Filter di bawah membandingkan case-insensitive karena UI mengirim slug
   // lowercase (x/instagram/tiktok) sebagai query param (dicek 2026-08-14).
-  { id: 'sch-1', keyword: 'SIP Indonesia', platforms: ['X', 'Instagram', 'TikTok'], meta: 'Last: Today, 09:00 · Next: 10:00', cron: 'Every 1 hour', state: 'active' },
-  { id: 'sch-2', keyword: 'Layanan Publik', platforms: ['X', 'TikTok'], meta: 'Last: Today, 08:30 · Next: 12:30', cron: 'Every 4 hours', state: 'active' },
-  { id: 'sch-3', keyword: 'Transformasi Digital', platforms: ['Instagram', 'TikTok'], meta: 'Held by manual job', cron: 'Every 2 hours', state: 'hold' },
-  { id: 'sch-4', keyword: 'Ekonomi Kreatif', platforms: ['X', 'Instagram'], meta: 'Last: Yesterday, 20:00 · Next: Today, 20:00', cron: 'Every day', state: 'active' },
-  { id: 'sch-5', keyword: 'Isu Pendidikan', platforms: ['X'], meta: 'Last: Aug 01, 09:00 · Next: paused', cron: 'Every 6 hours', state: 'hold' },
+  { id: 'sch-1', keyword: 'RUU Digital', platforms: ['X', 'Instagram', 'TikTok'], meta: 'Last: Today, 09:00 · Next: 10:00', cron: 'Every 1 hour', state: 'active' },
+  { id: 'sch-2', keyword: 'BPJS Kesehatan', platforms: ['X', 'TikTok'], meta: 'Last: Today, 08:30 · Next: 12:30', cron: 'Every 4 hours', state: 'active' },
+  { id: 'sch-3', keyword: 'Ketenagakerjaan', platforms: ['Instagram', 'TikTok'], meta: 'Held by manual job', cron: 'Every 2 hours', state: 'hold' },
+  { id: 'sch-4', keyword: 'Ketenagakerjaan', platforms: ['X', 'Instagram'], meta: 'Last: Yesterday, 20:00 · Next: Today, 20:00', cron: 'Every day', state: 'active' },
+  { id: 'sch-5', keyword: 'BPJS Kesehatan', platforms: ['X'], meta: 'Last: Aug 01, 09:00 · Next: paused', cron: 'Every 6 hours', state: 'hold' },
 ];
 
 /**
@@ -328,9 +328,9 @@ export type MockUnscheduledItem = {
 };
 
 export const MOCK_UNSCHEDULED_ITEMS: MockUnscheduledItem[] = [
-  { id: 'un-1', keyword: 'Bantuan Sosial 2026', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'completed', runCount: 2, progressPct: 100 },
-  { id: 'un-2', keyword: 'Kenaikan Harga', platforms: ['Instagram', 'TikTok'], periodLabel: 'Last 7 days', createdAt: new Date().toISOString(), status: 'queued', runCount: 1, progressPct: 0 },
-  { id: 'un-3', keyword: 'Subsidi BBM', platforms: ['X', 'TikTok'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'failed', runCount: 1, progressPct: 0 },
+  { id: 'un-1', keyword: 'RUU Digital', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'completed', runCount: 2, progressPct: 100 },
+  { id: 'un-2', keyword: 'Ketenagakerjaan', platforms: ['Instagram', 'TikTok'], periodLabel: 'Last 7 days', createdAt: new Date().toISOString(), status: 'queued', runCount: 1, progressPct: 0 },
+  { id: 'un-3', keyword: 'BPJS Kesehatan', platforms: ['X', 'TikTok'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'failed', runCount: 1, progressPct: 0 },
 ];
 
 /**
@@ -446,8 +446,8 @@ export function mockUnscheduledList(page: Page, items: MockUnscheduledItem[] = M
 // ---------------------------------------------------------------------------
 
 export const MOCK_HISTORY_RUNS: MockUnscheduledItem[] = [
-  { id: 'run-2', keyword: 'Bantuan Sosial 2026', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: '2026-08-11T09:00:00.000Z', status: 'completed', runCount: 2, progressPct: 100 },
-  { id: 'run-1', keyword: 'Bantuan Sosial 2026', platforms: ['X'], periodLabel: 'Last 7 days', createdAt: '2026-08-04T09:00:00.000Z', status: 'failed', runCount: 2, progressPct: 0 },
+  { id: 'run-2', keyword: 'RUU Digital', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: '2026-08-11T09:00:00.000Z', status: 'completed', runCount: 2, progressPct: 100 },
+  { id: 'run-1', keyword: 'RUU Digital', platforms: ['X'], periodLabel: 'Last 7 days', createdAt: '2026-08-04T09:00:00.000Z', status: 'failed', runCount: 2, progressPct: 0 },
 ];
 
 /** Mock GET /unscheduled?keyword=...&history=true — daftar run untuk modal Run history. */

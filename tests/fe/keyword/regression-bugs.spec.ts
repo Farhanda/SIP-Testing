@@ -45,12 +45,12 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
       }
     });
 
-    await modal.locator('#keyword').fill('SIP Indonesia');
+    await modal.locator('#keyword').fill('RUU Digital');
     await modal.getByRole('button', { name: 'Save keyword' }).click();
 
     // Bug B1: saat ini TIDAK ada request sama sekali → poll gagal (FAIL).
     await expect.poll(() => postBodies.length).toBeGreaterThan(0);
-    expect(postBodies[0].keyword).toBe('SIP Indonesia');
+    expect(postBodies[0].keyword).toBe('RUU Digital');
 
     // Setelah request sukses (mock 201) modal harus menutup.
     await expect(modal).toHaveCount(0);

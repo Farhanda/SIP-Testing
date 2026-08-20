@@ -35,7 +35,7 @@ interface TrendResponse {
 
 const TREND_PATH = '/v1/dashboard/conversation-trend';
 const HOURLY_PATH = '/v1/dashboard/conversation-trend-hourly';
-const KNOWN_KEYWORD = 'kebijakan-ekonomi'; // keyword dengan data di BE (9 post)
+const KNOWN_KEYWORD = 'RUU Digital'; // keyword dengan data di BE (9 post)
 
 /** Validasi poin data trend harian — selalu punya date, label, volume, engagement. */
 function expectTrendPoint(point: TrendPoint, index: number) {

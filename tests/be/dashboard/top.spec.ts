@@ -44,7 +44,7 @@ interface TopPostsResponse {
 const TOP_ACCOUNTS_PATH = '/v1/dashboard/top-accounts';
 const TOP_HASHTAGS_PATH = '/v1/dashboard/top-hashtags';
 const TOP_POSTS_PATH = '/v1/dashboard/top-posts';
-const KNOWN_KEYWORD = 'kebijakan-ekonomi'; // keyword dengan data di BE
+const KNOWN_KEYWORD = 'RUU Digital'; // keyword dengan data di BE
 
 test.describe('Dashboard — GET /v1/dashboard/top-accounts', () => {
   test('top-accounts tanpa filter → 200 & struktur lengkap', async ({ api }) => {

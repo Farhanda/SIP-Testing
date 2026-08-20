@@ -1,12 +1,12 @@
 [
   {
     "status": "active",
-    "visibleKeyword": "SIP Indonesia",
-    "hiddenKeyword": "Transformasi Digital"
+    "visibleKeyword": "RUU Digital",
+    "hiddenKeyword": "Ketenagakerjaan"
   },
   {
     "status": "hold",
-    "visibleKeyword": "Transformasi Digital",
-    "hiddenKeyword": "SIP Indonesia"
+    "visibleKeyword": "Ketenagakerjaan",
+    "hiddenKeyword": "RUU Digital"
   }
 ]

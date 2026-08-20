@@ -18,7 +18,9 @@ test.describe('Monitoring Keyword', () => {
     await mockSchedulerList(keywordPage.page);
     await keywordPage.goto();
 
-    await keywordPage.expectHeading('Monitoring Keyword');
+    // Deployed app: 'Keyword Management' (bukan 'Monitoring Keyword')
+    const heading = keywordPage.page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ });
+    await heading.first().waitFor({ state: 'visible' });
     await keywordPage.expectTabSelected('Scheduled');
     await expect(keywordPage.searchInput).toBeVisible();
 
@@ -28,7 +30,7 @@ test.describe('Monitoring Keyword', () => {
     }
 
     // Data mock ter-render
-    await keywordPage.expectKeywordVisible('SIP Indonesia', true);
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
     await expect(keywordPage.paginationText).toBeVisible();
   });
 
@@ -59,7 +61,7 @@ test.describe('Monitoring Keyword', () => {
     await keywordPage.selectPlatform('TikTok');
     await keywordPage.applyFilters();
 
-    await keywordPage.expectKeywordVisible('SIP Indonesia', true);
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
     await keywordPage.expectKeywordVisible('Isu Pendidikan', false);
   });
 
@@ -70,8 +72,8 @@ test.describe('Monitoring Keyword', () => {
 
     await keywordPage.searchKeyword('layanan');
 
-    await keywordPage.expectKeywordVisible('Layanan Publik', true);
-    await keywordPage.expectKeywordVisible('SIP Indonesia', false);
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
+    await keywordPage.expectKeywordVisible('RUU Digital', false);
   });
 
   test('tab On Demand menampilkan daftar & filter status', async ({ keywordPage }) => {
@@ -84,12 +86,12 @@ test.describe('Monitoring Keyword', () => {
     await keywordPage.expectColumnHeader('Status');
 
     // Data mock ter-render
-    await keywordPage.expectKeywordVisible('Bantuan Sosial 2026', true);
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
 
     // Filter status "Completed"
     await keywordPage.selectStatus('completed');
     await keywordPage.applyFilters();
-    await keywordPage.expectKeywordVisible('Bantuan Sosial 2026', true);
-    await keywordPage.expectKeywordVisible('Kenaikan Harga', false);
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
+    await keywordPage.expectKeywordVisible('Ketenagakerjaan', false);
   });
 });

@@ -49,9 +49,9 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
         }
       });
 
-      await keywordPage.retryButton('Subsidi BBM').click();
+      await keywordPage.retryButton('BPJS Kesehatan').click();
 
-      await keywordPage.expectToast('Keyword "Subsidi BBM" reprocessed.', true);
+      await keywordPage.expectToast('Keyword "BPJS Kesehatan" reprocessed.', true);
       expect(retryRequests).toHaveLength(1);
       expect(retryRequests[0]).toContain('/api/admin/keyword/unscheduled/un-3/retry');
     });
@@ -69,9 +69,9 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
         }
       });
 
-      await keywordPage.cancelButton('Kenaikan Harga').click();
+      await keywordPage.cancelButton('Ketenagakerjaan').click();
 
-      await keywordPage.expectToast('Keyword "Kenaikan Harga" cancelled.', true);
+      await keywordPage.expectToast('Keyword "Ketenagakerjaan" cancelled.', true);
       expect(cancelRequests).toHaveLength(1);
       expect(cancelRequests[0]).toContain('/api/admin/keyword/unscheduled/un-2/cancel');
     });
@@ -81,11 +81,11 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await mockUnscheduledList(keywordPage.page);
       await keywordPage.gotoOnDemandTab();
 
-      await keywordPage.moveButton('Bantuan Sosial 2026').click();
+      await keywordPage.moveButton('RUU Digital').click();
       await expect(keywordPage.moveModal).toBeVisible();
 
       // Data baris ter-prefill (platform mengikuti item, frequency default 1, max posts 500)
-      await expect(keywordPage.moveKeywordInput).toHaveValue('Bantuan Sosial 2026');
+      await expect(keywordPage.moveKeywordInput).toHaveValue('RUU Digital');
       await expect(keywordPage.movePlatformCheckbox('X')).toBeChecked();
       await expect(keywordPage.movePlatformCheckbox('Instagram')).not.toBeChecked();
       await expect(keywordPage.moveFrequencySelect).toHaveValue('1');
@@ -95,10 +95,10 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await keywordPage.moveKeywordInput.fill('');
       await keywordPage.moveSubmitButton.click();
       await expect(keywordPage.moveModal).toBeVisible();
-      await keywordPage.expectToast('Keyword "Bantuan Sosial 2026" moved to scheduled keywords.', false);
+      await keywordPage.expectToast('Keyword "RUU Digital" moved to scheduled keywords.', false);
 
       // Validasi: platform kosong → silent return (modal tetap terbuka)
-      await keywordPage.moveKeywordInput.fill('Bantuan Sosial 2026');
+      await keywordPage.moveKeywordInput.fill('RUU Digital');
       await keywordPage.movePlatformCheckbox('X').uncheck();
       await keywordPage.moveSubmitButton.click();
       await expect(keywordPage.moveModal).toBeVisible();
@@ -106,7 +106,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       // Submit valid → toast sukses & modal tertutup (aksi UI-only, tanpa request API)
       await keywordPage.movePlatformCheckbox('X').check();
       await keywordPage.moveSubmitButton.click();
-      await keywordPage.expectToast('Keyword "Bantuan Sosial 2026" moved to scheduled keywords.', true);
+      await keywordPage.expectToast('Keyword "RUU Digital" moved to scheduled keywords.', true);
       await expect(keywordPage.moveModal).toHaveCount(0);
     });
 
@@ -117,10 +117,10 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await keywordPage.gotoOnDemandTab();
 
       // Tombol "History · 2" muncul karena runCount > 1
-      await keywordPage.historyButton('Bantuan Sosial 2026').click();
+      await keywordPage.historyButton('RUU Digital').click();
       await expect(keywordPage.historyModal).toBeVisible();
       await expect(
-        keywordPage.historyModal.getByText(/Bantuan Sosial 2026 · 2 runs stored/)
+        keywordPage.historyModal.getByText(/RUU Digital · 2 runs stored/)
       ).toBeVisible();
 
       // Run terbaru ditandai "Latest"; daftar render platform, periode, dan status
@@ -139,7 +139,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await mockUnscheduledList(keywordPage.page);
       await mockUnscheduledDetail(keywordPage.page, {
         id: 'un-1',
-        keyword: 'Bantuan Sosial 2026',
+        keyword: 'RUU Digital',
         platforms: ['X'],
         periodLabel: 'Last 24 hours',
         createdAt: new Date().toISOString(),
@@ -151,7 +151,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await keywordPage.gotoOnDemandTab();
 
       // Link "View detail" tersedia di baris completed
-      await expect(keywordPage.viewDetailLink('Bantuan Sosial 2026')).toBeVisible();
+      await expect(keywordPage.viewDetailLink('RUU Digital')).toBeVisible();
       // Navigasi langsung (deterministik — klik link rentan race dengan
       // polling list tiap 4 dtk yang me-render ulang baris)
       await unscheduledDetailPage.goto('un-1');
@@ -160,7 +160,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await expect(
         unscheduledDetailPage.page.getByText('Keyword on demand · Completed')
       ).toBeVisible();
-      await unscheduledDetailPage.expectHeading('Bantuan Sosial 2026');
+      await unscheduledDetailPage.expectHeading('RUU Digital');
       await expect(
         unscheduledDetailPage.page.getByText(/Scraping and AI analysis results for the period/)
       ).toBeVisible();
@@ -171,7 +171,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
 
       // Integrasi detail → kartu dashboard (G2): collectionId "menggema" keyword
       await expect(
-        unscheduledDetailPage.page.getByText('Collection #SIP-Bantuan Sosial 2026', { exact: true })
+        unscheduledDetailPage.page.getByText('Collection #SIP-RUU Digital', { exact: true })
       ).toBeVisible();
       await expect(unscheduledDetailPage.conversationSummaryHeading).toBeVisible();
       await expect(unscheduledDetailPage.sentimentGroupHeading).toBeVisible();
@@ -183,7 +183,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
     test('halaman detail unscheduled (belum completed) menampilkan pesan Detail not available yet', async ({ unscheduledDetailPage }) => {
       await mockUnscheduledDetail(unscheduledDetailPage.page, {
         id: 'un-2',
-        keyword: 'Kenaikan Harga',
+        keyword: 'Ketenagakerjaan',
         platforms: ['Instagram', 'TikTok'],
         periodLabel: 'Last 7 days',
         createdAt: new Date().toISOString(),
@@ -196,7 +196,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await expect(
         unscheduledDetailPage.page.getByText('Keyword on demand · Queued')
       ).toBeVisible();
-      await unscheduledDetailPage.expectHeading('Kenaikan Harga');
+      await unscheduledDetailPage.expectHeading('Ketenagakerjaan');
       await expect(unscheduledDetailPage.notAvailable).toBeVisible();
       await expect(
         unscheduledDetailPage.page.getByText(/Analysis details will appear once this keyword/)
@@ -212,7 +212,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
         unscheduledDetailPage.page,
         {
           id: 'un-1',
-          keyword: 'Bantuan Sosial 2026',
+          keyword: 'RUU Digital',
           platforms: ['X'],
           periodLabel: 'Last 24 hours',
           createdAt: new Date().toISOString(),
@@ -231,7 +231,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
       await unscheduledDetailPage.retryButton.click();
 
       // Setelah Retry, data berhasil dimuat
-      await unscheduledDetailPage.expectHeading('Bantuan Sosial 2026');
+      await unscheduledDetailPage.expectHeading('RUU Digital');
       await expect(unscheduledDetailPage.notAvailable).toHaveCount(0);
     });
   });
