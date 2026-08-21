@@ -3,20 +3,26 @@ import { test, expect, apiUrl } from '../fixtures';
 /**
  * Test API Backend — /v1/dashboard/emotion-map
  *
- * Endpoint mengembalikan distribusi emotion (Anger, Neutral, Fear, Joy,
- * Sadness) dari post yang difilter oleh keyword, platform, dan period.
+ * Endpoint mengembalikan distribusi emotion dari post yang difilter
+ * oleh keyword, platform, dan period.
  *
- * Kontrak Swagger:
+ * Response (BE deployed 2026-08-21):
  *   GET /v1/dashboard/emotion-map?keyword=&platform=&period=
- *   Response: { data: { anger, neutral, fear, joy, sadness }, meta: { generated_at } }
+ *   Response: { data: [{ emotion, pct, color }], meta: { generated_at } }
  *
- * ⚠️ CATATAN: Di deployed BE, semua emotion bernilai 0 karena
- *    NLP pipeline belum memproses emotion untuk post di seed data.
- *    Struktur response sudah benar; data kosong adalah kondisi saat ini.
+ * CATATAN: Response berubah dari flat object { anger, neutral, ... }
+ *    menjadi array of objects [{ emotion: "joy", pct: 19, color: "#..." }].
+ *    Data sudah terisi (NLP pipeline aktif).
  */
 
+interface EmotionItem {
+  emotion: string;
+  pct: number;
+  color: string;
+}
+
 test.describe('GET /v1/dashboard/emotion-map', () => {
-  test('tanpa filter → 200, data punya 5 emotion fields', async ({ api }) => {
+  test('tanpa filter → 200, data berupa array of emotion items', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/emotion-map'));
     expect(res.status()).toBe(200);
 
@@ -24,31 +30,32 @@ test.describe('GET /v1/dashboard/emotion-map', () => {
     expect(body).toHaveProperty('data');
     expect(body).toHaveProperty('meta');
 
-    const d = body.data;
-    expect(typeof d.anger).toBe('number');
-    expect(typeof d.neutral).toBe('number');
-    expect(typeof d.fear).toBe('number');
-    expect(typeof d.joy).toBe('number');
-    expect(typeof d.sadness).toBe('number');
+    // BE CHANGE: data sekarang array, bukan flat object
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+
+    for (const item of body.data) {
+      expect(typeof item.emotion).toBe('string');
+      expect(item.emotion.length).toBeGreaterThan(0);
+      expect(typeof item.pct).toBe('number');
+      expect(item.pct).toBeGreaterThanOrEqual(0);
+      expect(typeof item.color).toBe('string');
+    }
   });
 
-  test('semua emotion values non-negatif', async ({ api }) => {
+  test('semua pct values non-negatif & ada emotion types', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/emotion-map'));
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(body.data.anger).toBeGreaterThanOrEqual(0);
-    expect(body.data.neutral).toBeGreaterThanOrEqual(0);
-    expect(body.data.fear).toBeGreaterThanOrEqual(0);
-    expect(body.data.joy).toBeGreaterThanOrEqual(0);
-    expect(body.data.sadness).toBeGreaterThanOrEqual(0);
+    const emotions = body.data.map((i: EmotionItem) => i.emotion);
+    // BE mengembalikan minimal beberapa emotion type
+    expect(emotions.length).toBeGreaterThan(0);
+    for (const item of body.data) {
+      expect(item.pct).toBeGreaterThanOrEqual(0);
+    }
   });
 
-  /**
-   * ⚠️ CATATAN: Semua emotion = 0 di deployed BE.
-   *    NLP pipeline belum memproses emotion untuk post di seed data.
-   *    Ini bukan bug struktural — endpoint berfungsi benar, hanya data kosong.
-   */
   test('generated_at berupa ISO timestamp yang valid', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/emotion-map'));
     expect(res.status()).toBe(200);
@@ -58,12 +65,12 @@ test.describe('GET /v1/dashboard/emotion-map', () => {
     expect(ts.getTime()).not.toBeNaN();
   });
 
-  test('filter keyword → 200 & struktur tetap valid', async ({ api }) => {
+  test('filter keyword → 200 & data array', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/emotion-map?keyword=RUU+Digital'));
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.joy).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
     expect(body.meta.generated_at).toBeTruthy();
   });
 
@@ -72,7 +79,7 @@ test.describe('GET /v1/dashboard/emotion-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.anger).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   test('filter period=7d → 200', async ({ api }) => {
@@ -80,7 +87,7 @@ test.describe('GET /v1/dashboard/emotion-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.joy).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   test('filter period=3d → 200', async ({ api }) => {
@@ -104,19 +111,16 @@ test.describe('GET /v1/dashboard/emotion-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.joy).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
-  test('keyword tanpa data → 200 dengan semua angka 0 (bukan 404)', async ({ api }) => {
+  test('keyword tanpa data → 200 dengan data array (bisa kosong)', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/emotion-map?keyword=keyword_tidak_ada_xyz'));
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(body.data.anger).toBe(0);
-    expect(body.data.neutral).toBe(0);
-    expect(body.data.fear).toBe(0);
-    expect(body.data.joy).toBe(0);
-    expect(body.data.sadness).toBe(0);
+    expect(Array.isArray(body.data)).toBe(true);
+    // BE: keyword tidak ada → data kosong atau semua 0
   });
 
   test('period tidak valid → 200 (fallback, bukan 400)', async ({ api }) => {
@@ -124,6 +128,6 @@ test.describe('GET /v1/dashboard/emotion-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.joy).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 });

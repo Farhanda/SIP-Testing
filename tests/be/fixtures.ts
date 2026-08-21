@@ -42,8 +42,15 @@ export function apiUrl(path: string): string {
  *   expect(platformMatches(item.platform, filter)).toBeTruthy();
  */
 export function matchesPlatformFilter(actualPlatform: string, filterParam: string): boolean {
-  // Normalize: lowercase, buang suffix _live/_dead/
-  const normalize = (s: string) => s.toLowerCase().replace(/_(live|dead)$/i, '');
+  // Normalize: lowercase, buang suffix _live/_dead/, handle Twitter/x → x
+  const normalize = (s: string) => {
+    let n = s.toLowerCase().replace(/_(live|dead)$/i, '');
+    // Handle "Twitter/x" → "x"
+    if (n.includes('/')) {
+      n = n.split('/').pop()!;
+    }
+    return n;
+  };
   return normalize(actualPlatform) === normalize(filterParam);
 }
 export { expect };

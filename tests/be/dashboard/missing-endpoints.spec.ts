@@ -39,7 +39,7 @@ test.describe('Dashboard — ex-GAP endpoints (sudah diimplementasikan di Go)', 
     }
   });
 
-  test('GET /v1/dashboard/emotion-map → 200, data punya 5 emotion fields', async ({ api }) => {
+  test('GET /v1/dashboard/emotion-map → 200, data berupa array of emotion items', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/emotion-map'));
     expect(res.status()).toBe(200);
 
@@ -47,16 +47,18 @@ test.describe('Dashboard — ex-GAP endpoints (sudah diimplementasikan di Go)', 
     expect(body).toHaveProperty('data');
     expect(body).toHaveProperty('meta');
 
-    const d = body.data;
-    expect(typeof d.anger).toBe('number');
-    expect(typeof d.neutral).toBe('number');
-    expect(typeof d.fear).toBe('number');
-    expect(typeof d.joy).toBe('number');
-    expect(typeof d.sadness).toBe('number');
+    // BE CHANGE: data sekarang array [{ emotion, pct, color }]
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    for (const item of body.data) {
+      expect(typeof item.emotion).toBe('string');
+      expect(typeof item.pct).toBe('number');
+      expect(typeof item.color).toBe('string');
+    }
     expect(body.meta.generated_at).toBeTruthy();
   });
 
-  test('GET /v1/dashboard/sentiment-map → 200, data punya 3 sentiment fields', async ({ api }) => {
+  test('GET /v1/dashboard/sentiment-map → 200, data berupa array of sentiment items', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/sentiment-map'));
     expect(res.status()).toBe(200);
 
@@ -64,10 +66,14 @@ test.describe('Dashboard — ex-GAP endpoints (sudah diimplementasikan di Go)', 
     expect(body).toHaveProperty('data');
     expect(body).toHaveProperty('meta');
 
-    const d = body.data;
-    expect(typeof d.positive).toBe('number');
-    expect(typeof d.neutral).toBe('number');
-    expect(typeof d.negative).toBe('number');
+    // BE CHANGE: data sekarang array [{ sentiment, pct, color }]
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    for (const item of body.data) {
+      expect(typeof item.sentiment).toBe('string');
+      expect(typeof item.pct).toBe('number');
+      expect(typeof item.color).toBe('string');
+    }
     expect(body.meta.generated_at).toBeTruthy();
   });
 

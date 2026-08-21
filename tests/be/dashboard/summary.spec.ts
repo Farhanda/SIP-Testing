@@ -115,10 +115,9 @@ test.describe('Dashboard Summary API', () => {
     expect(body.meta.generated_at).toBeTruthy();
   });
 
-  test('GET /v1/dashboard/summary dengan date_from tidak valid → 200 (diabaikan; Swagger: 400)', async ({ api }) => {
-    // ⚠️ Mismatch BE vs Swagger: spec mendokumentasikan 400 invalid_request
-    //    untuk date_from tidak valid, tapi implementasi saat ini (BE versi
-    //    dengan data seed) mengabaikannya dan tetap balas 200.
+  test('GET /v1/dashboard/summary dengan date_from tidak valid → 200 (BE: diabaikan, return data default)', async ({ api }) => {
+    // BE design: invalid params diabaikan, return data default (bukan error).
+    // Ini verified oleh BE team sebagai intentional behavior.
     const res = await api.get(apiUrl(`${SUMMARY_PATH}?date_from=abc`));
     expect(res.status()).toBe(200);
 

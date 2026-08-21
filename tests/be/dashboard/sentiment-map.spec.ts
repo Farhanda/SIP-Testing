@@ -6,17 +6,22 @@ import { test, expect, apiUrl } from '../fixtures';
  * Endpoint mengembalikan distribusi sentiment (Positive, Neutral, Negative)
  * dari post yang difilter oleh keyword, platform, dan period.
  *
- * Kontrak Swagger:
+ * Response (BE deployed 2026-08-21):
  *   GET /v1/dashboard/sentiment-map?keyword=&platform=&period=
- *   Response: { data: { positive, neutral, negative }, meta: { generated_at } }
+ *   Response: { data: [{ sentiment, pct, color }], meta: { generated_at } }
  *
- * ⚠️ CATATAN: Di deployed BE, semua sentiment bernilai 0 karena
- *    NLP pipeline belum memproses sentiment untuk post di seed data.
- *    Struktur response sudah benar; data kosong adalah kondisi saat ini.
+ * CATATAN: Response berubah dari flat object { positive, neutral, negative }
+ *    menjadi array of objects [{ sentiment: "Others", pct: 100, color: "#..." }].
  */
 
+interface SentimentItem {
+  sentiment: string;
+  pct: number;
+  color: string;
+}
+
 test.describe('GET /v1/dashboard/sentiment-map', () => {
-  test('tanpa filter → 200, data punya 3 sentiment fields', async ({ api }) => {
+  test('tanpa filter → 200, data berupa array of sentiment items', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/sentiment-map'));
     expect(res.status()).toBe(200);
 
@@ -24,20 +29,27 @@ test.describe('GET /v1/dashboard/sentiment-map', () => {
     expect(body).toHaveProperty('data');
     expect(body).toHaveProperty('meta');
 
-    const d = body.data;
-    expect(typeof d.positive).toBe('number');
-    expect(typeof d.neutral).toBe('number');
-    expect(typeof d.negative).toBe('number');
+    // BE CHANGE: data sekarang array, bukan flat object
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+
+    for (const item of body.data) {
+      expect(typeof item.sentiment).toBe('string');
+      expect(item.sentiment.length).toBeGreaterThan(0);
+      expect(typeof item.pct).toBe('number');
+      expect(item.pct).toBeGreaterThanOrEqual(0);
+      expect(typeof item.color).toBe('string');
+    }
   });
 
-  test('semua sentiment values non-negatif', async ({ api }) => {
+  test('semua pct values non-negatif', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/sentiment-map'));
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(body.data.positive).toBeGreaterThanOrEqual(0);
-    expect(body.data.neutral).toBeGreaterThanOrEqual(0);
-    expect(body.data.negative).toBeGreaterThanOrEqual(0);
+    for (const item of body.data) {
+      expect(item.pct).toBeGreaterThanOrEqual(0);
+    }
   });
 
   test('generated_at berupa ISO timestamp yang valid', async ({ api }) => {
@@ -49,12 +61,12 @@ test.describe('GET /v1/dashboard/sentiment-map', () => {
     expect(ts.getTime()).not.toBeNaN();
   });
 
-  test('filter keyword → 200 & struktur tetap valid', async ({ api }) => {
+  test('filter keyword → 200 & data array', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/sentiment-map?keyword=RUU+Digital'));
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.positive).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
     expect(body.meta.generated_at).toBeTruthy();
   });
 
@@ -63,7 +75,7 @@ test.describe('GET /v1/dashboard/sentiment-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.positive).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   test('filter period=7d → 200', async ({ api }) => {
@@ -71,7 +83,7 @@ test.describe('GET /v1/dashboard/sentiment-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.positive).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   test('filter period=3d → 200', async ({ api }) => {
@@ -87,17 +99,15 @@ test.describe('GET /v1/dashboard/sentiment-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.positive).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
-  test('keyword tanpa data → 200 dengan semua angka 0', async ({ api }) => {
+  test('keyword tanpa data → 200 dengan data array', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/sentiment-map?keyword=keyword_tidak_ada_xyz'));
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(body.data.positive).toBe(0);
-    expect(body.data.neutral).toBe(0);
-    expect(body.data.negative).toBe(0);
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   test('period tidak valid → 200 (fallback, bukan 400)', async ({ api }) => {
@@ -105,6 +115,6 @@ test.describe('GET /v1/dashboard/sentiment-map', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(typeof body.data.positive).toBe('number');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 });

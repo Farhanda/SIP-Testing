@@ -29,13 +29,9 @@ test.describe('Dashboard Summary — data BE (data-driven)', () => {
     expect(res.status()).toBe(200);
     const body = await res.json();
 
-    // Konsistensi agregat: total tanpa filter ≥ jumlah post keyword yang
-    // terverifikasi; == bila semua keyword punya angka pasti.
+    // Total tanpa filter >= jumlah post keyword yang terverifikasi.
+    // TIDAK bisa assert == karena ada post di luar keyword list.
     expect(body.data.total_post.value).toBeGreaterThanOrEqual(knownTotal);
-    if (allKnown) {
-      expect(body.data.total_post.value).toBe(knownTotal);
-      expect(body.data.total_post.label).toBe(String(knownTotal));
-    }
 
     // Data benar-benar terisi (bukan nol semua).
     expect(body.data.total_engagement.value).toBeGreaterThan(0);
