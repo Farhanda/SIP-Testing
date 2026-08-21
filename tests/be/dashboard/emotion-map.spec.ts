@@ -9,6 +9,10 @@ import { test, expect, apiUrl } from '../fixtures';
  * Kontrak Swagger:
  *   GET /v1/dashboard/emotion-map?keyword=&platform=&period=
  *   Response: { data: { anger, neutral, fear, joy, sadness }, meta: { generated_at } }
+ *
+ * ⚠️ CATATAN: Di deployed BE, semua emotion bernilai 0 karena
+ *    NLP pipeline belum memproses emotion untuk post di seed data.
+ *    Struktur response sudah benar; data kosong adalah kondisi saat ini.
  */
 
 test.describe('GET /v1/dashboard/emotion-map', () => {
@@ -40,6 +44,11 @@ test.describe('GET /v1/dashboard/emotion-map', () => {
     expect(body.data.sadness).toBeGreaterThanOrEqual(0);
   });
 
+  /**
+   * ⚠️ CATATAN: Semua emotion = 0 di deployed BE.
+   *    NLP pipeline belum memproses emotion untuk post di seed data.
+   *    Ini bukan bug struktural — endpoint berfungsi benar, hanya data kosong.
+   */
   test('generated_at berupa ISO timestamp yang valid', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/emotion-map'));
     expect(res.status()).toBe(200);

@@ -29,4 +29,21 @@ export function apiUrl(path: string): string {
   return `${Env.beBaseUrl}${path}`;
 }
 
+/**
+ * Flexible platform matcher — BE deployed menggunakan suffix dinamis
+ * seperti "Tiktok_live", "Twitterx_live", "Instagram_live", "X_dead",
+ * dsb. Filter param selalu lowercase tanpa suffix ("tiktok", "x", "instagram").
+ *
+ * Cara pakai:
+ *   expect(matchesPlatformFilter(item.platform, 'tiktok')).toBe(true);
+ *   expect(items.every(i => matchesPlatformFilter(i.platform, 'tiktok'))).toBe(true);
+ *
+ * Atau wrap di expect:
+ *   expect(platformMatches(item.platform, filter)).toBeTruthy();
+ */
+export function matchesPlatformFilter(actualPlatform: string, filterParam: string): boolean {
+  // Normalize: lowercase, buang suffix _live/_dead/
+  const normalize = (s: string) => s.toLowerCase().replace(/_(live|dead)$/i, '');
+  return normalize(actualPlatform) === normalize(filterParam);
+}
 export { expect };

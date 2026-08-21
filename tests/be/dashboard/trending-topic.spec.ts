@@ -10,6 +10,10 @@ import { test, expect, apiUrl } from '../fixtures';
  * Kontrak Swagger:
  *   GET /v1/dashboard/trending-topic?period=24H|7D
  *   Response: { data: [{ id, topic, volume, delta }], meta: { period, total, generated_at } }
+ *
+ * ⚠️ CATATAN: Di deployed BE, data kosong ([]) karena tidak ada
+ *    trending topics yang teridentifikasi dari seed data.
+ *    Struktur response sudah benar; data kosong adalah kondisi saat ini.
  */
 
 test.describe('GET /v1/dashboard/trending-topic', () => {
@@ -52,11 +56,16 @@ test.describe('GET /v1/dashboard/trending-topic', () => {
     expect(body.meta.period).toBe('24H');
   });
 
-  test('setiap item punya id, topic, volume, delta', async ({ api }) => {
+  /**
+   * ⚠️ CATATAN: Di deployed BE, data kosong ([]) karena tidak ada
+   *    trending topics yang teridentifikasi. Struktur item valid jika ada data.
+   */
+  test('setiap item punya id, topic, volume, delta (jika ada data)', async ({ api }) => {
     const res = await api.get(apiUrl('/v1/dashboard/trending-topic?period=7D'));
     expect(res.status()).toBe(200);
 
     const body = await res.json();
+    // Data bisa kosong di deployed BE
     for (const item of body.data) {
       expect(typeof item.id).toBe('string');
       expect(item.id.length).toBeGreaterThan(0);

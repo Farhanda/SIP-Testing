@@ -9,6 +9,10 @@ import { test, expect, apiUrl } from '../fixtures';
  * Kontrak Swagger:
  *   GET /v1/dashboard/sentiment-map?keyword=&platform=&period=
  *   Response: { data: { positive, neutral, negative }, meta: { generated_at } }
+ *
+ * ⚠️ CATATAN: Di deployed BE, semua sentiment bernilai 0 karena
+ *    NLP pipeline belum memproses sentiment untuk post di seed data.
+ *    Struktur response sudah benar; data kosong adalah kondisi saat ini.
  */
 
 test.describe('GET /v1/dashboard/sentiment-map', () => {
