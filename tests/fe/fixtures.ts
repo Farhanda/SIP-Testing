@@ -1,9 +1,12 @@
 import { test as base, expect } from '@playwright/test';
 import { DashboardPage } from '../../src/pages/DashboardPage';
+import { DisplayWallPage } from '../../src/pages/DisplayWallPage';
 import { KeywordPage } from '../../src/pages/KeywordPage';
 import { LoginPage } from '../../src/pages/LoginPage';
+import { PostsPage } from '../../src/pages/PostsPage';
 import { ProfilePage } from '../../src/pages/ProfilePage';
 import { ProtocolPage } from '../../src/pages/ProtocolPage';
+import { TopicDetailPage } from '../../src/pages/TopicDetailPage';
 import { UnscheduledDetailPage } from '../../src/pages/UnscheduledDetailPage';
 import { UserManagementPage } from '../../src/pages/UserManagementPage';
 
@@ -21,18 +24,24 @@ import { UserManagementPage } from '../../src/pages/UserManagementPage';
 export const test = base.extend<{
   loginPage: LoginPage;
   dashboardPage: DashboardPage;
+  displayWallPage: DisplayWallPage;
   keywordPage: KeywordPage;
-  protocolPage: ProtocolPage;
-  userPage: UserManagementPage;
+  postsPage: PostsPage;
   profilePage: ProfilePage;
+  protocolPage: ProtocolPage;
+  topicDetailPage: TopicDetailPage;
+  userPage: UserManagementPage;
   unscheduledDetailPage: UnscheduledDetailPage;
 }>({
   loginPage: async ({ page }, use) => use(new LoginPage(page)),
   dashboardPage: async ({ page }, use) => use(new DashboardPage(page)),
+  displayWallPage: async ({ page }, use) => use(new DisplayWallPage(page)),
   keywordPage: async ({ page }, use) => use(new KeywordPage(page)),
-  protocolPage: async ({ page }, use) => use(new ProtocolPage(page)),
-  userPage: async ({ page }, use) => use(new UserManagementPage(page)),
+  postsPage: async ({ page }, use) => use(new PostsPage(page)),
   profilePage: async ({ page }, use) => use(new ProfilePage(page)),
+  protocolPage: async ({ page }, use) => use(new ProtocolPage(page)),
+  topicDetailPage: async ({ page }, use) => use(new TopicDetailPage(page)),
+  userPage: async ({ page }, use) => use(new UserManagementPage(page)),
   unscheduledDetailPage: async ({ page }, use) => use(new UnscheduledDetailPage(page)),
 });
 

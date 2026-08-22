@@ -199,6 +199,69 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
       // Bentuk baru: include source_url, views, views_label, emotion_color;
       // emotion pakai lowercase.
       return { data: TOP_POSTS, meta: META() };
+    case 'top-posts-list': {
+      // Paginated version used by /monitoring/dashboard/posts page.
+      const sortBy = url.searchParams.get('sort_by') ?? 'view';
+      const topicFilter = url.searchParams.get('topic') ?? '';
+      const pageNum = Number(url.searchParams.get('page') ?? 1);
+      const size = Number(url.searchParams.get('size') ?? 10);
+      let posts = [...TOP_POSTS];
+      if (topicFilter) posts = posts.filter((p) => p.topic.toLowerCase() === topicFilter.toLowerCase());
+      if (sortBy === 'engagement') posts.sort((a, b) => b.engagement - a.engagement);
+      else posts.sort((a, b) => b.views - a.views);
+      const start = (pageNum - 1) * size;
+      const pagePosts = posts.slice(start, start + size);
+      return {
+        data: pagePosts,
+        meta: {
+          generated_at: new Date().toISOString(),
+          page: pageNum,
+          size,
+          total: posts.length,
+          totalPages: Math.max(1, Math.ceil(posts.length / size)),
+        },
+      };
+    }
+    case 'topic-intelligence-detail': {
+      // Used by /monitoring/dashboard/topic/:topic page.
+      const topicSlug = url.searchParams.get('topic') ?? 'unknown';
+      const topicKeyword = url.searchParams.get('keyword') ?? keyword;
+      const pageNum2 = Number(url.searchParams.get('page') ?? 1);
+      const size2 = Number(url.searchParams.get('size') ?? 10);
+      // Filter TOP_POSTS by topic match or return all for 'lainnya'
+      const topicPosts = topicSlug === 'lainnya'
+        ? TOP_POSTS
+        : TOP_POSTS.filter((p) => p.topic.toLowerCase().includes(topicSlug.toLowerCase()));
+      const start2 = (pageNum2 - 1) * size2;
+      const pageTopicPosts = topicPosts.slice(start2, start2 + size2);
+      return {
+        data: {
+          topic: { id: topicSlug, collectionId: '', label: topicSlug },
+          stats: {
+            totalPost: topicPosts.length,
+            totalEngagement: topicPosts.reduce((sum, p) => sum + p.engagement, 0),
+            negativeSentimentPct: 0,
+            topPlatform: 'TikTok',
+          },
+          posts: pageTopicPosts.map((p) => ({
+            id: p.id,
+            platform: p.platform,
+            post: p.post,
+            topic: topicSlug,
+            emotion: p.emotion,
+            sentiment: 'others',
+            engagement: p.engagement,
+          })),
+        },
+        meta: {
+          generated_at: new Date().toISOString(),
+          page: pageNum2,
+          size: size2,
+          total: topicPosts.length,
+          totalPages: Math.max(1, Math.ceil(topicPosts.length / size2)),
+        },
+      };
+    }
     case 'topic-intelligence': {
       // Label sengaja "menggema" keyword dari query param → test data-driven
       // bisa membuktikan filter terkirim & respons ter-render (kartu
@@ -621,6 +684,58 @@ export function mockRetryUnscheduled(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ data: { id: 'un-3', keyword: 'reprocessed', platforms: [], status: 'queued' } }),
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Control endpoints (display wall pages)
+// ---------------------------------------------------------------------------
+
+/**
+ * Mock GET /api/control/selected-keywords — daftar keyword yang dipilih
+ * untuk display wall. Default: ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan'].
+ */
+export function mockSelectedKeywords(
+  page: Page,
+  keywords: string[] = ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan'],
+) {
+  return page.route('**/api/control/selected-keywords', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: keywords }),
+    });
+  });
+}
+
+/**
+ * Mock GET /api/control/trending-topic-multi-period — trending topic
+ * dengan delta per periode (24h, 7d, 1mo).
+ */
+export function mockTrendingTopicMultiPeriod(
+  page: Page,
+  topics: { id: string; label: string; value: string; pct: number; deltas: { label: string; value: string; up: boolean; primary?: boolean }[] }[] = [
+    { id: 'topic-1', label: 'Public services', value: '1,833 posts', pct: 90, deltas: [
+      { label: '24h', value: '↑10%', up: true },
+      { label: '7d', value: '↓14%', up: false, primary: true },
+      { label: '1mo', value: '↓28%', up: false },
+    ]},
+    { id: 'topic-2', label: 'Tariff policy', value: '1,977 posts', pct: 72, deltas: [
+      { label: '24h', value: '↑3%', up: true },
+      { label: '7d', value: '↑28%', up: true, primary: true },
+      { label: '1mo', value: '↓13%', up: false },
+    ]},
+  ],
+) {
+  return page.route('**/api/control/trending-topic-multi-period*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: topics,
+        meta: { keyword: 'mock-keyword', generated_at: new Date().toISOString() },
+      }),
     });
   });
 }
