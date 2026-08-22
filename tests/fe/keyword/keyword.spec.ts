@@ -70,10 +70,11 @@ test.describe('Monitoring Keyword', () => {
     await mockSchedulerList(keywordPage.page);
     await keywordPage.goto();
 
-    await keywordPage.searchKeyword('layanan');
+    await keywordPage.searchKeyword('RUU');
 
+    // Pencarian 'RUU' hanya menampilkan keyword yang mengandung 'RUU'
     await keywordPage.expectKeywordVisible('RUU Digital', true);
-    await keywordPage.expectKeywordVisible('RUU Digital', false);
+    await keywordPage.expectKeywordVisible('BPJS Kesehatan', false);
   });
 
   test('tab On Demand menampilkan daftar & filter status', async ({ keywordPage }) => {

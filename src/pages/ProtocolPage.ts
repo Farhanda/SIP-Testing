@@ -10,6 +10,9 @@ export class ProtocolPage extends BasePage {
   readonly activeProtocol = this.page.getByText('Active Protocol');
   readonly activeSince = this.page.getByText('Active since');
   readonly thresholdIndicator = this.page.getByText('Threshold indicator');
+  readonly negativeEmotionsText = this.page.getByText(/Negative emotions/i);
+  readonly sentimentControlText = this.page.getByText(/sentiment under control/i);
+  readonly sipInsightLogo = this.page.getByRole('button', { name: 'SIP Insight' });
 
   async gotoAlert() {
     await this.page.goto('/control/alert-protocol');

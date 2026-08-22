@@ -92,9 +92,11 @@ test.describe('Dashboard — Integrasi API BE', () => {
       const kw = u.searchParams.get('keyword');
       return !!kw && kw !== initialKeyword;
     });
-    await page.getByPlaceholder('Search or select a keyword').click();
-    await page.getByPlaceholder('Search or select a keyword').fill('Smart City');
-    await page.getByRole('option', { name: 'Smart City', exact: true }).click();
+    // Ganti ke keyword yang ada di dropdown (Bebek Goreng)
+    const nextKeyword = 'Bebek Goreng';
+    await page.getByRole('combobox', { name: 'Keyword' }).click();
+    await page.getByRole('combobox', { name: 'Keyword' }).fill(nextKeyword);
+    await page.getByRole('option', { name: nextKeyword, exact: true }).click();
     await page.getByRole('button', { name: 'Apply filter' }).click();
 
     const { body } = await nextBeResp;

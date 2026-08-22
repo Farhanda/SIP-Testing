@@ -86,7 +86,7 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
 
       // Data baris ter-prefill (platform mengikuti item, frequency default 1, max posts 500)
       await expect(keywordPage.moveKeywordInput).toHaveValue('RUU Digital');
-      await expect(keywordPage.movePlatformCheckbox('X')).toBeChecked();
+      await expect(keywordPage.movePlatformCheckbox('Twitter/X')).toBeChecked();
       await expect(keywordPage.movePlatformCheckbox('Instagram')).not.toBeChecked();
       await expect(keywordPage.moveFrequencySelect).toHaveValue('1');
       await expect(keywordPage.moveMaxPostsInput).toHaveValue('500');
@@ -99,12 +99,12 @@ test.describe('Monitoring Keyword — Aksi On Demand', () => {
 
       // Validasi: platform kosong → silent return (modal tetap terbuka)
       await keywordPage.moveKeywordInput.fill('RUU Digital');
-      await keywordPage.movePlatformCheckbox('X').uncheck();
+      await keywordPage.movePlatformCheckbox('Twitter/X').uncheck();
       await keywordPage.moveSubmitButton.click();
       await expect(keywordPage.moveModal).toBeVisible();
 
       // Submit valid → toast sukses & modal tertutup (aksi UI-only, tanpa request API)
-      await keywordPage.movePlatformCheckbox('X').check();
+      await keywordPage.movePlatformCheckbox('Twitter/X').check();
       await keywordPage.moveSubmitButton.click();
       await keywordPage.expectToast('Keyword "RUU Digital" moved to scheduled keywords.', true);
       await expect(keywordPage.moveModal).toHaveCount(0);

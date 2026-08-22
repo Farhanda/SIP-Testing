@@ -78,12 +78,11 @@ test.describe('Dashboard', () => {
       // Hasil tampil: heading kartu + data dari mock benar-benar ter-render
       await dashboardPage.expectResultsRendered();
       // Mock topic-intelligence "menggema" keyword dari query param ke label
-      // chart (aria-label, mis. "ruu-digital — Layanan publik: 72% (640 post)")
-      // → bukti filter terkirim & respons ter-render. UI mengirim SLUG (code)
-      // sebagai keyword. (Kartu CollectionSummary yang dulu meng-echo keyword
-      // sudah dihapus dari dashboard — diganti echo di chart ini.)
+      // chart (aria-label, mis. "RUU Digital — Layanan publik: 72% (640 post)")
+      // → bukti filter terkirim & respons ter-render. UI mengirim nama keyword
+      // (bukan slug) sebagai query param.
       await expect(
-        dashboardPage.page.getByRole('img', { name: new RegExp(`${data.code} —` ) }),
+        dashboardPage.page.getByRole('img', { name: new RegExp(`${data.keyword} —` ) }),
       ).toBeVisible();
     });
   }
@@ -173,18 +172,20 @@ test.describe('Dashboard', () => {
     // Tabel ada dengan header kolom
     await expect(dashboardPage.topPostsTable).toBeVisible();
     const headers = dashboardPage.topPostsTable.locator('th');
-    await expect(headers).toHaveText(['Platform', 'Post', 'Emotion', 'Topic', 'Engagement']);
+    await expect(headers).toHaveText(['Platform', 'Post', 'Emotion', 'Topic', 'Views', 'Engagement']);
 
-    // Data mock ter-render di tabel
-    // Row 1: X, "Transformasi layanan publik...", Anger, Layanan publik, 8,432
-    await expect(dashboardPage.topPostsTable.getByText('X', { exact: true }).first()).toBeVisible();
+    // Data mock terrender di tabel
+    // Row 1: TikTok, "Transformasi layanan publik...", anger, Layanan publik, 201.61K, 8,432
+    await expect(dashboardPage.topPostsTable.getByText('TikTok', { exact: true }).first()).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('Transformasi layanan publik perlu dimulai dari data...')).toBeVisible();
-    await expect(dashboardPage.topPostsTable.getByText('Anger', { exact: true }).first()).toBeVisible();
+    await expect(dashboardPage.topPostsTable.getByText('anger', { exact: true }).first()).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('Layanan publik', { exact: true }).first()).toBeVisible();
+    await expect(dashboardPage.topPostsTable.getByText('201.61K')).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('8,432')).toBeVisible();
 
-    // Row 2: Instagram, "Antusiasme warga...", Joy, Partisipasi, 6,208
-    await expect(dashboardPage.topPostsTable.getByText('Instagram', { exact: true }).first()).toBeVisible();
+    // Row 2: TikTok, "Antusiasme warga...", joy, Partisipasi, 147K, 6,208
+    await expect(dashboardPage.topPostsTable.getByText('joy', { exact: true }).first()).toBeVisible();
+    await expect(dashboardPage.topPostsTable.getByText('147K')).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('6,208')).toBeVisible();
   });
 
@@ -226,12 +227,12 @@ test.describe('Dashboard', () => {
     await expect(dashboardPage.topPerformersHeading).toBeVisible();
     await expect(dashboardPage.topAccountsHeading).toBeVisible();
 
-    // Data mock: @sip_indonesia (X, 120 posts) & @beritakota_id (TikTok, 84 posts)
+    // Data mock: sip_indonesia (X, 120 posts) & beritakota_id (TikTok, 84 posts)
     const accountsSection = dashboardPage.page.locator('article').filter({ hasText: 'Top accounts' }).first();
-    await expect(accountsSection).toContainText('@sip_indonesia');
+    await expect(accountsSection).toContainText('sip_indonesia');
     await expect(accountsSection).toContainText('X');
     await expect(accountsSection).toContainText('120 post');
-    await expect(accountsSection).toContainText('@beritakota_id');
+    await expect(accountsSection).toContainText('beritakota_id');
     await expect(accountsSection).toContainText('TikTok');
     await expect(accountsSection).toContainText('84 post');
   });

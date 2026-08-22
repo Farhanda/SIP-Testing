@@ -60,8 +60,8 @@ const HOURLY_SERIES = (positive: boolean) =>
   }));
 
 const TOP_POSTS = [
-  { id: 'post-1', platform: 'X', post: 'Transformasi layanan publik perlu dimulai dari data...', emotion: 'Anger', topic: 'Layanan publik', engagement: 8432 },
-  { id: 'post-2', platform: 'Instagram', post: 'Antusiasme warga dalam diskusi digital hari ini...', emotion: 'Joy', topic: 'Partisipasi', engagement: 6208 },
+  { id: 'post-1', platform: 'TikTok', post: 'Transformasi layanan publik perlu dimulai dari data...', source_url: 'https://www.tiktok.com/@user1/video/123', emotion: 'anger', emotion_color: '#B44235', topic: 'Layanan publik', engagement: 8432, engagement_label: '8,432', views: 201606, views_label: '201.61K' },
+  { id: 'post-2', platform: 'TikTok', post: 'Antusiasme warga dalam diskusi digital hari ini...', source_url: 'https://www.tiktok.com/@user2/video/456', emotion: 'joy', emotion_color: '#2F7D52', topic: 'Partisipasi', engagement: 6208, engagement_label: '6,208', views: 147001, views_label: '147K' },
 ];
 
 const TOPICS = [
@@ -70,8 +70,8 @@ const TOPICS = [
 ];
 
 const TOP_ACCOUNTS = [
-  { id: 'acc-1', handle: '@sip_indonesia', platform: 'X', posts: 120 },
-  { id: 'acc-2', handle: '@beritakota_id', platform: 'TikTok', posts: 84 },
+  { id: 'acc-1', handle: 'sip_indonesia', platform: 'X', posts: 120 },
+  { id: 'acc-2', handle: 'beritakota_id', platform: 'TikTok', posts: 84 },
 ];
 
 const TOP_HASHTAGS = [
@@ -142,11 +142,51 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
       // ⚠️ KPI memakai shape snake_case (kontrak Go dashboard-service) — app
       // mengonversi via transformResponse di src/services/dashboard.ts.
       return { data: KPI_SUMMARY_API, meta: META() };
+    case 'protocol-status':
+      return {
+        data: {
+          level: 'green',
+          label: 'Green',
+          description: 'Negative emotions are only 5% of conversations — sentiment under control.',
+          negative_pct: 5,
+          positive_pct: 52,
+          period: '24h',
+          emotion: { anger: 5, neutral: 30, fear: 2, joy: 55, sadness: 8 },
+          sentiment: { positive: 52, neutral: 30, negative: 18 },
+          total_post: 2846,
+          total_engagement: 48200,
+          affected_platforms: [],
+          trigger_topics: [],
+          influential_accounts: [],
+          top_negative_quotes: [],
+          positive_highlight: null,
+          recent_trend: [],
+          active_since: null,
+          active_duration_label: '',
+        },
+        meta: META(),
+      };
     case 'emotion-map':
-      // negative = 25 + 12 + 8 = 45 → protocol level "Alert" (30–49)
-      return { data: { anger: 25, neutral: 30, fear: 12, joy: 25, sadness: 8 }, meta: META() };
+      // Bentuk baru: array of { emotion, pct, color } (bukan objek)
+      return {
+        data: [
+          { emotion: 'joy', pct: 55, color: '#2F7D52' },
+          { emotion: 'neutral', pct: 30, color: '#b7b7ba' },
+          { emotion: 'sadness', pct: 3, color: '#D6B5B4' },
+          { emotion: 'others', pct: 12, color: '#CBD5E1' },
+        ],
+        meta: META(),
+      };
     case 'sentiment-map':
-      return { data: { positive: 52, neutral: 30, negative: 18 }, meta: META() };
+      // Bentuk baru: array of { sentiment, pct, color } (bukan objek)
+      return {
+        data: [
+          { sentiment: 'positive', pct: 52, color: '#2F7D52' },
+          { sentiment: 'neutral', pct: 30, color: '#b7b7ba' },
+          { sentiment: 'negative', pct: 18, color: '#B44235' },
+        ],
+        meta: META(),
+      };
     case 'sentiment-trend':
       return { data: SENTIMENT_SERIES(), meta: META() };
     case 'sentiment-trend-hourly':
@@ -156,6 +196,8 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
     case 'conversation-trend-hourly':
       return { data: HOURLY_SERIES(false), meta: META() };
     case 'top-posts':
+      // Bentuk baru: include source_url, views, views_label, emotion_color;
+      // emotion pakai lowercase.
       return { data: TOP_POSTS, meta: META() };
     case 'topic-intelligence': {
       // Label sengaja "menggema" keyword dari query param → test data-driven
@@ -164,12 +206,34 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
       return { data: TOPICS.map((t) => ({ ...t, label: `${keyword} — ${t.label}` })), meta: META() };
     }
     case 'top-accounts':
+      // Bentuk baru: handle tanpa @ prefix
       return { data: TOP_ACCOUNTS, meta: META() };
     case 'top-hashtags':
       return { data: TOP_HASHTAGS, meta: META() };
     default:
       return { data: {}, meta: META() };
   }
+}
+
+/**
+ * Mock daftar platform option (dropdown dashboard).
+ * Bentuk: /v1/scrape/platform → { data: [{ platform, platform_name }] }
+ */
+export function mockScrapePlatform(
+  page: Page,
+  platforms: { platform: string; platform_name: string }[] = [
+    { platform: 'instagram', platform_name: 'Instagram' },
+    { platform: 'tiktok', platform_name: 'TikTok' },
+    { platform: 'twitter_x', platform_name: 'Twitter/X' },
+  ],
+) {
+  return page.route(/\/v1\/scrape\/platform/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: platforms, meta: null }),
+    });
+  });
 }
 
 /**
@@ -194,13 +258,28 @@ export function mockDashboardApis(page: Page) {
 /**
  * Mock daftar keyword option (dropdown dashboard). Kosong → tanpa auto-select.
  *
- * ⚠️ Format mengikuti respons asli `as-option-list` (dicek 2026-08-14):
- *   { data: [{ id, code, name }] }  — mis. { id: "kw-002", code: "layanan-publik", name: "Layanan Publik" }
- * (Dulu mock memakai field `keyword`; UI sekarang membaca `code` + `name`.)
+ * Bentuk baru (2026-08-22): app memanggil `/v1/scrape/keyword` langsung ke BE.
+ * Respons: { data: string[], meta: { latest: string } }
+ * `latest` menentukan keyword pertama yang auto-select.
+ *
+ * ⚠️ Backward-compat: route lama `/api/admin/keyword/as-option-list` juga
+ * di-intercept (aplikasi lama masih pakai route ini).
  */
 export function mockKeywordOptions(page: Page, keywords: string[] = ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']) {
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return page.route('**/api/admin/keyword/as-option-list', async (route) => {
+  // Route baru: /v1/scrape/keyword (format string array)
+  const routeNew = page.route(/\/v1\/scrape\/keyword/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: keywords,
+        meta: { latest: keywords[0] ?? null },
+      }),
+    });
+  });
+  // Route lama: /api/admin/keyword/as-option-list (format {id, code, name} array)
+  const routeOld = page.route('**/api/admin/keyword/as-option-list', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -209,6 +288,10 @@ export function mockKeywordOptions(page: Page, keywords: string[] = ['RUU Digita
       }),
     });
   });
+  // Return tuple supaya caller bisa cleanup (Promise.all) — tapi backward-compat
+  // karena banyak test yang assign ke single variable. Gabungkan ke Promise.all
+  // wrapper sederhana:
+  return Promise.all([routeNew, routeOld]) as unknown as ReturnType<typeof page.route>;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,11 +311,11 @@ export const MOCK_SCHEDULER_ITEMS: MockSchedulerItem[] = [
   // Platform pakai LABEL (X/Instagram/TikTok) — UI menampilkan label ini.
   // Filter di bawah membandingkan case-insensitive karena UI mengirim slug
   // lowercase (x/instagram/tiktok) sebagai query param (dicek 2026-08-14).
-  { id: 'sch-1', keyword: 'RUU Digital', platforms: ['X', 'Instagram', 'TikTok'], meta: 'Last: Today, 09:00 · Next: 10:00', cron: 'Every 1 hour', state: 'active' },
-  { id: 'sch-2', keyword: 'BPJS Kesehatan', platforms: ['X', 'TikTok'], meta: 'Last: Today, 08:30 · Next: 12:30', cron: 'Every 4 hours', state: 'active' },
+  { id: 'sch-1', keyword: 'RUU Digital', platforms: ['Twitter/X', 'Instagram', 'TikTok'], meta: 'Last: Today, 09:00 · Next: 10:00', cron: 'Every 1 hour', state: 'active' },
+  { id: 'sch-2', keyword: 'BPJS Kesehatan', platforms: ['Twitter/X', 'TikTok'], meta: 'Last: Today, 08:30 · Next: 12:30', cron: 'Every 4 hours', state: 'active' },
   { id: 'sch-3', keyword: 'Ketenagakerjaan', platforms: ['Instagram', 'TikTok'], meta: 'Held by manual job', cron: 'Every 2 hours', state: 'hold' },
-  { id: 'sch-4', keyword: 'Ketenagakerjaan', platforms: ['X', 'Instagram'], meta: 'Last: Yesterday, 20:00 · Next: Today, 20:00', cron: 'Every day', state: 'active' },
-  { id: 'sch-5', keyword: 'BPJS Kesehatan', platforms: ['X'], meta: 'Last: Aug 01, 09:00 · Next: paused', cron: 'Every 6 hours', state: 'hold' },
+  { id: 'sch-4', keyword: 'Edukasi Digital', platforms: ['Twitter/X', 'Instagram'], meta: 'Last: Yesterday, 20:00 · Next: Today, 20:00', cron: 'Every day', state: 'active' },
+  { id: 'sch-5', keyword: 'BPJS Kesehatan', platforms: ['Twitter/X'], meta: 'Last: Aug 01, 09:00 · Next: paused', cron: 'Every 6 hours', state: 'hold' },
 ];
 
 /**
@@ -328,13 +411,14 @@ export type MockUnscheduledItem = {
 };
 
 export const MOCK_UNSCHEDULED_ITEMS: MockUnscheduledItem[] = [
-  { id: 'un-1', keyword: 'RUU Digital', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'completed', runCount: 2, progressPct: 100 },
+  { id: 'un-1', keyword: 'RUU Digital', platforms: ['Twitter/X'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'completed', runCount: 2, progressPct: 100 },
   { id: 'un-2', keyword: 'Ketenagakerjaan', platforms: ['Instagram', 'TikTok'], periodLabel: 'Last 7 days', createdAt: new Date().toISOString(), status: 'queued', runCount: 1, progressPct: 0 },
-  { id: 'un-3', keyword: 'BPJS Kesehatan', platforms: ['X', 'TikTok'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'failed', runCount: 1, progressPct: 0 },
+  { id: 'un-3', keyword: 'BPJS Kesehatan', platforms: ['Twitter/X', 'TikTok'], periodLabel: 'Last 24 hours', createdAt: new Date().toISOString(), status: 'failed', runCount: 1, progressPct: 0 },
 ];
 
 /**
- * Mock POST /api/admin/keyword/unscheduled (buat keyword on-demand).
+ * Mock POST /api/admin/keyword/unscheduled atau /v1/scrape (buat keyword on-demand).
+ * Aplikasi sekarang memanggil POST /v1/scrape langsung ke BE.
  * Daftarkan SETELAH `mockUnscheduledList` supaya menang untuk method POST
  * (Playwright memberi prioritas ke route yang terakhir didaftarkan).
  */
@@ -342,7 +426,7 @@ export function mockCreateUnscheduled(
   page: Page,
   { succeed = true }: { succeed?: boolean } = {},
 ) {
-  return page.route('**/api/admin/keyword/unscheduled', async (route) => {
+  return page.route(/\/v1\/scrape$|\/api\/admin\/keyword\/unscheduled$/, async (route) => {
     if (route.request().method() !== 'POST') {
       await route.continue();
       return;
@@ -446,8 +530,8 @@ export function mockUnscheduledList(page: Page, items: MockUnscheduledItem[] = M
 // ---------------------------------------------------------------------------
 
 export const MOCK_HISTORY_RUNS: MockUnscheduledItem[] = [
-  { id: 'run-2', keyword: 'RUU Digital', platforms: ['X'], periodLabel: 'Last 24 hours', createdAt: '2026-08-11T09:00:00.000Z', status: 'completed', runCount: 2, progressPct: 100 },
-  { id: 'run-1', keyword: 'RUU Digital', platforms: ['X'], periodLabel: 'Last 7 days', createdAt: '2026-08-04T09:00:00.000Z', status: 'failed', runCount: 2, progressPct: 0 },
+  { id: 'run-2', keyword: 'RUU Digital', platforms: ['Twitter/X'], periodLabel: 'Last 24 hours', createdAt: '2026-08-11T09:00:00.000Z', status: 'completed', runCount: 2, progressPct: 100 },
+  { id: 'run-1', keyword: 'RUU Digital', platforms: ['Twitter/X'], periodLabel: 'Last 7 days', createdAt: '2026-08-04T09:00:00.000Z', status: 'failed', runCount: 2, progressPct: 0 },
 ];
 
 /** Mock GET /unscheduled?keyword=...&history=true — daftar run untuk modal Run history. */

@@ -50,7 +50,7 @@ export class KeywordPage extends BasePage {
    */
   async setUnscPlatforms(selected: string[]) {
     await this.unscPlatformButton.click();
-    for (const platform of ['X', 'Instagram', 'TikTok']) {
+    for (const platform of ['Instagram', 'TikTok', 'Twitter/X']) {
       const option = this.page.getByRole('option', { name: platform, exact: true });
       const isSelected = (await option.getAttribute('aria-selected')) === 'true';
       if (isSelected !== selected.includes(platform)) {
@@ -64,10 +64,9 @@ export class KeywordPage extends BasePage {
   async expectUnscPlatformsSelected(platforms: string[]) {
     await this.unscPlatformButton.click();
     for (const platform of platforms) {
-      await expect(this.page.getByRole('option', { name: platform, exact: true })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
+      await expect(
+        this.page.getByRole('option', { name: platform, exact: true })
+      ).toHaveAttribute('aria-selected', 'true');
     }
     await this.page.keyboard.press('Escape');
   }
@@ -196,7 +195,7 @@ export class KeywordPage extends BasePage {
   }
 
   async deselectAllPlatforms() {
-    for (const platform of ['X', 'Instagram', 'TikTok']) {
+    for (const platform of ['Twitter/X', 'Instagram', 'TikTok']) {
       const checkbox = this.platformCheckbox(platform);
       if (await checkbox.isChecked()) {
         await checkbox.click();

@@ -34,7 +34,7 @@ test.describe('Monitoring Keyword — Modal', () => {
       await expect(keywordPage.unscKeywordInput).toBeVisible();
 
       // Default: semua platform terpilih (listbox) & periode "24 Hours" (select)
-      await keywordPage.expectUnscPlatformsSelected(['X', 'Instagram', 'TikTok']);
+      await keywordPage.expectUnscPlatformsSelected(['Instagram', 'TikTok', 'Twitter/X']);
       await expect(keywordPage.unscPeriodSelect).toHaveValue('24H');
       await expect(keywordPage.startProcessButton).toBeVisible();
     });
@@ -55,7 +55,7 @@ test.describe('Monitoring Keyword — Modal', () => {
       await keywordPage.expectToast(`Keyword "Tes Validasi" added.`, false);
 
       // Skenario 2 — keyword kosong (input required) → submit tetap diblokir
-      await keywordPage.setUnscPlatforms(['X', 'Instagram', 'TikTok']); // kembalikan semua
+      await keywordPage.setUnscPlatforms(['Instagram', 'TikTok', 'Twitter/X']); // kembalikan semua
       await keywordPage.fillUnscKeyword('');
       await keywordPage.submitCreate();
       await keywordPage.expectCreateModalOpen(true);
@@ -127,7 +127,9 @@ test.describe('Monitoring Keyword — Modal', () => {
 
       // Data baris ter-prefill
       await expect(keywordPage.editKeywordInput).toHaveValue('RUU Digital');
-      for (const platform of ['X', 'Instagram', 'TikTok']) {
+      // Edit modal checkboxes gunakan label platform dari app (bukan dari mock data)
+      // 'X' sekarang ditampilkan sebagai 'Twitter/X' di UI
+      for (const platform of ['Twitter/X', 'Instagram', 'TikTok']) {
         await expect(keywordPage.platformCheckbox(platform)).toBeChecked();
       }
       // cron "Every 1 hour" → frequency 1
@@ -150,7 +152,7 @@ test.describe('Monitoring Keyword — Modal', () => {
       await keywordPage.expectToast('Keyword "RUU Digital" updated successfully.', false);
 
       // Skenario 2 — keyword kosong (input required) → submit tetap diblokir
-      for (const platform of ['X', 'Instagram', 'TikTok']) {
+      for (const platform of ['Twitter/X', 'Instagram', 'TikTok']) {
         await keywordPage.platformCheckbox(platform).check();
       }
       await keywordPage.editKeywordInput.fill('');
@@ -184,7 +186,7 @@ test.describe('Monitoring Keyword — Modal', () => {
       // lowercase (x/instagram/tiktok), bukan label (dicek 2026-08-14).
       expect(patchBody).toEqual({
         keyword: 'RUU Digital Baru',
-        platforms: ['x', 'instagram', 'tiktok'],
+        platforms: ['twitter_x', 'instagram', 'tiktok'],
         cron: 'Every 30 minutes',
       });
     });

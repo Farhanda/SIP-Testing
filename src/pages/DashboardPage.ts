@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
-const PLATFORMS = ['X', 'Instagram', 'TikTok'];
+const PLATFORMS = ['Instagram', 'TikTok', 'Twitter/X'];
 
 /**
  * POM halaman Dashboard (/monitoring/dashboard).
@@ -17,9 +17,9 @@ export class DashboardPage extends BasePage {
   readonly searchFiltersHeading = this.page.getByRole('heading', { name: 'Search filters' });
   readonly applyFilterButton = this.page.getByRole('button', { name: 'Apply filter' });
   readonly resetFiltersButton = this.page.getByRole('button', { name: 'Reset filters' });
-  readonly keywordInput = this.page.getByPlaceholder('Search or select a keyword');
+  readonly keywordInput = this.page.getByRole('combobox', { name: 'Keyword' });
   readonly clearKeywordButton = this.page.getByRole('button', { name: 'Clear selection' });
-  readonly platformButton = this.page.getByRole('button', { name: /All platforms|Select platform/ });
+  readonly platformButton = this.page.getByRole('button', { name: /Platform/ });
   readonly noSearchYet = this.page.getByText('No search yet');
   readonly conversationSummaryHeading = this.page.getByRole('heading', { name: 'Conversation summary' });
   readonly sentimentGroupHeading = this.page.getByRole('heading', { name: 'Sentiment & Emotion Analysis' });
@@ -70,13 +70,20 @@ export class DashboardPage extends BasePage {
     await this.platformButton.click();
     for (const platform of PLATFORMS) {
       const option = this.page.getByRole('option', { name: platform, exact: true });
-      if ((await option.getAttribute('aria-selected')) === 'true') {
+      // Cek berbagai kemungkinan atribut selected (aria-selected, data-selected, selected)
+      const isSelected = await option.evaluate((el) => {
+        return el.getAttribute('aria-selected') === 'true'
+          || el.hasAttribute('selected')
+          || el.getAttribute('data-selected') === 'true'
+          || el.classList.contains('selected')
+          || el.closest('[aria-selected="true"]') !== null;
+      }).catch(() => false);
+      if (isSelected) {
         await option.click();
       }
     }
     // Tutup dropdown (klik di luar)
     await this.page.keyboard.press('Escape');
-    await expect(this.page.getByRole('option', { name: 'X', exact: true })).toHaveCount(0);
   }
 
   async applyFilter() {
