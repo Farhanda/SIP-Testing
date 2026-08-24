@@ -37,4 +37,18 @@ test.describe('Login', () => {
 
     await expect(loginPage.brandingPanel).toBeVisible();
   });
+
+  test('checkbox Remember me aktif secara default dan dapat diubah', async ({ loginPage }) => {
+    await loginPage.goto();
+
+    // Default tercentang (perilaku aplikasi saat ini)
+    await expect(loginPage.rememberMeCheckbox).toBeVisible();
+    await expect(loginPage.rememberMeCheckbox).toBeChecked();
+
+    // Dapat di-uncheck lalu dicentang kembali
+    await loginPage.rememberMeCheckbox.uncheck();
+    await expect(loginPage.rememberMeCheckbox).not.toBeChecked();
+    await loginPage.rememberMeCheckbox.check();
+    await expect(loginPage.rememberMeCheckbox).toBeChecked();
+  });
 });

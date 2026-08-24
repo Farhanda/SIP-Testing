@@ -79,7 +79,6 @@ export class KeywordPage extends BasePage {
   // ---- Modal "Edit scheduled keyword" (tab Scheduled) ----
   readonly editModal = this.page.getByRole('dialog', { name: 'Edit scheduled keyword' });
   readonly editKeywordInput = this.page.locator('#edit-keyword');
-  readonly editFrequencySelect = this.page.locator('#edit-frequency');
   readonly saveChangesButton = this.page.getByRole('button', { name: 'Save changes' });
 
   // ---- Modal "Move to scheduled keyword" (tab On Demand) ----
@@ -93,9 +92,6 @@ export class KeywordPage extends BasePage {
     return this.moveModal.getByRole('checkbox', { name, exact: true });
   }
 
-  // ---- Modal "Run history" (tab On Demand) ----
-  readonly historyModal = this.page.getByRole('dialog', { name: 'Run history' });
-
   // ---- Aksi baris tabel tab On Demand ----
 
   /** Baris tabel yang memuat teks `keyword` (dipakai untuk men-scope aksi). */
@@ -103,37 +99,21 @@ export class KeywordPage extends BasePage {
     return this.page.getByRole('row').filter({ hasText: keyword });
   }
 
-  retryButton(keyword: string) {
-    return this.rowOf(keyword).getByRole('button', { name: `Retry ${keyword}` });
+  /** Tombol Reprocess pada baris On Demand — membuka dialog Reprocess keyword. */
+  reprocessButton(keyword: string) {
+    return this.rowOf(keyword).getByRole('button', { name: `Reprocess ${keyword}` });
   }
 
-  cancelButton(keyword: string) {
-    return this.rowOf(keyword).getByRole('button', { name: `Cancel ${keyword}` });
-  }
+  // Dialog Reprocess keyword (dibuka lewat tombol Reprocess)
+  readonly reprocessDialog = this.page.getByRole('dialog', { name: 'Reprocess keyword' });
+  readonly reprocessKeywordInput = this.reprocessDialog.getByRole('combobox', { name: 'Keyword' });
+  readonly startReprocessingButton = this.reprocessDialog.getByRole('button', { name: 'Start reprocessing' });
 
   moveButton(keyword: string) {
     return this.rowOf(keyword).getByRole('button', { name: `Move ${keyword} to scheduled keyword` });
   }
 
-  viewDetailLink(keyword: string) {
-    return this.rowOf(keyword).getByRole('link', { name: `View detail for ${keyword}` });
-  }
-
-  historyButton(keyword: string) {
-    return this.rowOf(keyword).getByRole('button', { name: /History/ });
-  }
-
-  /** Kartu ringkasan statistik tab On Demand (Total/Processing/Completed/Failed). */
-  async expectStatValue(label: string, value: string) {
-    // .first(): label "Completed" juga muncul di dalam kartu daftar (select
-    // filter status) — kartu statistik selalu lebih dulu di DOM.
-    const card = this.page
-      .locator('article')
-      .filter({ has: this.page.getByText(label, { exact: true }) })
-      .first();
-    await expect(card).toContainText(value);
-  }
-
+  /** Tombol menu aksi pada baris Scheduled (berisi opsi Edit / Activate). */
   actionMenuButton(keyword: string) {
     return this.page.getByRole('button', { name: `Action menu for ${keyword}` });
   }
@@ -152,7 +132,8 @@ export class KeywordPage extends BasePage {
   }
 
   async selectPlatform(value: string) {
-    await this.platformSelect.selectOption(value);
+    // Opsi memakai value slug (instagram/tiktok/twitter_x) dengan label bebas
+    await this.platformSelect.selectOption({ label: value });
   }
 
   async searchKeyword(keyword: string) {

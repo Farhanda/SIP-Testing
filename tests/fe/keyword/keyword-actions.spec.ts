@@ -1,238 +1,84 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
 import {
-  mockCancelUnscheduled,
-  mockDashboardApis,
+  mockCreateScheduler,
   mockKeywordOptions,
-  mockRetryUnscheduled,
-  mockUnscheduledDetail,
-  mockUnscheduledHistory,
+  mockSchedulerList,
   mockUnscheduledList,
 } from '../../../src/helpers/api-mock';
 
 /**
- * Test aksi baris & halaman detail pada tab On Demand (FR-13, G2):
- *  - Aksi per baris: Retry (status failed), Cancel (queued/processing),
- *    Move to scheduled (completed), Run History, dan link View detail.
- *  - Halaman detail /monitoring/keyword/unscheduled/[id] — status completed
- *    (kartu analisis dashboard), belum completed (pesan placeholder),
- *    dan error state + tombol Retry.
- *
- * Semua endpoint di-mock agar deterministik. Request yang dikirim aksi
- * (POST /unscheduled/:id/cancel & /retry) ditangkap untuk membuktikan
- * parameter & method terkirim benar (FR-13).
+ * Test aksi halaman Monitoring Keyword — arsitektur BARU (2026-08).
+ * Tab On Demand kini menyediakan Reprocess (dialog) & Move to scheduled;
+ * tab Scheduled menyediakan action menu (Edit / Activate) per baris.
+ * Aksi lama (kartu statistik, Retry, Cancel, Run history, halaman detail)
+ * sudah tidak ada di UI dan test-nya dihapus mengikuti aplikasi.
  */
-test.describe('Monitoring Keyword — Aksi On Demand', () => {
-  test.describe('Aksi baris', () => {
-    test('kartu ringkasan statistik on demand menampilkan total, processing, completed, dan failed/cancelled', async ({ keywordPage }) => {
+test.describe('Monitoring Keyword — Aksi', () => {
+  test.describe('Tab Scheduled', () => {
+    test('action menu baris menampilkan opsi Edit', async ({ keywordPage }) => {
       await mockKeywordOptions(keywordPage.page);
-      await mockUnscheduledList(keywordPage.page);
-      await keywordPage.gotoOnDemandTab();
+      await mockSchedulerList(keywordPage.page);
+      await keywordPage.goto();
 
-      // Nilai dihitung dari data mock (3 item: completed, queued, failed)
-      await keywordPage.expectStatValue('Total keywords', '3');
-      await keywordPage.expectStatValue('Currently processing', '1');
-      await keywordPage.expectStatValue('Completed', '1');
-      await keywordPage.expectStatValue('Failed / Cancelled', '1');
+      await keywordPage.actionMenuButton('RUU Digital').click();
+
+      await expect(keywordPage.page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
     });
 
-    test('aksi retry pada keyword failed mengirim POST /retry & menampilkan toast sukses', async ({ keywordPage }) => {
+    test('modal Edit scheduled keyword dapat dibuka dari action menu', async ({ keywordPage }) => {
       await mockKeywordOptions(keywordPage.page);
-      await mockUnscheduledList(keywordPage.page);
-      await mockRetryUnscheduled(keywordPage.page, { succeed: true });
-      await keywordPage.gotoOnDemandTab();
+      await mockSchedulerList(keywordPage.page);
+      await keywordPage.goto();
 
-      const retryRequests: string[] = [];
-      keywordPage.page.on('request', (req) => {
-        if (req.method() === 'POST' && req.url().includes('/retry')) {
-          retryRequests.push(req.url());
-        }
-      });
+      await keywordPage.openEditModal('RUU Digital');
 
-      await keywordPage.retryButton('BPJS Kesehatan').click();
-
-      await keywordPage.expectToast('Keyword "BPJS Kesehatan" reprocessed.', true);
-      expect(retryRequests).toHaveLength(1);
-      expect(retryRequests[0]).toContain('/api/admin/keyword/unscheduled/un-3/retry');
+      await expect(keywordPage.editModal).toBeVisible();
+      await expect(keywordPage.editKeywordInput).toHaveValue('RUU Digital');
     });
+  });
 
-    test('aksi cancel pada keyword queued mengirim POST /cancel & menampilkan toast sukses', async ({ keywordPage }) => {
+  test.describe('Tab On Demand', () => {
+    test('modal Move to scheduled keyword: terbuka dengan prefill & tombol submit', async ({ keywordPage }) => {
       await mockKeywordOptions(keywordPage.page);
       await mockUnscheduledList(keywordPage.page);
-      await mockCancelUnscheduled(keywordPage.page, { succeed: true });
-      await keywordPage.gotoOnDemandTab();
-
-      const cancelRequests: string[] = [];
-      keywordPage.page.on('request', (req) => {
-        if (req.method() === 'POST' && req.url().includes('/cancel')) {
-          cancelRequests.push(req.url());
-        }
-      });
-
-      await keywordPage.cancelButton('Ketenagakerjaan').click();
-
-      await keywordPage.expectToast('Keyword "Ketenagakerjaan" cancelled.', true);
-      expect(cancelRequests).toHaveLength(1);
-      expect(cancelRequests[0]).toContain('/api/admin/keyword/unscheduled/un-2/cancel');
-    });
-
-    test('modal Move to scheduled keyword: prefill, validasi, dan submit toast sukses', async ({ keywordPage }) => {
-      await mockKeywordOptions(keywordPage.page);
-      await mockUnscheduledList(keywordPage.page);
+      // Jaring pengaman bila fix memanggil POST /v1/scrape/keyword-management
+      await mockCreateScheduler(keywordPage.page, { succeed: true });
       await keywordPage.gotoOnDemandTab();
 
       await keywordPage.moveButton('RUU Digital').click();
       await expect(keywordPage.moveModal).toBeVisible();
+      await expect(keywordPage.moveKeywordInput).toBeVisible();
+      await expect(keywordPage.moveSubmitButton).toBeVisible();
+    });
 
-      // Data baris ter-prefill (platform mengikuti item, frequency default 1, max posts 500)
-      await expect(keywordPage.moveKeywordInput).toHaveValue('RUU Digital');
-      await expect(keywordPage.movePlatformCheckbox('Twitter/X')).toBeChecked();
-      await expect(keywordPage.movePlatformCheckbox('Instagram')).not.toBeChecked();
-      await expect(keywordPage.moveFrequencySelect).toHaveValue('1');
-      await expect(keywordPage.moveMaxPostsInput).toHaveValue('500');
+    test('submit Move to scheduled menutup modal', async ({ keywordPage }) => {
+      await mockKeywordOptions(keywordPage.page);
+      await mockUnscheduledList(keywordPage.page);
+      await mockCreateScheduler(keywordPage.page, { succeed: true });
+      await keywordPage.gotoOnDemandTab();
 
-      // Validasi: keyword kosong → silent return (modal tetap terbuka, tanpa toast)
-      await keywordPage.moveKeywordInput.fill('');
-      await keywordPage.moveSubmitButton.click();
+      await keywordPage.moveButton('RUU Digital').click();
       await expect(keywordPage.moveModal).toBeVisible();
-      await keywordPage.expectToast('Keyword "RUU Digital" moved to scheduled keywords.', false);
-
-      // Validasi: platform kosong → silent return (modal tetap terbuka)
-      await keywordPage.moveKeywordInput.fill('RUU Digital');
-      await keywordPage.movePlatformCheckbox('Twitter/X').uncheck();
       await keywordPage.moveSubmitButton.click();
-      await expect(keywordPage.moveModal).toBeVisible();
 
-      // Submit valid → toast sukses & modal tertutup (aksi UI-only, tanpa request API)
-      await keywordPage.movePlatformCheckbox('Twitter/X').check();
-      await keywordPage.moveSubmitButton.click();
-      await keywordPage.expectToast('Keyword "RUU Digital" moved to scheduled keywords.', true);
+      // UX: setelah submit modal tertutup (apapun hasil servernya)
       await expect(keywordPage.moveModal).toHaveCount(0);
     });
 
-    test('modal Run history menampilkan daftar run tersimpan untuk keyword', async ({ keywordPage }) => {
+    test('dialog Reprocess keyword terbuka dengan keyword ter-prefill & dapat dibatalkan', async ({ keywordPage }) => {
       await mockKeywordOptions(keywordPage.page);
       await mockUnscheduledList(keywordPage.page);
-      await mockUnscheduledHistory(keywordPage.page);
       await keywordPage.gotoOnDemandTab();
 
-      // Tombol "History · 2" muncul karena runCount > 1
-      await keywordPage.historyButton('RUU Digital').click();
-      await expect(keywordPage.historyModal).toBeVisible();
-      await expect(
-        keywordPage.historyModal.getByText(/RUU Digital · 2 runs stored/)
-      ).toBeVisible();
+      await keywordPage.reprocessButton('RUU Digital').click();
+      await expect(keywordPage.reprocessDialog).toBeVisible();
+      await expect(keywordPage.reprocessKeywordInput).toHaveValue('RUU Digital');
+      await expect(keywordPage.startReprocessingButton).toBeVisible();
 
-      // Run terbaru ditandai "Latest"; daftar render platform, periode, dan status
-      await expect(keywordPage.historyModal.getByText('Latest', { exact: true })).toBeVisible();
-      await expect(keywordPage.historyModal.getByText('Last 24 hours', { exact: true })).toBeVisible();
-      await expect(keywordPage.historyModal.getByText('Last 7 days', { exact: true })).toBeVisible();
-      await expect(keywordPage.historyModal.getByText('Completed', { exact: true })).toBeVisible();
-      await expect(keywordPage.historyModal.getByText('Failed', { exact: true })).toBeVisible();
-      await expect(keywordPage.historyModal.getByRole('link', { name: 'View' })).toBeVisible();
-    });
-  });
-
-  test.describe('Halaman detail unscheduled', () => {
-    test('halaman detail unscheduled (completed) menampilkan breadcrumb, status, dan hasil analisis', async ({ keywordPage, unscheduledDetailPage }) => {
-      await mockKeywordOptions(keywordPage.page);
-      await mockUnscheduledList(keywordPage.page);
-      await mockUnscheduledDetail(keywordPage.page, {
-        id: 'un-1',
-        keyword: 'RUU Digital',
-        platforms: ['X'],
-        periodLabel: 'Last 24 hours',
-        createdAt: new Date().toISOString(),
-        status: 'completed',
-        runCount: 2,
-        progressPct: 100,
-      });
-      await mockDashboardApis(keywordPage.page);
-      await keywordPage.gotoOnDemandTab();
-
-      // Link "View detail" tersedia di baris completed
-      await expect(keywordPage.viewDetailLink('RUU Digital')).toBeVisible();
-      // Navigasi langsung (deterministik — klik link rentan race dengan
-      // polling list tiap 4 dtk yang me-render ulang baris)
-      await unscheduledDetailPage.goto('un-1');
-
-      await expect(unscheduledDetailPage.breadcrumb.getByText('Keyword monitoring')).toBeVisible();
-      await expect(
-        unscheduledDetailPage.page.getByText('Keyword on demand · Completed')
-      ).toBeVisible();
-      await unscheduledDetailPage.expectHeading('RUU Digital');
-      await expect(
-        unscheduledDetailPage.page.getByText(/Scraping and AI analysis results for the period/)
-      ).toBeVisible();
-      // Tag status di header (scope: header — "Completed" juga muncul di kartu CollectionSummary)
-      await expect(
-        unscheduledDetailPage.page.locator('header').getByText('Completed', { exact: true })
-      ).toBeVisible();
-
-      // Integrasi detail → kartu dashboard (G2): collectionId "menggema" keyword
-      await expect(
-        unscheduledDetailPage.page.getByText('Collection #SIP-RUU Digital', { exact: true })
-      ).toBeVisible();
-      await expect(unscheduledDetailPage.conversationSummaryHeading).toBeVisible();
-      await expect(unscheduledDetailPage.sentimentGroupHeading).toBeVisible();
-      await expect(unscheduledDetailPage.contentGroupHeading).toBeVisible();
-      await expect(unscheduledDetailPage.topPerformersHeading).toBeVisible();
-      await expect(unscheduledDetailPage.exportReportButton).toBeVisible();
-    });
-
-    test('halaman detail unscheduled (belum completed) menampilkan pesan Detail not available yet', async ({ unscheduledDetailPage }) => {
-      await mockUnscheduledDetail(unscheduledDetailPage.page, {
-        id: 'un-2',
-        keyword: 'Ketenagakerjaan',
-        platforms: ['Instagram', 'TikTok'],
-        periodLabel: 'Last 7 days',
-        createdAt: new Date().toISOString(),
-        status: 'queued',
-        runCount: 1,
-        progressPct: 0,
-      });
-      await unscheduledDetailPage.goto('un-2');
-
-      await expect(
-        unscheduledDetailPage.page.getByText('Keyword on demand · Queued')
-      ).toBeVisible();
-      await unscheduledDetailPage.expectHeading('Ketenagakerjaan');
-      await expect(unscheduledDetailPage.notAvailable).toBeVisible();
-      await expect(
-        unscheduledDetailPage.page.getByText(/Analysis details will appear once this keyword/)
-      ).toBeVisible();
-
-      // Kartu analisis tidak dimuat untuk keyword yang belum selesai
-      await expect(unscheduledDetailPage.sentimentGroupHeading).toHaveCount(0);
-    });
-
-    test('halaman detail unscheduled menampilkan error state dan tombol Retry berfungsi', async ({ unscheduledDetailPage }) => {
-      // Request pertama gagal (500) → error notice; Retry → refetch sukses
-      await mockUnscheduledDetail(
-        unscheduledDetailPage.page,
-        {
-          id: 'un-1',
-          keyword: 'RUU Digital',
-          platforms: ['X'],
-          periodLabel: 'Last 24 hours',
-          createdAt: new Date().toISOString(),
-          status: 'completed',
-          runCount: 2,
-          progressPct: 100,
-        },
-        { failFirst: 1 },
-      );
-      await mockDashboardApis(unscheduledDetailPage.page);
-      await unscheduledDetailPage.goto('un-1');
-
-      await unscheduledDetailPage.expectErrorNotice();
-      await expect(unscheduledDetailPage.retryButton).toBeVisible();
-
-      await unscheduledDetailPage.retryButton.click();
-
-      // Setelah Retry, data berhasil dimuat
-      await unscheduledDetailPage.expectHeading('RUU Digital');
-      await expect(unscheduledDetailPage.notAvailable).toHaveCount(0);
+      // Batal menutup dialog tanpa menjalankan apa pun
+      await keywordPage.reprocessDialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(keywordPage.reprocessDialog).toHaveCount(0);
     });
   });
 });

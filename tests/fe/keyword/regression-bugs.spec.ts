@@ -36,7 +36,7 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
 
     const postBodies: Record<string, unknown>[] = [];
     keywordPage.page.on('request', (req) => {
-      if (req.method() === 'POST' && req.url().includes('/api/admin/keyword/scheduler')) {
+      if (req.method() === 'POST' && req.url().includes('/v1/scrape/keyword-management')) {
         try {
           postBodies.push(JSON.parse(req.postData() ?? '{}'));
         } catch {
@@ -64,7 +64,7 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
 
     const postRequests: string[] = [];
     keywordPage.page.on('request', (req) => {
-      if (req.method() === 'POST' && req.url().includes('/api/admin/keyword/unscheduled')) {
+      if (req.method() === 'POST' && /\/v1\/scrape(\?|$)|keyword-management/.test(req.url())) {
         postRequests.push(req.url());
       }
     });
@@ -93,12 +93,12 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
 
     const mutations: string[] = [];
     keywordPage.page.on('request', (req) => {
-      if (req.method() !== 'GET' && req.url().includes('/api/admin/keyword/')) {
+      if (req.method() !== 'GET' && (req.url().includes('/v1/scrape/') || req.url().includes('/api/admin/keyword/'))) {
         mutations.push(`${req.method()} ${req.url()}`);
       }
     });
 
-    await keywordPage.moveButton('Bantuan Sosial 2026').click();
+    await keywordPage.moveButton('RUU Digital').click();
     await expect(keywordPage.moveModal).toBeVisible();
 
     // Baseline: tab On Demand hanya polling GET (4s) — request non-GET tidak

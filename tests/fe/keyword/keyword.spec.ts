@@ -8,9 +8,10 @@ import {
 } from '../../../src/helpers/api-mock';
 
 /**
- * Test Monitoring Keyword (FR-12, FR-13, FR-20):
- * daftar scheduler & unscheduled di-mock (deterministik) dengan bentuk
- * respons yang sama dengan API asli; filter diuji end-to-end UI → API.
+ * Test Monitoring Keyword (/monitoring/keyword) — arsitektur BARU (2026-08):
+ * kedua tab memanggil BE langsung GET /v1/scrape/keyword-management dengan
+ * schedule_enabled=true (Scheduled) / false (On Demand).
+ * Daftar di-mock (deterministik); filter diuji end-to-end UI → API.
  */
 test.describe('Monitoring Keyword', () => {
   test('daftar scheduled keyword tampil lengkap dengan tabel & filter', async ({ keywordPage }) => {
@@ -24,8 +25,8 @@ test.describe('Monitoring Keyword', () => {
     await keywordPage.expectTabSelected('Scheduled');
     await expect(keywordPage.searchInput).toBeVisible();
 
-    // Kolom tabel
-    for (const header of ['Keyword', 'Platform', 'Schedule', 'Frequency', 'Status']) {
+    // Kolom tabel (arsitektur baru: Keyword, Platform, Last Run, Status, Actions)
+    for (const header of ['Keyword', 'Platform', 'Last Run', 'Status']) {
       await keywordPage.expectColumnHeader(header);
     }
 
@@ -34,7 +35,7 @@ test.describe('Monitoring Keyword', () => {
     await expect(keywordPage.paginationText).toBeVisible();
   });
 
-  // Data-driven (FR-20): filter status diuji per data test-data/keyword-filters.json
+  // Data-driven: filter status diuji per data test-data/keyword-filters.json
   const statusFilters = loadJsonData<
     { status: string; visibleKeyword: string; hiddenKeyword: string }[]
   >('keyword-filters.json');
@@ -84,15 +85,31 @@ test.describe('Monitoring Keyword', () => {
 
     await keywordPage.expectTabSelected('On Demand');
     await keywordPage.expectColumnHeader('Keyword');
+    await keywordPage.expectColumnHeader('Created');
     await keywordPage.expectColumnHeader('Status');
 
     // Data mock ter-render
     await keywordPage.expectKeywordVisible('RUU Digital', true);
 
-    // Filter status "Completed"
-    await keywordPage.selectStatus('completed');
-    await keywordPage.applyFilters();
+    // Aksi baris On Demand tersedia (Reprocess & Move)
+    await expect(keywordPage.reprocessButton('RUU Digital')).toBeVisible();
+    await expect(keywordPage.moveButton('RUU Digital')).toBeVisible();
+  });
+
+  test('tombol Reset filter mengosongkan pencarian & mengembalikan daftar lengkap', async ({ keywordPage }) => {
+    await mockKeywordOptions(keywordPage.page);
+    await mockSchedulerList(keywordPage.page);
+    await keywordPage.goto();
+
+    // Filter dulu: pencarian 'RUU' menyembunyikan keyword lain
+    await keywordPage.searchKeyword('RUU');
     await keywordPage.expectKeywordVisible('RUU Digital', true);
     await keywordPage.expectKeywordVisible('Ketenagakerjaan', false);
+
+    // Reset filter: input kosong & daftar penuh dimuat ulang
+    await keywordPage.resetFilterButton.click();
+    await expect(keywordPage.searchInput).toHaveValue('');
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
+    await keywordPage.expectKeywordVisible('Ketenagakerjaan', true);
   });
 });

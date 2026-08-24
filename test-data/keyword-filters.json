@@ -1,11 +1,11 @@
 [
   {
-    "status": "active",
+    "status": "ACTIVE",
     "visibleKeyword": "RUU Digital",
     "hiddenKeyword": "Ketenagakerjaan"
   },
   {
-    "status": "hold",
+    "status": "INACTIVE",
     "visibleKeyword": "Ketenagakerjaan",
     "hiddenKeyword": "RUU Digital"
   }

@@ -330,8 +330,11 @@ export function mockDashboardApis(page: Page) {
  */
 export function mockKeywordOptions(page: Page, keywords: string[] = ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']) {
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  // Route baru: /v1/scrape/keyword (format string array)
-  const routeNew = page.route(/\/v1\/scrape\/keyword/, async (route) => {
+  // Route baru: /v1/scrape/keyword (format string array).
+  // ⚠️ Regex di-ANCHOR ke akhir path (\?|$) supaya TIDAK ikut menangkap
+  //    /v1/scrape/keyword-management (endpoint halaman Keyword) — kalau lolos,
+  //    respons string-array membuat UI crash "Cannot read properties of undefined".
+  const routeNew = page.route(/\/v1\/scrape\/keyword(\?|$)/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -381,19 +384,83 @@ export const MOCK_SCHEDULER_ITEMS: MockSchedulerItem[] = [
   { id: 'sch-5', keyword: 'BPJS Kesehatan', platforms: ['Twitter/X'], meta: 'Last: Aug 01, 09:00 · Next: paused', cron: 'Every 6 hours', state: 'hold' },
 ];
 
+// Kontrak BARU (2026-08): halaman Keyword memanggil BE langsung
+// GET /v1/scrape/keyword-management?schedule_enabled=true|false — shape
+// snake_case dengan platform slug & status uppercase.
+const PLATFORM_TO_SLUG: Record<string, string> = {
+  'Twitter/X': 'twitter_x',
+  Instagram: 'instagram',
+  TikTok: 'tiktok',
+};
+
+function schedulerToManagementItem(item: MockSchedulerItem) {
+  return {
+    id: item.id,
+    keyword: item.keyword,
+    platforms: item.platforms.map((p) => PLATFORM_TO_SLUG[p] ?? p.toLowerCase()),
+    period: 'ALL',
+    status: item.state === 'hold' ? 'INACTIVE' : 'ACTIVE',
+    source: 'MANUAL',
+    schedule_enabled: true,
+    schedule: {
+      start_at: null,
+      end_at: null,
+      frequency: { value: 30, unit: 'MINUTE' },
+      next_run_at: null,
+      last_run_at: null,
+    },
+    last_execution_status: null,
+    last_run_at: null,
+    last_success_at: null,
+    last_failure_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function unscheduledToManagementItem(item: MockUnscheduledItem) {
+  return {
+    id: item.id,
+    keyword: item.keyword,
+    platforms: item.platforms.map((p) => PLATFORM_TO_SLUG[p] ?? p.toLowerCase()),
+    period: 'ALL',
+    status: item.status === 'completed' || item.status === 'processing' ? 'ACTIVE' : 'INACTIVE',
+    source: 'MANUAL',
+    schedule_enabled: false,
+    schedule: null,
+    last_execution_status: item.status.toUpperCase(),
+    last_run_at: item.createdAt,
+    last_success_at: item.status === 'completed' ? item.createdAt : null,
+    last_failure_at: item.status === 'failed' ? item.createdAt : null,
+    created_at: item.createdAt,
+    updated_at: item.createdAt,
+  };
+}
+
 /**
- * Mock daftar scheduler dengan filter query param (keyword/status/platform)
- * — mensimulasikan perilaku API asli sehingga test filter bisa deterministik.
+ * Mock daftar scheduled keyword dengan filter query param.
+ * Mengintersep DUA arsitektur:
+ * - BARU: `/v1/scrape/keyword-management` dengan `schedule_enabled=true`
+ *   (param filter: search/platform/status ACTIVE|INACTIVE).
+ * - LAMA: `/api/admin/keyword/scheduler**` (param filter: keyword/status/platform).
  */
 export function mockSchedulerList(page: Page, items: MockSchedulerItem[] = MOCK_SCHEDULER_ITEMS) {
-  return page.route('**/api/admin/keyword/scheduler**', async (route) => {
-    // Mock hanya daftar (GET); aksi lain (PATCH/POST) diteruskan ke API asli
+  return page.route(/\/v1\/scrape\/keyword-management|\/api\/admin\/keyword\/scheduler/, async (route) => {
+    // Mock hanya daftar (GET); aksi lain diteruskan ke API asli / mock lain
     if (route.request().method() !== 'GET') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     const url = new URL(route.request().url());
-    const keyword = url.searchParams.get('keyword') ?? '';
+    const isNew = url.pathname.includes('/v1/scrape/keyword-management');
+    // Handler ini KHUSUS daftar scheduled: pada endpoint baru, On Demand
+    // memakai schedule_enabled=false — biarkan handler mockUnscheduledList
+    // (yang didaftarkan setelahnya) yang menangani.
+    if (isNew && url.searchParams.get('schedule_enabled') === 'false') {
+      await route.fallback();
+      return;
+    }
+    const keyword = url.searchParams.get(isNew ? 'search' : 'keyword') ?? '';
     const status = url.searchParams.get('status') ?? '';
     const platform = url.searchParams.get('platform') ?? '';
     const pageNum = Number(url.searchParams.get('page') ?? 1);
@@ -402,14 +469,32 @@ export function mockSchedulerList(page: Page, items: MockSchedulerItem[] = MOCK_
     const filtered = items.filter(
       (item) =>
         (!keyword || item.keyword.toLowerCase().includes(keyword.toLowerCase())) &&
-        (!status || status === 'all' || item.state === status) &&
-        // UI mengirim slug lowercase (tiktok) — data mock label (TikTok):
-        // bandingkan case-insensitive supaya filter platform tetap match.
+        (!status ||
+          status === 'all' ||
+          status.toLowerCase() === item.state ||
+          (isNew && status.toUpperCase() === (item.state === 'hold' ? 'INACTIVE' : 'ACTIVE'))) &&
         (!platform || platform === 'all' || item.platforms.some((p) => p.toLowerCase() === platform.toLowerCase())),
     );
     const start = (pageNum - 1) * size;
     const data = filtered.slice(start, start + size);
 
+    if (isNew) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: data.map(schedulerToManagementItem),
+          meta: {
+            page: pageNum,
+            size,
+            total: filtered.length,
+            total_pages: Math.max(1, Math.ceil(filtered.length / size)),
+            generated_at: new Date().toISOString(),
+          },
+        }),
+      });
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -427,17 +512,18 @@ export function mockSchedulerList(page: Page, items: MockSchedulerItem[] = MOCK_
 }
 
 /**
- * Mock POST /api/admin/keyword/scheduler (buat scheduled keyword).
- * Daftarkan SETELAH `mockSchedulerList` supaya menang untuk method POST
- * (Playwright memberi prioritas ke route yang terakhir didaftarkan).
+ * Mock POST create keyword — dipakai modal Add scheduled MAUPUN Add On Demand:
+ * keduanya kini POST ke /v1/scrape/keyword-management (beda body
+ * schedule_enabled). Legacy: POST /api/admin/keyword/scheduler.
+ * Daftarkan SETELAH mock list supaya menang untuk method POST.
  */
 export function mockCreateScheduler(
   page: Page,
   { succeed = true }: { succeed?: boolean } = {},
 ) {
-  return page.route('**/api/admin/keyword/scheduler', async (route) => {
+  return page.route(/\/v1\/scrape\/keyword-management$|\/api\/admin\/keyword\/scheduler$/, async (route) => {
     if (route.request().method() !== 'POST') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     if (!succeed) {
@@ -513,16 +599,18 @@ export function mockCreateUnscheduled(
 }
 
 /**
- * Mock PATCH /api/admin/keyword/scheduler/:id (edit scheduler keyword).
- * Daftarkan SETELAH `mockSchedulerList` supaya menang untuk method PATCH.
+ * Mock PUT/PATCH /v1/scrape/keyword-management/:id (edit scheduled keyword).
+ * Legacy: PATCH /api/admin/keyword/scheduler/:id.
+ * Daftarkan SETELAH mock list supaya menang untuk method mutasi.
  */
 export function mockUpdateScheduler(
   page: Page,
   { succeed = true }: { succeed?: boolean } = {},
 ) {
-  return page.route(/\/api\/admin\/keyword\/scheduler\/[^/?]+$/, async (route) => {
-    if (route.request().method() !== 'PATCH') {
-      await route.continue();
+  return page.route(/\/v1\/scrape\/keyword-management\/[^/?]+$|\/api\/admin\/keyword\/scheduler\/[^/?]+$/, async (route) => {
+    const method = route.request().method();
+    if (method !== 'PUT' && method !== 'PATCH') {
+      await route.fallback();
       return;
     }
     if (!succeed) {
@@ -542,17 +630,23 @@ export function mockUpdateScheduler(
 }
 
 export function mockUnscheduledList(page: Page, items: MockUnscheduledItem[] = MOCK_UNSCHEDULED_ITEMS) {
-  return page.route('**/api/admin/keyword/unscheduled**', async (route) => {
+  return page.route(/\/v1\/scrape\/keyword-management|\/api\/admin\/keyword\/unscheduled/, async (route) => {
     if (route.request().method() !== 'GET') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     const url = new URL(route.request().url());
+    const isNew = url.pathname.includes('/v1/scrape/keyword-management');
+    if (isNew && url.searchParams.get('schedule_enabled') !== 'false') {
+      // Bukan tab On Demand — serahkan ke mockSchedulerList
+      await route.fallback();
+      return;
+    }
     if (url.searchParams.get('history') === 'true') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
       return;
     }
-    const keyword = url.searchParams.get('keyword') ?? '';
+    const keyword = url.searchParams.get(isNew ? 'search' : 'keyword') ?? '';
     const status = url.searchParams.get('status') ?? '';
     const pageNum = Number(url.searchParams.get('page') ?? 1);
     const size = Number(url.searchParams.get('size') ?? 5);
@@ -565,6 +659,25 @@ export function mockUnscheduledList(page: Page, items: MockUnscheduledItem[] = M
     const start = (pageNum - 1) * size;
     const data = filtered.slice(start, start + size);
 
+    if (isNew) {
+      // Tab On Demand BARU: kolom Keyword/Platform/Created/Last Run/Status —
+      // kartu ringkasan statistik sudah TIDAK ada di UI.
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: data.map(unscheduledToManagementItem),
+          meta: {
+            page: pageNum,
+            size,
+            total: filtered.length,
+            total_pages: Math.max(1, Math.ceil(filtered.length / size)),
+            generated_at: new Date().toISOString(),
+          },
+        }),
+      });
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -835,6 +948,174 @@ export function mockUserList(page: Page, items: MockUserItem[] = MOCK_USER_ITEMS
       body: JSON.stringify({
         data,
         meta: { page: pageNum, size, total: filtered.length, totalPages: Math.max(1, Math.ceil(filtered.length / size)) },
+      }),
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Scrape credential provider (halaman Provider Management)
+// Konsumsi BE LANGSUNG: GET /v1/scrape/credential?page=&size=&keyword=&
+// platform=&enabled= — shape snake_case sesuai kontrak Go dashboard-service.
+// ---------------------------------------------------------------------------
+
+export type MockProviderItem = {
+  id: string;
+  platform: string;
+  platform_name: string;
+  name: string;
+  secret_configured: boolean;
+  enabled: boolean;
+  priority: number;
+  req_per_second: number;
+  req_per_month: number;
+  request_count: number;
+  req_usage_percent: number;
+};
+
+export const MOCK_PROVIDER_ITEMS: MockProviderItem[] = [
+  { id: 'prv-001', platform: 'instagram', platform_name: 'Instagram', name: 'Instagram Live - Primary', secret_configured: true, enabled: true, priority: 1, req_per_second: 1, req_per_month: 50, request_count: 2, req_usage_percent: 4 },
+  { id: 'prv-002', platform: 'tiktok', platform_name: 'TikTok', name: 'TikTok Live - Primary', secret_configured: true, enabled: false, priority: 2, req_per_second: 2, req_per_month: 100, request_count: 0, req_usage_percent: 0 },
+  { id: 'prv-003', platform: 'twitter_x', platform_name: 'Twitter/X', name: 'TwitterX Live - Primary', secret_configured: true, enabled: true, priority: 3, req_per_second: 1, req_per_month: 200, request_count: 12, req_usage_percent: 6 },
+];
+
+/**
+ * Mock daftar provider dengan filter query param (keyword/platform/enabled).
+ * Hanya GET; method lain diteruskan ke handler berikutnya via `fallback()`
+ * (bukan `continue()`) supaya mock create yang didaftarkan setelahnya tetap
+ * bisa menangani POST pada URL yang sama.
+ */
+export function mockProviderList(page: Page, items: MockProviderItem[] = MOCK_PROVIDER_ITEMS) {
+  return page.route(/\/v1\/scrape\/credential(\?|$)/, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    const url = new URL(route.request().url());
+    const keyword = url.searchParams.get('keyword') ?? '';
+    const platform = url.searchParams.get('platform') ?? '';
+    const enabled = url.searchParams.get('enabled') ?? '';
+    const pageNum = Number(url.searchParams.get('page') ?? 1);
+    const size = Number(url.searchParams.get('size') ?? 10);
+
+    const filtered = items.filter(
+      (item) =>
+        (!keyword || item.name.toLowerCase().includes(keyword.toLowerCase())) &&
+        (!platform || platform === 'all' || item.platform === platform.toLowerCase()) &&
+        (!enabled || enabled === 'all' || String(item.enabled) === enabled),
+    );
+    const start = (pageNum - 1) * size;
+    const data = filtered.slice(start, start + size);
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data,
+        meta: {
+          page: pageNum,
+          size,
+          total: filtered.length,
+          total_pages: Math.max(1, Math.ceil(filtered.length / size)),
+          generated_at: new Date().toISOString(),
+        },
+      }),
+    });
+  });
+}
+
+/**
+ * Mock POST /v1/scrape/credential (buat provider baru).
+ * Daftarkan SETELAH `mockProviderList`.
+ */
+export function mockCreateProvider(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/v1\/scrape\/credential$/, async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Failed to load data.' }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: { id: 'prv-new', name: 'created', platform: 'tiktok', mode: 'live', enabled: true },
+      }),
+    });
+  });
+}
+
+/**
+ * Mock PATCH /v1/scrape/credential/:id/enable|disable (toggle switch).
+ * Secara default juga MEMUTAR state item di array `items` sehingga refetch
+ * daftar setelah toggle mengembalikan state baru — sama seperti perilaku API
+ * asli (UI selalu refetch setelah PATCH).
+ */
+export function mockToggleProvider(
+  page: Page,
+  items: MockProviderItem[] = MOCK_PROVIDER_ITEMS,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/v1\/scrape\/credential\/[^/?]+\/(enable|disable)$/, async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.fallback();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to load data.' }) });
+      return;
+    }
+    const url = route.request().url();
+    const id = url.split('/credential/')[1]?.split('/')[0] ?? '';
+    const enable = url.endsWith('/enable');
+    const item = items.find((i) => i.id === id);
+    if (item) item.enabled = enable;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: item ?? null }),
+    });
+  });
+}
+
+/**
+ * Mock POST /api/admin/user (buat user baru via modal "+ Add user").
+ * Daftarkan SETELAH `mockUserList` supaya POST menang atas pola URL yang sama
+ * (Playwright memberi prioritas ke route yang terakhir didaftarkan).
+ */
+export function mockCreateUser(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route('**/api/admin/user', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Failed to load data.' }),
+      });
+      return;
+    }
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: { id: 'usr-new', username: String(body.username ?? ''), name: String(body.name ?? ''), role: String(body.role ?? 'Operator'), status: String(body.status ?? 'Active') },
       }),
     });
   });

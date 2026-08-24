@@ -6,6 +6,7 @@ import { LoginPage } from '../../src/pages/LoginPage';
 import { PostsPage } from '../../src/pages/PostsPage';
 import { ProfilePage } from '../../src/pages/ProfilePage';
 import { ProtocolPage } from '../../src/pages/ProtocolPage';
+import { ProviderPage } from '../../src/pages/ProviderPage';
 import { TopicDetailPage } from '../../src/pages/TopicDetailPage';
 import { UnscheduledDetailPage } from '../../src/pages/UnscheduledDetailPage';
 import { UserManagementPage } from '../../src/pages/UserManagementPage';
@@ -31,6 +32,7 @@ export const test = base.extend<{
   protocolPage: ProtocolPage;
   topicDetailPage: TopicDetailPage;
   userPage: UserManagementPage;
+  providerPage: ProviderPage;
   unscheduledDetailPage: UnscheduledDetailPage;
 }>({
   loginPage: async ({ page }, use) => use(new LoginPage(page)),
@@ -42,6 +44,7 @@ export const test = base.extend<{
   protocolPage: async ({ page }, use) => use(new ProtocolPage(page)),
   topicDetailPage: async ({ page }, use) => use(new TopicDetailPage(page)),
   userPage: async ({ page }, use) => use(new UserManagementPage(page)),
+  providerPage: async ({ page }, use) => use(new ProviderPage(page)),
   unscheduledDetailPage: async ({ page }, use) => use(new UnscheduledDetailPage(page)),
 });
 
