@@ -1390,6 +1390,15 @@ function buildControlCases() {
       assertions: 'postLinks.first().getAttribute("rel") contains "noopener"',
       source: 'top-engagement.spec.ts', notes: 'Keamanan: mencegah tabnabbing',
     },
+    {
+      id: 'TC-UI-C30', name: 'Auto-refresh memutar keyword berikutnya & memuat ulang data tiap interval', category: 'Positive', priority: 'High',
+      method: 'Toggle', endpoint: '/display/conversation-overview', headers: '—', params: '3 keyword terpilih; interval 20 detik', requestBody: 'GET chart endpoints?keyword=<keyword berikutnya>',
+      precondition: 'Mock selected-keywords 3 item aktif; wall menampilkan keyword pertama',
+      expectedStatus: 'Sukses — rotasi & refresh bekerja', expectedResponse: 'Setelah ~20s: request chart untuk "BPJS Kesehatan" terkirim & heading berganti ke keyword berikutnya (label tombol adalah label interval statis)',
+      specTitle: 'auto-refresh memutar keyword berikutnya & memuat ulang data tiap interval',
+      assertions: 'expect.poll request conversation-trend/emotion-map dgn keyword≠pertama > 0; rotated[0] = BPJS Kesehatan; h1 berganti',
+      source: 'conversation-overview.spec.ts', notes: 'Timeout test dinaikkan ke 90s utk menunggu satu siklus interval.',
+    },
   ];
 }
 

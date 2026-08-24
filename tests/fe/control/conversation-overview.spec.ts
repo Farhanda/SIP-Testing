@@ -153,4 +153,34 @@ test.describe('Display Wall — Conversation Overview', () => {
       expect(req).toContain('period=1M');
     }
   });
+
+  test('auto-refresh memutar keyword berikutnya & memuat ulang data tiap interval', async ({ displayWallPage }) => {
+    test.setTimeout(90_000); // menunggu minimal satu siklus interval (20s)
+
+    // Daftarkan ULANG selected-keywords dengan 3 keyword supaya rotasi
+    // teramati — registrasi terakhir menang atas beforeEach (1 keyword).
+    const page = displayWallPage.page;
+    await mockSelectedKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
+
+    await displayWallPage.goto('/display/conversation-overview');
+    await page.waitForLoadState('networkidle');
+    await displayWallPage.expectKeywordVisible('RUU Digital');
+
+    // Gelombang refresh = request chart untuk keyword SELAIN yang pertama
+    const rotatedKeywords: string[] = [];
+    page.on('request', (req) => {
+      if (/\/v1\/dashboard\/(conversation-trend|emotion-map)/.test(req.url())) {
+        const kw = new URL(req.url()).searchParams.get('keyword');
+        if (kw && kw !== 'RUU Digital') rotatedKeywords.push(kw);
+      }
+    });
+
+    // Interval 20 detik: gelombang kedua harus muncul dgn keyword berikutnya.
+    // Label tombol "20 seconds" adalah label interval statis, bukan countdown.
+    await expect.poll(async () => rotatedKeywords.length, { timeout: 60_000 }).toBeGreaterThan(0);
+    expect(rotatedKeywords[0]).toBe('BPJS Kesehatan');
+
+    // Heading berganti mengikuti keyword yang aktif
+    await displayWallPage.expectKeywordVisible('BPJS Kesehatan');
+  });
 });
