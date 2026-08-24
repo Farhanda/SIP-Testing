@@ -73,6 +73,24 @@ test.describe('Dashboard — Fitur UI Baru', () => {
     await expect(fullscreenBtn).toBeVisible();
   });
 
+  test('Enter fullscreen benar-benar masuk mode fullscreen & Exit keluar', async ({ dashboardPage }) => {
+    await mockDashboardApis(dashboardPage.page);
+    await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
+    await dashboardPage.goto();
+    await dashboardPage.expectResultsRendered();
+
+    await dashboardPage.enterFullscreenButton.click();
+    await expect.poll(async () =>
+      dashboardPage.page.evaluate(() => document.fullscreenElement !== null)
+    ).toBe(true);
+    await expect(dashboardPage.exitFullscreenButton).toBeVisible();
+
+    await dashboardPage.exitFullscreenButton.click();
+    await expect.poll(async () =>
+      dashboardPage.page.evaluate(() => document.fullscreenElement !== null)
+    ).toBe(false);
+  });
+
   // ── Sort by di Top Posts ─────────────────────────────────────────────
 
   test('Top Posts memiliki dropdown Sort by dengan opsi Views dan Engagement', async ({ dashboardPage }) => {

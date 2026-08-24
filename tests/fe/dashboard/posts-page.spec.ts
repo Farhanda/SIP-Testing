@@ -72,6 +72,34 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
     await expect(postsPage.resetFiltersButton).toBeVisible();
   });
 
+  test('filter emotion & pencarian mempersempit daftar post', async ({ postsPage }) => {
+    // Mock TOP_POSTS: post-1 joy, post-2 anger
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+
+    await postsPage.emotionSelect.selectOption('Joy');
+    await postsPage.searchInput.fill('Antusiasme warga');
+    await postsPage.applyFilterButton.click();
+
+    // Hanya post-2 (joy + mengandung teks pencarian) yang tersisa
+    await postsPage.expectPostCount(1);
+    await postsPage.expectFirstPostHasText('Antusiasme warga');
+  });
+
+  test('Reset filter mengosongkan input & mengembalikan daftar lengkap', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+
+    await postsPage.emotionSelect.selectOption('Joy');
+    await postsPage.applyFilterButton.click();
+    await postsPage.expectPostCount(1);
+
+    await postsPage.resetFiltersButton.click();
+
+    // Input kembali ke default & seluruh post tampil kembali
+    await expect(postsPage.emotionSelect).toHaveValue('all');
+    await expect(postsPage.searchInput).toHaveValue('');
+    await postsPage.expectPostCount(2);
+  });
+
   test('link Dashboard untuk kembali ke dashboard utama', async ({ postsPage }) => {
     await postsPage.gotoWithSort('view', 'RUU Digital');
 

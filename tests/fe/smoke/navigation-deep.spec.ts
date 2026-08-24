@@ -92,12 +92,30 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     await expect(notifBtn).toBeVisible();
   });
 
+  test('dropdown Notifications menampilkan panel dengan empty state', async ({ page }) => {
+    await page.goto('/monitoring/dashboard');
+    await page.locator('header').getByRole('button', { name: 'Notifications' }).click();
+
+    // Panel terbuka menampilkan empty state (belum ada notifikasi)
+    await expect(page.getByText('No notifications yet.')).toBeVisible();
+  });
+
   // ── User menu ────────────────────────────────────────────────────────
 
   test('tombol user menu (AS Admin SIP) terlihat di navbar', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
     const userMenu = page.locator('header').getByRole('button', { name: /Admin SIP/ });
     await expect(userMenu).toBeVisible();
+  });
+
+  test('user menu menampilkan opsi Profile & Logout saat dibuka', async ({ page }) => {
+    await page.goto('/monitoring/dashboard');
+    await page.locator('header').getByRole('button', { name: /Admin SIP/ }).click();
+
+    // Label "Profile2" sesuai teks aktual aplikasi (kemungkinan typo di UI)
+    // Kedua item disabled by design (konfirmasi owner).
+    await expect(page.getByRole('button', { name: 'Profile2' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
   });
 
   // ── Dark mode di halaman berbeda ─────────────────────────────────────

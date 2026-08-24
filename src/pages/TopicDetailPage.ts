@@ -11,6 +11,9 @@ export class TopicDetailPage extends BasePage {
   readonly postListHeading = this.page.getByRole('heading', { name: 'Post list' });
   readonly postRows = this.page.locator('table tbody tr');
   readonly tableHeaders = this.page.locator('table th');
+  readonly searchInput = this.page.locator('#tdKeyword');
+  readonly sentimentSelect = this.page.locator('#tdSentiment');
+  readonly emotionSelect = this.page.locator('#tdEmotion');
   readonly paginationPrev = this.page.getByRole('button', { name: '‹' });
   readonly paginationNext = this.page.getByRole('button', { name: '›' });
   readonly applyFilterButton = this.page.getByRole('button', { name: 'Apply filter' });

@@ -31,6 +31,11 @@ export class UserManagementPage extends BasePage {
   readonly paginationPrev = this.page.getByRole('button', { name: 'Previous page' });
   readonly paginationNext = this.page.getByRole('button', { name: 'Next page' });
 
+  /** Tombol nomor halaman pagination. */
+  pageNumberButton(page: number) {
+    return this.page.getByRole('button', { name: String(page), exact: true });
+  }
+
   // Modal Edit / Reset password / Delete user
   readonly editModal = this.page.getByRole('heading', { name: 'Edit user' });
   readonly resetPasswordModalHeading = this.page.getByRole('heading', { name: 'Reset password' });

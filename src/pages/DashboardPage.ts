@@ -11,6 +11,8 @@ const PLATFORMS = ['Instagram', 'TikTok', 'Twitter/X'];
 export class DashboardPage extends BasePage {
   readonly heading = this.page.getByRole('heading', { name: 'Dashboard Overview' });
   readonly exportReportButton = this.page.getByRole('button', { name: 'Export report' });
+  readonly enterFullscreenButton = this.page.getByRole('button', { name: 'Enter fullscreen' });
+  readonly exitFullscreenButton = this.page.getByRole('button', { name: 'Exit fullscreen' });
   readonly trendingHeading = this.page.getByRole('heading', { name: 'Trending topic' });
   readonly period24hButton = this.page.getByRole('button', { name: '24 Hours' });
   readonly period7dButton = this.page.getByRole('button', { name: '7 Days' });

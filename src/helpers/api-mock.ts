@@ -203,10 +203,14 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
       // Paginated version used by /monitoring/dashboard/posts page.
       const sortBy = url.searchParams.get('sort_by') ?? 'view';
       const topicFilter = url.searchParams.get('topic') ?? '';
+      const searchFilter = (url.searchParams.get('search') ?? '').toLowerCase();
+      const emotionFilter = url.searchParams.get('emotion') ?? '';
       const pageNum = Number(url.searchParams.get('page') ?? 1);
       const size = Number(url.searchParams.get('size') ?? 10);
       let posts = [...TOP_POSTS];
       if (topicFilter) posts = posts.filter((p) => p.topic.toLowerCase() === topicFilter.toLowerCase());
+      if (emotionFilter && emotionFilter !== 'all') posts = posts.filter((p) => p.emotion === emotionFilter.toLowerCase());
+      if (searchFilter) posts = posts.filter((p) => p.post.toLowerCase().includes(searchFilter));
       if (sortBy === 'engagement') posts.sort((a, b) => b.engagement - a.engagement);
       else posts.sort((a, b) => b.views - a.views);
       const start = (pageNum - 1) * size;
@@ -226,19 +230,26 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
       // Used by /monitoring/dashboard/topic/:topic page.
       const topicSlug = url.searchParams.get('topic') ?? 'unknown';
       const topicKeyword = url.searchParams.get('keyword') ?? keyword;
+      const searchFilter = (url.searchParams.get('search') ?? '').toLowerCase();
+      const emotionFilter = url.searchParams.get('emotion') ?? '';
       const pageNum2 = Number(url.searchParams.get('page') ?? 1);
       const size2 = Number(url.searchParams.get('size') ?? 10);
       // Filter TOP_POSTS by topic match or return all for 'lainnya'
       const topicPosts = topicSlug === 'lainnya'
         ? TOP_POSTS
         : TOP_POSTS.filter((p) => p.topic.toLowerCase().includes(topicSlug.toLowerCase()));
+      const filteredPosts = topicPosts.filter(
+        (p) =>
+          (!emotionFilter || emotionFilter === 'all' || p.emotion === emotionFilter.toLowerCase()) &&
+          (!searchFilter || p.post.toLowerCase().includes(searchFilter)),
+      );
       const start2 = (pageNum2 - 1) * size2;
-      const pageTopicPosts = topicPosts.slice(start2, start2 + size2);
+      const pageTopicPosts = filteredPosts.slice(start2, start2 + size2);
       return {
         data: {
           topic: { id: topicSlug, collectionId: '', label: topicSlug },
           stats: {
-            totalPost: topicPosts.length,
+            totalPost: filteredPosts.length,
             totalEngagement: topicPosts.reduce((sum, p) => sum + p.engagement, 0),
             negativeSentimentPct: 0,
             topPlatform: 'TikTok',
@@ -257,8 +268,8 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
           generated_at: new Date().toISOString(),
           page: pageNum2,
           size: size2,
-          total: topicPosts.length,
-          totalPages: Math.max(1, Math.ceil(topicPosts.length / size2)),
+          total: filteredPosts.length,
+          totalPages: Math.max(1, Math.ceil(filteredPosts.length / size2)),
         },
       };
     }
@@ -1117,6 +1128,58 @@ export function mockCreateUser(
       body: JSON.stringify({
         data: { id: 'usr-new', username: String(body.username ?? ''), name: String(body.name ?? ''), role: String(body.role ?? 'Operator'), status: String(body.status ?? 'Active') },
       }),
+    });
+  });
+}
+
+/**
+ * Mock PUT/PATCH /api/admin/user/:id (simpan Edit user).
+ * Daftarkan SETELAH `mockUserList` supaya mutasi menang; method lain
+ * diteruskan ke handler berikutnya via fallback().
+ */
+export function mockUpdateUser(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/api\/admin\/user\/[^/?]+$/, async (route) => {
+    const method = route.request().method();
+    if (method !== 'PUT' && method !== 'PATCH') {
+      await route.fallback();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to load data.' }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'usr-002', username: 'updated', name: 'updated' } }),
+    });
+  });
+}
+
+/**
+ * Mock POST /api/admin/user/:id/reset-password (Reset password user).
+ * Daftarkan SETELAH `mockUserList`.
+ */
+export function mockResetUserPassword(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/api\/admin\/user\/[^/?]+\/reset-password$/, async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to reset password.' }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Password was reset successfully.' }),
     });
   });
 }

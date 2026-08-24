@@ -66,6 +66,24 @@ test.describe('Topic Detail — /monitoring/dashboard/topic/:topic', () => {
     await expect(topicDetailPage.resetFiltersButton).toBeVisible();
   });
 
+  test('filter emotion mempersempit post list', async ({ topicDetailPage }) => {
+    // Mock TOP_POSTS: post-1 anger, post-2 joy
+    await topicDetailPage.goto('lainnya', 'RUU Digital');
+    await topicDetailPage.expectPostCount(2);
+
+    await topicDetailPage.emotionSelect.selectOption('Anger');
+    await topicDetailPage.applyFilterButton.click();
+
+    // Hanya post-1 (anger) yang tersisa
+    await topicDetailPage.expectPostCount(1);
+    await expect(topicDetailPage.postRows.first()).toContainText('anger');
+
+    // Reset: input kembali ke default & daftar lengkap dimuat ulang
+    await topicDetailPage.resetFiltersButton.click();
+    await expect(topicDetailPage.emotionSelect).toHaveValue('all');
+    await topicDetailPage.expectPostCount(2);
+  });
+
   test('link "Dashboard" untuk kembali ke dashboard utama', async ({ topicDetailPage }) => {
     await topicDetailPage.goto('lainnya', 'RUU Digital');
 

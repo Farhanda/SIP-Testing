@@ -1,7 +1,13 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
 import { loadJsonData } from '../../../src/helpers/data';
-import { mockCreateUser, mockUserList, MockUserItem } from '../../../src/helpers/api-mock';
+import {
+  mockCreateUser,
+  mockResetUserPassword,
+  mockUpdateUser,
+  mockUserList,
+  MockUserItem,
+} from '../../../src/helpers/api-mock';
 
 /**
  * Test User Management (FR-12, FR-13, FR-14, FR-20):
@@ -197,5 +203,125 @@ test.describe('User Management', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
     await expect(userPage.deleteModalHeading).not.toBeAttached();
     expect(deletes.length).toBe(0);
+  });
+
+  test('submit Edit user mengirim PUT & menutup modal', async ({ userPage }) => {
+    const page = userPage.page;
+    await mockUserList(page);
+    await mockUpdateUser(page, { succeed: true });
+    await userPage.goto();
+
+    const putBodies: Record<string, unknown>[] = [];
+    page.on('request', (req) => {
+      if ((req.method() === 'PUT' || req.method() === 'PATCH') && req.url().includes('/api/admin/user/')) {
+        try {
+          putBodies.push(JSON.parse(req.postData() ?? '{}'));
+        } catch {
+          putBodies.push({});
+        }
+      }
+    });
+
+    await userPage.editUserButton('Siti Rahma').click();
+    await userPage.modalName.fill('Siti Rahma Edit');
+    await userPage.modalSaveButton.click();
+
+    await expect.poll(() => putBodies.length).toBeGreaterThan(0);
+    expect(putBodies[0].username).toBe('siti.rahma');
+    expect(putBodies[0].name).toBe('Siti Rahma Edit');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('Reset password konfirmasi tidak cocok ditolak tanpa mengirim request', async ({ userPage }) => {
+    const page = userPage.page;
+    await mockUserList(page);
+    await mockResetUserPassword(page, { succeed: true });
+    await userPage.goto();
+
+    const posts: string[] = [];
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes('/reset-password')) posts.push(req.url());
+    });
+
+    await userPage.resetPasswordButton('Siti Rahma').click();
+    await userPage.resetPasswordInput.fill('passwordBaru123');
+    await userPage.resetConfirmPasswordInput.fill('beda123');
+    await page.getByRole('dialog').getByRole('button', { name: 'Reset password' }).click();
+
+    await expect(page.getByText('Password confirmation does not match')).toBeVisible();
+    await userPage.expectHeading('User Management'); // halaman tetap
+    await expect(page.getByRole('dialog')).toBeVisible(); // modal masih terbuka
+    await expect.poll(() => posts.length).toBe(0);
+
+    // Tutup modal
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  });
+
+  test('submit Reset password valid mengirim POST & menampilkan toast sukses', async ({ userPage }) => {
+    const page = userPage.page;
+    await mockUserList(page);
+    await mockResetUserPassword(page, { succeed: true });
+    await userPage.goto();
+
+    const postBodies: Record<string, unknown>[] = [];
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes('/reset-password')) {
+        try {
+          postBodies.push(JSON.parse(req.postData() ?? '{}'));
+        } catch {
+          postBodies.push({});
+        }
+      }
+    });
+
+    await userPage.resetPasswordButton('Siti Rahma').click();
+    await userPage.resetPasswordInput.fill('passwordBaru123');
+    await userPage.resetConfirmPasswordInput.fill('passwordBaru123');
+    await page.getByRole('dialog').getByRole('button', { name: 'Reset password' }).click();
+
+    await expect.poll(() => postBodies.length).toBeGreaterThan(0);
+    expect(postBodies[0].password).toBe('passwordBaru123');
+    await expect(page.getByText('Password for user "siti.rahma" was reset successfully.')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('gagal dari server saat Add user: toast error & modal tetap terbuka', async ({ userPage }) => {
+    const page = userPage.page;
+    await mockUserList(page);
+    await mockCreateUser(page, { succeed: false });
+    await userPage.goto();
+
+    await userPage.openAddUserModal();
+    await userPage.modalUsername.fill('qa.fail');
+    await userPage.modalName.fill('QA Fail User');
+    await userPage.modalPassword.fill('rahasia123');
+    await userPage.modalSaveButton.click();
+
+    await expect(page.getByText('Failed to add user.')).toBeVisible();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+
+  test('pagination prev & nomor halaman berpindah antar halaman', async ({ userPage }) => {
+    const items: MockUserItem[] = Array.from({ length: 12 }, (_, i) => ({
+      id: `usr-pg-${String(i + 1).padStart(2, '0')}`,
+      username: `user${i + 1}`,
+      name: `Pagination User ${i + 1}`,
+      role: 'Operator',
+      status: 'Active',
+    }));
+    await mockUserList(userPage.page, items);
+    await userPage.goto();
+
+    // Halaman 2 lewat tombol next...
+    await userPage.paginationNext.click();
+    await expect(userPage.showingText).toHaveText('Showing 11-12 of 12 users');
+
+    // ...kembali ke halaman 1 lewat prev...
+    await userPage.paginationPrev.click();
+    await expect(userPage.showingText).toHaveText('Showing 1-10 of 12 users');
+
+    // ...dan lompat ke halaman 2 lewat nomor halaman
+    await userPage.pageNumberButton(2).click();
+    await expect(userPage.showingText).toHaveText('Showing 11-12 of 12 users');
   });
 });
