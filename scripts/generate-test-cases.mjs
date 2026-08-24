@@ -54,6 +54,7 @@ const EXECUTED_BY = process.env.TEST_EXECUTED_BY || '—';
 const BASE_URL_UI = process.env.BASE_URL_UI || 'http://localhost:3000';
 const BASE_URL_BE = process.env.BASE_URL_BE || 'http://localhost:8080';
 const BE_API_PREFIX = process.env.BE_API_PREFIX || '/v1';
+const BASE_URL_SCRAPE = process.env.BASE_URL_SCRAPE || 'http://10.200.101.13:8080';
 const BASE_URL_AI = process.env.BASE_URL_AI || 'http://10.200.102.2:8100';
 
 // Environment kolom eksekusi (bisa di-override lewat env; default dari base URL)
@@ -2861,6 +2862,153 @@ function buildBeDashboardCases() {
       assertions: 'status=200; meta.page = meta.totalPages; data.length > 0',
       source: 'Hardcoded di spec', notes: '—',
     },
+    {
+      id: 'TC-BE-D134', name: 'top-keywords → 200, kontrak {keyword,count}, urut count desc', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: `${BE_API_PREFIX}/dashboard/top-keywords`, headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: `BE berjalan di ${BASE_URL_BE}; ada data post`,
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ id, keyword, count }...], meta.generated_at }; counts descending',
+      specTitle: 'tanpa filter → 200, data terisi & item punya kontrak {id, keyword, count}',
+      assertions: 'status=200; data array > 0; item.keyword string; item.count >= 0; urut desc',
+      source: 'top-keywords.spec.ts', notes: 'Endpoint sebelumnya belum ada test-nya (ditemukan audit BE 2026-08-24).',
+    },
+    {
+      id: 'TC-BE-D135', name: 'top-keywords konsisten dengan summary (count keyword dikenal = total_post)', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: `${BE_API_PREFIX}/dashboard/top-keywords`, headers: 'Accept: application/json', params: 'vs /summary?keyword=', requestBody: '—',
+      precondition: `BE berjalan; angka terverifikasi di test-data/be-dashboard-keywords.json`,
+      expectedStatus: '200 OK — lintas-endpoint konsisten', expectedResponse: 'Tiap keyword known muncul di top-keywords dengan count == expectedTotalPosts',
+      specTitle: 'konsistensi: "<keyword>" muncul dengan count = <n> (sama dgn summary)',
+      assertions: 'hit = data.find(keyword) truthy; hit.count = expectedTotalPosts',
+      source: 'test-data/be-dashboard-keywords.json', notes: 'Konsistensi antar endpoint dashboard.',
+    },
+    {
+      id: 'TC-BE-D136', name: 'trending-topic-multi-period → 200, kontrak deltas 24h/7d/1mo & satu primary', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: `${BE_API_PREFIX}/dashboard/trending-topic-multi-period`, headers: 'Accept: application/json', params: '— (varian +keyword juga 200)', requestBody: '—',
+      precondition: `BE berjalan di ${BASE_URL_BE}`,
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ id, label, value, pct 0..100, deltas[24h|7d|1mo] dengan up boolean & tepat 1 primary }] }',
+      specTitle: 'tiap topik punya delta 24h/7d/1mo dengan flag up boolean & tepat satu primary',
+      assertions: 'labels contain 24h/7d/1mo; up boolean; primaries.length = 1 per topik; pct dalam rentang',
+      source: 'trending-topic-multi-period.spec.ts', notes: 'Swagger menandai placeholder data → assert struktur saja.',
+    },
+  ];
+}
+
+// ---------- daftar test case scrape service / api-gateway (tests/be/scrape/) ----------
+// Service TERPISAH dari dashboard-service (BASE_URL_SCRAPE, default
+// http://10.200.101.13:8080). Menjadi tulang punggung fitur Keyword
+// Management & Provider Management di FE.
+// Write lifecycle valid sengaja TIDAK diuji langsung (tidak ada endpoint
+// delete → berisiko mencemari staging); alur sukses ter-cover mock FE.
+
+function buildScrapeCases() {
+  return [
+    {
+      id: 'TC-BE-S01', name: 'GET /health → 200 status ok & service api-gateway', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/health', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: `Scrape service berjalan di ${BASE_URL_SCRAPE} (env BASE_URL_SCRAPE)`,
+      expectedStatus: '200 OK', expectedResponse: '{ "status": "ok", "service": "api-gateway" }',
+      specTitle: '→ 200 dengan status ok & service api-gateway',
+      assertions: 'status=200; body.status = "ok"; body.service = "api-gateway"',
+      source: 'scrape/health.spec.ts', notes: 'Service ini sebelumnya NOL coverage (ditemukan audit BE 2026-08-24).',
+    },
+    {
+      id: 'TC-BE-S02', name: 'GET /v1/scrape/platform → 200 minimal instagram/tiktok/twitter_x + label', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/scrape/platform', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: 'Scrape service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ platform, platform_name }...], meta } — slug inilah nilai filter platform endpoint lain',
+      specTitle: '→ 200 dengan minimal Instagram/TikTok/Twitter-X & nama labelnya',
+      assertions: 'slugs contain instagram/tiktok/twitter_x; tiap item platform_name non-kosong',
+      source: 'scrape/platform.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-S03', name: 'GET keyword-management tanpa filter → kontrak meta & item lengkap', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/scrape/keyword-management?page=1&size=10', headers: 'Accept: application/json', params: 'page,size', requestBody: '—',
+      precondition: 'Scrape service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ id, keyword, platforms[slug], status ACTIVE|INACTIVE, schedule_enabled }], meta { page,size,total,total_pages,generated_at } }',
+      specTitle: 'tanpa filter → 200 dengan kontrak meta pagination & item lengkap',
+      assertions: 'meta.page/size/total/total_pages; platforms ⊆ slug resmi; status ∈ ACTIVE|INACTIVE',
+      source: 'scrape/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-S04', name: 'Filter schedule_enabled=true/false hanya mengembalikan tab terkait', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/scrape/keyword-management?schedule_enabled=true|false', headers: 'Accept: application/json', params: 'schedule_enabled', requestBody: '—',
+      precondition: 'Scrape service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'true → semua item schedule_enabled=true; false → semua false',
+      specTitle: 'schedule_enabled=false hanya mengembalikan keyword on-demand',
+      assertions: 'setiap item.schedule_enabled sesuai filter (kedua varian dites)',
+      source: 'scrape/keyword-management.spec.ts', notes: 'Satu endpoint untuk 2 tab halaman Keyword.',
+    },
+    {
+      id: 'TC-BE-S05', name: 'Filter platform & search pada keyword-management konsisten', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/scrape/keyword-management?platform=tiktok | search=ruu', headers: 'Accept: application/json', params: 'platform,search', requestBody: '—',
+      precondition: 'Scrape service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'platform=tiktok → semua item mengandung tiktok; search=ruu → semua keyword mengandung "ruu"',
+      specTitle: 'filter platform=tiktok → semua item punya platform tiktok',
+      assertions: 'dua test: platform filter & search substring match',
+      source: 'scrape/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-S06', name: 'Pagination keyword-management size=1&page=2 diikuti meta', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/scrape/keyword-management?page=2&size=1', headers: 'Accept: application/json', params: 'page,size', requestBody: '—',
+      precondition: 'Scrape service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'data.length <= 1; meta.page=2; meta.size=1',
+      specTitle: 'pagination size=1&page=2 → meta mengikuti & data maksimal 1 item',
+      assertions: 'data.length <= 1; meta.page = 2; meta.size = 1',
+      source: 'scrape/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-S07', name: 'POST keyword-management body kosong → 400 validation_failed', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: '/v1/scrape/keyword-management', headers: 'Content-Type: application/json', params: '—', requestBody: '{}',
+      precondition: 'Scrape service berjalan (aman: tidak membuat data)',
+      expectedStatus: '400 Bad Request', expectedResponse: '{ error: { code: "validation_failed", message: "invalid keyword request" } }',
+      specTitle: 'POST body kosong → 400 validation_failed (tanpa membuat data)',
+      assertions: 'status=400; error.code=validation_failed; message contains "invalid keyword request"',
+      source: 'scrape/keyword-management.spec.ts', notes: 'Alur sukses create tidak diuji langsung (tanpa DELETE → tak bisa bersih-bersih).',
+    },
+    {
+      id: 'TC-BE-S08', name: 'GET credential tanpa filter → kontrak item lengkap (snake_case)', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/scrape/credential?page=1&size=10', headers: 'Accept: application/json', params: 'page,size', requestBody: '—',
+      precondition: 'Scrape service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ id, platform, name, enabled, secret_configured, priority, req_per_second, req_per_month, req_usage_percent }] }',
+      specTitle: 'tanpa filter → 200 dengan kontrak item lengkap & meta pagination',
+      assertions: 'platform ⊆ slug resmi; enabled/secret_configured boolean; angka >= 0',
+      source: 'scrape/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-S09', name: 'Filter credential platform/enabled/keyword/gabungan konsisten', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/scrape/credential?platform=tiktok&enabled=true | keyword=dev', headers: 'Accept: application/json', params: 'platform,enabled,keyword', requestBody: '—',
+      precondition: 'Scrape service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua item lolos filter yang diminta (termasuk kombinasi)',
+      specTitle: 'filter gabungan platform+enabled konsisten',
+      assertions: 'empat test: platform, enabled true/false, gabungan, keyword substring',
+      source: 'scrape/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-S10', name: 'POST credential body kosong → 400 validation_failed', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: '/v1/scrape/credential', headers: 'Content-Type: application/json', params: '—', requestBody: '{}',
+      precondition: 'Scrape service berjalan (aman: tidak membuat data)',
+      expectedStatus: '400 Bad Request', expectedResponse: '{ error: { code: "validation_failed", message: "invalid credential request" } }',
+      specTitle: 'POST body kosong → 400 validation_failed (tanpa membuat data)',
+      assertions: 'status=400; error.code=validation_failed',
+      source: 'scrape/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-S11', name: 'PATCH credential/:id/enable|disable toggle round-trip aman', category: 'Positive', priority: 'High',
+      method: 'PATCH', endpoint: '/v1/scrape/credential/:id/{enable|disable}', headers: 'Accept: application/json', params: 'id dari GET list', requestBody: '—',
+      precondition: 'Minimal 1 provider ada; state akhir HARUS = state awal (finally block)',
+      expectedStatus: '200 OK — state flip lalu restore', expectedResponse: 'Setelah PATCH pertama state berubah; setelah PATCH kedua kembali persis seperti awal',
+      specTitle: 'toggle round-trip: state berubah lalu dikembalikan ke semula',
+      assertions: 'PATCH 200; refetch flipped; finally restore PATCH 200; refetch = original',
+      source: 'scrape/credential.spec.ts', notes: 'Satu-satunya mutasi yang aman di staging (reversibel).',
+    },
+    {
+      id: 'TC-BE-S12', name: 'POST /v1/scrape body kosong/tanpa body → 400 bukan 5xx', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: '/v1/scrape', headers: 'Content-Type: application/json', params: '—', requestBody: '{} / (kosong)',
+      precondition: 'Scrape service berjalan (aman: job tidak dijalankan)',
+      expectedStatus: '400 Bad Request', expectedResponse: '{ error: { code: "validation_failed", message: "platform and keyword are required" } }; payload hilang juga ditolak elegan (4xx)',
+      specTitle: 'body kosong → 400 "platform and keyword are required"',
+      assertions: 'status=400; message contains required; varian tanpa body tetap < 500',
+      source: 'scrape/on-demand.spec.ts', notes: 'Payload VALID sengaja tidak dikirim → akan menjalankan job scraping nyata.',
+    },
   ];
 }
 
@@ -3151,6 +3299,7 @@ const PLATFORM_BE = {
     return [
       { sheet: 'Health', project: 'be', accent: 'FF166534', cases: buildBeHealthCases() },
       { sheet: 'Dashboard', project: 'be', accent: 'FF0284C7', cases: buildBeDashboardCases() },
+      { sheet: 'Scrape', project: 'be', accent: 'FFB45309', cases: buildScrapeCases() },
     ];
   },
   coverage: null,

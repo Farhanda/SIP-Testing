@@ -33,6 +33,10 @@ export const Env = {
   // Prefiks versi API backend (default /v1)
   beApiPrefix: process.env.BE_API_PREFIX ?? '/v1',
 
+  // Base URL scrape service / api-gateway (keyword-management, credential,
+  // platform) — service TERPISAH dari dashboard-service di BASE_URL_BE.
+  scrapeBaseUrl: process.env.BASE_URL_SCRAPE ?? 'http://10.200.101.13:8080',
+
   // ----- AI Service (SIP AI Service, platform AI) -----
   // Base URL service AI (deployed)
   aiBaseUrl: process.env.BASE_URL_AI ?? 'http://10.200.102.2:8100',
