@@ -480,7 +480,16 @@ function buildDashboardCases() {
       assertions: 'heading Sentiment trend + Sentiment map visible; svg pertama dalam grup visible',
       source: 'Hardcoded di spec', notes: '—',
     },
+
     {
+      id: 'TC-UI-D09c', name: 'Export report mengunduh file xlsx & menampilkan toast sukses', category: 'Positive', priority: 'High',
+      method: 'View', endpoint: '/monitoring/dashboard', headers: '—', params: '—', requestBody: 'GET /api/dashboard/export-report',
+      precondition: 'Mock API dashboard aktif; hasil sudah tampil',
+      expectedStatus: 'Sukses - unduhan berjalan', expectedResponse: 'Event download dgn nama file .xlsx; toast "Report exported successfully."',
+      specTitle: 'Export report mengunduh file xlsx & menampilkan toast sukses',
+      assertions: 'waitForEvent(download); suggestedFilename matches .xlsx; toast visible',
+      source: 'Hardcoded di spec', notes: 'Tombol dikembalikan app & kini FUNGSIONAL (dulu bug A2 no-op).',
+    },    {
       id: 'TC-UI-D10', name: 'Section Topic intelligence tersedia di dashboard', category: 'Positive', priority: 'Medium',
       method: 'View', endpoint: '/monitoring/dashboard', headers: '—', params: '—', requestBody: '—',
       precondition: 'Mock API dashboard aktif; hasil dashboard sudah tampil',
@@ -752,7 +761,16 @@ function buildDashboardCases() {
       assertions: 'getByRole button "Apply filter" visible; getByRole button "Reset filter" visible',
       source: 'posts-page.spec.ts', notes: '—',
     },
+
     {
+      id: 'TC-UI-D36b', name: 'Filter Topic mempersempit daftar post sesuai pilihan', category: 'Positive', priority: 'Medium',
+      method: 'Filter', endpoint: '/monitoring/dashboard/posts', headers: '—', params: 'topic=<nilai opsi>', requestBody: 'GET top-posts-list?topic=<terpilih>',
+      precondition: 'Halaman posts memuat opsi topic dari topic-intelligence',
+      expectedStatus: 'Sukses - param topic terkirim', expectedResponse: 'Request top-posts-list terakhir mengandung topic=<nilai terpilih> (decoded)',
+      specTitle: 'filter Topic mempersempit daftar post sesuai pilihan',
+      assertions: 'selectOption index 1 -> Apply -> poll URL decoded contains topic=<chosen>',
+      source: 'Hardcoded di spec', notes: 'Filter Topic baru pada halaman posts (deploy 2026-08).',
+    },    {
       id: 'TC-UI-D37', name: 'Link Dashboard untuk kembali ke dashboard utama', category: 'Navigation', priority: 'Medium',
       method: 'Navigation', endpoint: '/monitoring/dashboard/posts', headers: '—', params: '—', requestBody: '—',
       precondition: 'User membuka halaman posts',

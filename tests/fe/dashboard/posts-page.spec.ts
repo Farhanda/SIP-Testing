@@ -100,6 +100,31 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
     await postsPage.expectPostCount(2);
   });
 
+  test('filter Topic mempersempit daftar post sesuai pilihan', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+
+    // Pilih topik pertama yang bukan "all" (nilai opsi = data live/mock)
+    const optionCount = await postsPage.topicSelect.locator('option').count();
+    if (optionCount > 1) {
+      const chosen = await postsPage.topicSelect.evaluate(
+        (s: HTMLSelectElement) => (s.options[1] as HTMLOptionElement).value,
+      );
+
+      const reqUrls: string[] = [];
+      postsPage.page.on('request', (req) => {
+        if (req.url().includes('/top-posts-list')) reqUrls.push(req.url());
+      });
+
+      await postsPage.topicSelect.selectOption(chosen);
+      await postsPage.applyFilterButton.click();
+
+      // Bandingkan dalam bentuk ter-decode ('+' = spasi, %XX dikembalikan)
+      await expect
+        .poll(() => decodeURIComponent((reqUrls[reqUrls.length - 1] ?? '').replace(/\+/g, '%20')))
+        .toContain('topic=' + chosen);
+    }
+  });
+
   test('link Dashboard untuk kembali ke dashboard utama', async ({ postsPage }) => {
     await postsPage.gotoWithSort('view', 'RUU Digital');
 

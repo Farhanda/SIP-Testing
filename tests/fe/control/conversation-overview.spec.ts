@@ -19,7 +19,7 @@ import { mockTopKeywords } from '../../../src/helpers/api-mock';
  */
 test.describe('Display Wall — Conversation Overview', () => {
   test.beforeEach(async ({ page }) => {
-    // Hanya daftar keyword yang di-mock � chart endpoints memakai BE asli
+    // Hanya daftar keyword yang di-mock � chart endpoints memakai BE asli
     // (shape respons wall baru tidak kompatibel dgn mock dashboard lama).
     await mockTopKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
   });
@@ -98,22 +98,24 @@ test.describe('Display Wall — Conversation Overview', () => {
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // Trending topics harus ada — cari teks dari mock data
-    const hasPublicServices = await displayWallPage.page.getByText('Public services').isVisible().catch(() => false);
-    const hasTariffPolicy = await displayWallPage.page.getByText('Tariff policy').isVisible().catch(() => false);
-    // Minimal salah satu trending topic terlihat
-    expect(hasPublicServices || hasTariffPolicy).toBeTruthy();
+    // Trending topics struktural: heading section + item dgn jumlah posts
+    // (label topik dinamis dari data BE — jangan hardcode nama topik)
+    await expect(
+      displayWallPage.page.getByText(/Trending topic/i).first()
+    ).toBeVisible({ timeout: 25_000 });
+    await expect(
+      displayWallPage.page.getByText(/\d+\s*posts/i).first()
+    ).toBeVisible({ timeout: 25_000 });
   });
 
   test('trending topics menampilkan delta per periode (24h, 7d, 1mo)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // Cek ada delta labels
-    const has24h = await displayWallPage.page.getByText('24h').first().isVisible().catch(() => false);
-    const has7d = await displayWallPage.page.getByText('7d').first().isVisible().catch(() => false);
-    const has1mo = await displayWallPage.page.getByText('1mo').first().isVisible().catch(() => false);
-    expect(has24h || has7d || has1mo).toBeTruthy();
+    // Cek ada delta labels — polling utk stabilitas
+    await expect(
+      displayWallPage.page.getByText(/24h|7d|1mo/i).first()
+    ).toBeVisible({ timeout: 25_000 });
   });
 
   test('display wall tidak memiliki navbar utama (full-screen mode)', async ({ displayWallPage }) => {

@@ -91,6 +91,23 @@ test.describe('Dashboard — Fitur UI Baru', () => {
     ).toBe(false);
   });
 
+  test('Export report mengunduh file xlsx & menampilkan toast sukses', async ({ dashboardPage }) => {
+    await mockDashboardApis(dashboardPage.page);
+    await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
+    await dashboardPage.goto();
+    await dashboardPage.expectResultsRendered();
+
+    const downloadPromise = dashboardPage.page.waitForEvent('download', { timeout: 15_000 });
+    await dashboardPage.exportReportButton.click();
+    const download = await downloadPromise;
+
+    // File hasil ekspor ber-ekstensi xlsx
+    expect(download.suggestedFilename()).toMatch(/\.xlsx$/i);
+    await expect(
+      dashboardPage.page.getByText('Report exported successfully.')
+    ).toBeVisible();
+  });
+
   // ── Sort by di Top Posts ─────────────────────────────────────────────
 
   test('Top Posts memiliki dropdown Sort by dengan opsi Views dan Engagement', async ({ dashboardPage }) => {

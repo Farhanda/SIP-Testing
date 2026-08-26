@@ -248,17 +248,16 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
     }
     case 'topic-intelligence-detail': {
       // Used by /monitoring/dashboard/topic/:topic page.
+      // ⚠️ UI baru (2026-08) MEMILIH TOPIKNYA SENDIRI (abaikan URL) dan
+      // memanggil endpoint TANPA param keyword — jadi mock ini AGNOSTIK
+      // terhadap slug: selalu kirim 2 post deterministik agar assertion
+      // stabil, kecuali user memfilter via emotion/search di halaman.
       const topicSlug = url.searchParams.get('topic') ?? 'unknown';
-      const topicKeyword = url.searchParams.get('keyword') ?? keyword;
       const searchFilter = (url.searchParams.get('search') ?? '').toLowerCase();
       const emotionFilter = url.searchParams.get('emotion') ?? '';
       const pageNum2 = Number(url.searchParams.get('page') ?? 1);
       const size2 = Number(url.searchParams.get('size') ?? 10);
-      // Filter TOP_POSTS by topic match or return all for 'lainnya'
-      const topicPosts = topicSlug === 'lainnya'
-        ? TOP_POSTS
-        : TOP_POSTS.filter((p) => p.topic.toLowerCase().includes(topicSlug.toLowerCase()));
-      const filteredPosts = topicPosts.filter(
+      const filteredPosts = TOP_POSTS.filter(
         (p) =>
           (!emotionFilter || emotionFilter === 'all' || p.emotion === emotionFilter.toLowerCase()) &&
           (!searchFilter || p.post.toLowerCase().includes(searchFilter)),
@@ -270,7 +269,7 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
           topic: { id: topicSlug, collectionId: '', label: topicSlug },
           stats: {
             totalPost: filteredPosts.length,
-            totalEngagement: topicPosts.reduce((sum, p) => sum + p.engagement, 0),
+            totalEngagement: filteredPosts.reduce((sum, p) => sum + p.engagement, 0),
             negativeSentimentPct: 0,
             topPlatform: 'TikTok',
           },
@@ -528,6 +527,11 @@ export function mockSchedulerList(page: Page, items: MockSchedulerItem[] = MOCK_
     }
     const url = new URL(route.request().url());
     const isNew = url.pathname.includes('/v1/scrape/keyword-management');
+    // Endpoint statistik /summary (baru) bukan daftar — biarkan lewat.
+    if (isNew && url.pathname.endsWith('/summary')) {
+      await route.fallback();
+      return;
+    }
     // Handler ini KHUSUS daftar scheduled: pada endpoint baru, On Demand
     // memakai schedule_enabled=false — biarkan handler mockUnscheduledList
     // (yang didaftarkan setelahnya) yang menangani.
@@ -682,10 +686,11 @@ export function mockCreateUnscheduled(
       return;
     }
     if (!succeed) {
+      // Format error asli scrape service (tanpa ini UI mengira sukses)
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
-        body: JSON.stringify({ message: 'Failed to load data.' }),
+        body: JSON.stringify({ error: { code: 'internal_error', message: 'internal server error' } }),
       });
       return;
     }
@@ -738,6 +743,11 @@ export function mockUnscheduledList(page: Page, items: MockUnscheduledItem[] = M
     }
     const url = new URL(route.request().url());
     const isNew = url.pathname.includes('/v1/scrape/keyword-management');
+    // Endpoint statistik /summary (baru) bukan daftar — biarkan lewat.
+    if (isNew && url.pathname.endsWith('/summary')) {
+      await route.fallback();
+      return;
+    }
     if (isNew && url.searchParams.get('schedule_enabled') !== 'false') {
       // Bukan tab On Demand — serahkan ke mockSchedulerList
       await route.fallback();

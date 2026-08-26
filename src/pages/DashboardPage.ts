@@ -10,6 +10,7 @@ const PLATFORMS = ['Instagram', 'TikTok', 'Twitter/X'];
  */
 export class DashboardPage extends BasePage {
   readonly heading = this.page.getByRole('heading', { name: 'Dashboard Overview' });
+  readonly exportReportButton = this.page.getByRole('button', { name: 'Export report' });
   readonly enterFullscreenButton = this.page.getByRole('button', { name: 'Enter fullscreen' });
   readonly exitFullscreenButton = this.page.getByRole('button', { name: 'Exit fullscreen' });
   readonly trendingHeading = this.page.getByRole('heading', { name: 'Trending topic' });
@@ -66,25 +67,29 @@ export class DashboardPage extends BasePage {
     await this.clearKeywordButton.click();
   }
 
-  /** Hapus semua platform terpilih dari multiselect. */
+  /** Hapus semua platform terpilih.
+   *  ⚠️ Listbox baru (2026-08) MENUTUP popover setelah satu opsi diklik —
+   *  jadi tiap iterasi: buka popover → klik SATU opsi yang masih selected
+   *  → ulangi hingga tidak ada lagi yang selected. */
   async deselectAllPlatforms() {
-    await this.platformButton.click();
-    for (const platform of PLATFORMS) {
-      const option = this.page.getByRole('option', { name: platform, exact: true });
-      // Cek berbagai kemungkinan atribut selected (aria-selected, data-selected, selected)
-      const isSelected = await option.evaluate((el) => {
-        return el.getAttribute('aria-selected') === 'true'
-          || el.hasAttribute('selected')
-          || el.getAttribute('data-selected') === 'true'
-          || el.classList.contains('selected')
-          || el.closest('[aria-selected="true"]') !== null;
-      }).catch(() => false);
-      if (isSelected) {
-        await option.click();
+    const selectedOption = this.page.locator('[role="option"][aria-selected="true"]').first();
+
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await this.platformButton.click();
+      const isOpen = await selectedOption
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!isOpen) {
+        // Tidak ada opsi terpilih tersisa — tutup popover & selesai
+        await this.page.keyboard.press('Escape');
+        return;
       }
+
+      await selectedOption.click();
+      await this.page.waitForTimeout(300); // tunggu siklus tutup/buka popover
     }
-    // Tutup dropdown (klik di luar)
-    await this.page.keyboard.press('Escape');
   }
 
   async applyFilter() {

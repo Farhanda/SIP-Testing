@@ -60,13 +60,23 @@ export class KeywordPage extends BasePage {
     await this.page.keyboard.press('Escape');
   }
 
-  /** Verifikasi pilihan platform di modal Add (On Demand) sesuai daftar. */
-  async expectUnscPlatformsSelected(platforms: string[]) {
-    await this.unscPlatformButton.click();
-    for (const platform of platforms) {
-      await expect(
-        this.page.getByRole('option', { name: platform, exact: true })
-      ).toHaveAttribute('aria-selected', 'true');
+  /** Verifikasi SEMUA opsi platform yang dirender listbox terpilih.
+   *  ⚠️ Daftar opsi kini DINAMIS (deploy 2026-08 bisa hanya subset platform),
+   *  jadi assertion struktural: minimal 1 opsi & semuanya selected. */
+  async expectUnscPlatformsAllSelected() {
+    // Scope ke dalam [role=listbox] — getByRole('option') global ikut
+    // mencocokkan <option> native milik select filter yang tersembunyi.
+    const firstOption = this.page.locator('[role="listbox"] [role="option"]').first();
+    for (let i = 0; i < 3 && !(await firstOption.isVisible().catch(() => false)); i++) {
+      await this.unscPlatformButton.click();
+      await firstOption.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    }
+    const options = this.page.locator('[role="listbox"] [role="option"]');
+    await expect(firstOption).toBeVisible();
+    const total = await options.count();
+    expect(total).toBeGreaterThanOrEqual(1);
+    for (let i = 0; i < total; i++) {
+      await expect(options.nth(i)).toHaveAttribute('aria-selected', 'true');
     }
     await this.page.keyboard.press('Escape');
   }
@@ -126,11 +136,13 @@ export class KeywordPage extends BasePage {
   async gotoScheduledTab() {
     await this.goto();
     await this.tabScheduled.click();
+    await this.page.waitForTimeout(300); // settle tab
   }
 
   async gotoOnDemandTab() {
     await this.goto();
     await this.tabOnDemand.click();
+    await this.page.waitForTimeout(300); // settle tab
   }
 
   async selectStatus(value: string) {
@@ -205,7 +217,12 @@ export class KeywordPage extends BasePage {
   // ---- Aksi modal Edit scheduled keyword ----
 
   async openEditModal(keyword: string) {
-    await this.editRowButton(keyword).click();
+    // Klik bisa hilang saat halaman belum selesai hidrasi � retry hingga 3x
+    for (let i = 0; i < 3; i++) {
+      await this.editRowButton(keyword).click();
+      const ok = await this.editModal.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
+      if (ok) return;
+    }
     await expect(this.editModal).toBeVisible();
   }
 

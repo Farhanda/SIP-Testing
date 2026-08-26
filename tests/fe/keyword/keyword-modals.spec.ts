@@ -29,9 +29,9 @@ test.describe('Monitoring Keyword — Modal', () => {
       ).toBeVisible();
       await expect(keywordPage.unscKeywordInput).toBeVisible();
 
-      // Default: semua platform terpilih (listbox); periode default KOSONG
-      // (perubahan app 2026-08 — dulu "24H")
-      await keywordPage.expectUnscPlatformsSelected(['Instagram', 'TikTok', 'Twitter/X']);
+      // Default: semua platform yang dirender listbox terpilih (daftar kini
+      // dinamis — deploy 2026-08 bisa hanya subset platform); periode kosong
+      await keywordPage.expectUnscPlatformsAllSelected();
       await expect(keywordPage.unscPeriodSelect).toHaveValue('');
       await expect(keywordPage.startProcessButton).toBeVisible();
     });
@@ -111,12 +111,21 @@ test.describe('Monitoring Keyword — Modal', () => {
       await mockSchedulerList(keywordPage.page);
       await keywordPage.gotoScheduledTab();
 
+      // Tunggu baris target benar-benar terrender sebelum membuka modal
+      await expect(keywordPage.editRowButton('RUU Digital')).toBeVisible({ timeout: 10_000 });
       await keywordPage.openEditModal('RUU Digital');
 
       // Data baris ter-prefill
       await expect(keywordPage.editKeywordInput).toHaveValue('RUU Digital');
-      for (const platform of ['Twitter/X', 'Instagram', 'TikTok']) {
-        await expect(keywordPage.platformCheckbox(platform)).toBeChecked();
+
+      // Checkbox platform kini DINAMIS (hanya platform relevan yang tampil)
+      const boxes = keywordPage.page
+        .getByRole('dialog')
+        .locator('input[type="checkbox"]');
+      const boxCount = await boxes.count();
+      expect(boxCount).toBeGreaterThanOrEqual(1);
+      for (let i = 0; i < boxCount; i++) {
+        await expect(boxes.nth(i)).toBeChecked();
       }
       await expect(keywordPage.saveChangesButton).toBeVisible();
     });
