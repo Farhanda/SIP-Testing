@@ -1,10 +1,6 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
-import {
-  mockDashboardApis,
-  mockKeywordOptions,
-  mockSelectedKeywords,
-} from '../../../src/helpers/api-mock';
+import { mockTopKeywords } from '../../../src/helpers/api-mock';
 
 /**
  * Test halaman Top Engagement (/display/top-engagement).
@@ -18,16 +14,15 @@ import {
  * - SIP Insight branding
  *
  * API yang dipanggil:
- *   GET /api/control/selected-keywords
+ *   GET /v1/dashboard/top-keywords?limit=5 (sumber keyword, di-mock)
  *   GET /v1/dashboard/top-posts?keyword=...&period=1M&sort_by=view
  *   GET /v1/dashboard/top-accounts?keyword=...&period=1M
  *   GET /v1/dashboard/top-hashtags?keyword=...&period=1M
  */
 test.describe('Display Wall — Top Engagement', () => {
   test.beforeEach(async ({ page }) => {
-    await mockDashboardApis(page);
-    await mockKeywordOptions(page, ['RUU Digital']);
-    await mockSelectedKeywords(page, ['RUU Digital']);
+    // Hanya daftar keyword yang di-mock � chart endpoints memakai BE asli.
+    await mockTopKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
   });
 
   test('halaman menampilkan heading keyword', async ({ displayWallPage }) => {
@@ -96,10 +91,15 @@ test.describe('Display Wall — Top Engagement', () => {
     await displayWallPage.goto('/display/top-engagement');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // Cek hashtag dari mock data: #SIPIndonesia, #SuaraWarga
-    const hasSIP = await displayWallPage.page.getByText('#SIPIndonesia').isVisible().catch(() => false);
-    const hasSuara = await displayWallPage.page.getByText('#SuaraWarga').isVisible().catch(() => false);
-    expect(hasSIP || hasSuara).toBeTruthy();
+    // Struktural: section "Top Hashtag" tampil & minimal satu teks '#'
+    // (data real BE — tag spesifik tidak di-hardcode)
+    await expect(
+      displayWallPage.page.getByText(/top hashtags?/i).first()
+    ).toBeVisible();
+    const hashTexts = await displayWallPage.page
+      .getByText(/#/)
+      .count();
+    expect(hashTexts).toBeGreaterThan(0);
   });
 
   test('display wall tidak memiliki navbar utama (full-screen mode)', async ({ displayWallPage }) => {

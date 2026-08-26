@@ -97,6 +97,24 @@ test.describe('Provider Management', () => {
     await expect(providerPage.modalReqPerMonthInput).toBeVisible();
   });
 
+  test('modal Edit provider terbuka dengan data baris ter-prefill', async ({ providerPage }) => {
+    await mockProviderList(providerPage.page);
+    await providerPage.goto();
+
+    // Nama diambil dinamis dari mock agar tidak kaku terhadap urutan data
+    const firstName = 'Instagram Live - Primary';
+    await providerPage.editButton(firstName).click();
+
+    await expect(providerPage.editModal).toBeVisible();
+    await expect(providerPage.editModal).toContainText('Edit provider');
+    await expect(providerPage.editNameInput).toHaveValue(firstName);
+    await expect(providerPage.editModal.getByRole('button', { name: 'Save' })).toBeVisible();
+
+    // Tutup tanpa menyimpan
+    await providerPage.editModal.getByRole('button', { name: 'Cancel' }).click();
+    await expect(providerPage.editModal).toHaveCount(0);
+  });
+
   test('validasi form Add provider kosong menampilkan pesan error tanpa mengirim request', async ({ providerPage }) => {
     const page = providerPage.page;
     await mockProviderList(page);

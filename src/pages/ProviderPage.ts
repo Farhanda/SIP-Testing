@@ -20,6 +20,8 @@ export class ProviderPage extends BasePage {
 
   // ---- Modal "Add provider" ----
   readonly modal = this.page.getByRole('dialog').filter({ has: this.page.getByRole('heading', { name: 'Add provider' }) });
+  readonly editModal = this.page.getByRole('dialog').filter({ has: this.page.getByRole('heading', { name: 'Edit provider' }) });
+  readonly editNameInput = this.editModal.locator('#name');
   readonly modalNameInput = this.modal.locator('#name');
   readonly modalPlatformInput = this.modal.getByPlaceholder('Select platform');
   readonly modalSecretInput = this.modal.locator('#secret');

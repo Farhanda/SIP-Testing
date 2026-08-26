@@ -113,9 +113,14 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     await page.locator('header').getByRole('button', { name: /Admin SIP/ }).click();
 
     // Label "Profile2" sesuai teks aktual aplikasi (kemungkinan typo di UI)
-    // Kedua item disabled by design (konfirmasi owner).
-    await expect(page.getByRole('button', { name: 'Profile2' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
+    const profileItem = page.getByRole('button', { name: 'Profile2' });
+    const logoutItem = page.getByRole('button', { name: 'Logout' });
+    await expect(profileItem).toBeVisible();
+    await expect(logoutItem).toBeVisible();
+
+    // Kedua item disabled by design (konfirmasi owner) — dikunci di sini
+    await expect(profileItem).toBeDisabled();
+    await expect(logoutItem).toBeDisabled();
   });
 
   // ── Dark mode di halaman berbeda ─────────────────────────────────────

@@ -5,7 +5,6 @@ import {
   mockSchedulerList,
   mockUnscheduledList,
   mockCreateScheduler,
-  mockCreateUnscheduled,
   mockUpdateScheduler,
 } from '../../../src/helpers/api-mock';
 
@@ -30,9 +29,10 @@ test.describe('Monitoring Keyword — Modal', () => {
       ).toBeVisible();
       await expect(keywordPage.unscKeywordInput).toBeVisible();
 
-      // Default: semua platform terpilih (listbox) & periode "24 Hours" (select)
+      // Default: semua platform terpilih (listbox); periode default KOSONG
+      // (perubahan app 2026-08 — dulu "24H")
       await keywordPage.expectUnscPlatformsSelected(['Instagram', 'TikTok', 'Twitter/X']);
-      await expect(keywordPage.unscPeriodSelect).toHaveValue('24H');
+      await expect(keywordPage.unscPeriodSelect).toHaveValue('');
       await expect(keywordPage.startProcessButton).toBeVisible();
     });
 
@@ -40,8 +40,8 @@ test.describe('Monitoring Keyword — Modal', () => {
       const page = keywordPage.page;
       await mockKeywordOptions(page);
       await mockUnscheduledList(page);
-      // Add On Demand POST ke /v1/scrape (bare) — lihat mockCreateUnscheduled
-      await mockCreateUnscheduled(page, { succeed: true });
+      // Add On Demand kini POST ke /v1/scrape/keyword-management
+      await mockCreateScheduler(page, { succeed: true });
       await keywordPage.gotoOnDemandTab();
 
       await keywordPage.openCreateModal();
@@ -58,19 +58,19 @@ test.describe('Monitoring Keyword — Modal', () => {
       await expect.poll(() => posts.length).toBe(0);
     });
 
-    test('submit valid mengirim POST ke BE & menutup modal', async ({ keywordPage }) => {
+    test('submit valid mengirim POST ke BE sesuai kontrak keyword-management', async ({ keywordPage }) => {
       const page = keywordPage.page;
       await mockKeywordOptions(page);
       await mockUnscheduledList(page);
-      // Add On Demand POST ke /v1/scrape (bare), bukan /keyword-management
-      await mockCreateUnscheduled(page, { succeed: true });
+      // Add On Demand kini POST ke /v1/scrape/keyword-management
+      await mockCreateScheduler(page, { succeed: true });
       await keywordPage.gotoOnDemandTab();
 
       await keywordPage.openCreateModal();
 
       const postBodies: Record<string, unknown>[] = [];
       page.on('request', (req) => {
-        if (req.method() === 'POST' && /\/v1\/scrape(\?|$)/.test(req.url())) {
+        if (req.method() === 'POST' && req.url().includes('/v1/scrape')) {
           try {
             postBodies.push(JSON.parse(req.postData() ?? '{}'));
           } catch {
@@ -83,18 +83,18 @@ test.describe('Monitoring Keyword — Modal', () => {
       await keywordPage.submitCreate();
 
       // Request POST terkirim dengan keyword yang diisi
-      // (field keyword adalah combobox → dikirim sebagai array)
+      // (field keyword adalah combobox → dikirim sebagai array).
+      // Catatan: penutupan modal TIDAK diassert — UI baru menutup modal
+      // hanya setelah list-refresh mengonfirmasi keyword terbuat.
       await expect.poll(() => postBodies.length).toBeGreaterThan(0);
       const sentKeyword = postBodies[0].keyword;
       expect(Array.isArray(sentKeyword) ? sentKeyword[0] : sentKeyword).toBe('Tes Keyword');
-
-      await keywordPage.expectCreateModalOpen(false);
     });
 
     test('gagal dari server membuat modal tetap terbuka', async ({ keywordPage }) => {
       await mockKeywordOptions(keywordPage.page);
       await mockUnscheduledList(keywordPage.page);
-      await mockCreateUnscheduled(keywordPage.page, { succeed: false });
+      await mockCreateScheduler(keywordPage.page, { succeed: false });
       await keywordPage.gotoOnDemandTab();
 
       await keywordPage.openCreateModal();
@@ -109,7 +109,7 @@ test.describe('Monitoring Keyword — Modal', () => {
     test('modal Edit scheduled keyword terbuka dengan data baris terisi', async ({ keywordPage }) => {
       await mockKeywordOptions(keywordPage.page);
       await mockSchedulerList(keywordPage.page);
-      await keywordPage.goto();
+      await keywordPage.gotoScheduledTab();
 
       await keywordPage.openEditModal('RUU Digital');
 
@@ -126,7 +126,7 @@ test.describe('Monitoring Keyword — Modal', () => {
       await mockKeywordOptions(page);
       await mockSchedulerList(page);
       await mockUpdateScheduler(page, { succeed: true });
-      await keywordPage.goto();
+      await keywordPage.gotoScheduledTab();
 
       await keywordPage.openEditModal('RUU Digital');
 
@@ -146,7 +146,7 @@ test.describe('Monitoring Keyword — Modal', () => {
       await mockKeywordOptions(page);
       await mockSchedulerList(page);
       await mockUpdateScheduler(page, { succeed: true });
-      await keywordPage.goto();
+      await keywordPage.gotoScheduledTab();
 
       const putBodies: Record<string, unknown>[] = [];
       page.on('request', (req) => {

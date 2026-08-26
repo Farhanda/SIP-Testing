@@ -125,6 +125,26 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
         meta: META(),
       };
     }
+    case 'trending-topic-multi-period': {
+      // Dipakai display wall Conversation Overview (versi /v1/dashboard/*).
+      // Shape = kontrak BE asli: array topik dgn deltas per periode.
+      const kw = url.searchParams.get('keyword') ?? '';
+      return {
+        data: [
+          { id: 'topic-1', label: 'Public services', value: '1,833 posts', pct: 90, deltas: [
+            { label: '24h', value: '↑10%', up: true },
+            { label: '7d', value: '↓14%', up: false, primary: true },
+            { label: '1mo', value: '↓28%', up: false },
+          ] },
+          { id: 'topic-2', label: 'Tariff policy', value: '1,977 posts', pct: 72, deltas: [
+            { label: '24h', value: '↑3%', up: true },
+            { label: '7d', value: '↑28%', up: true, primary: true },
+            { label: '1mo', value: '↓13%', up: false },
+          ] },
+        ],
+        meta: { keyword: kw, generated_at: new Date().toISOString() },
+      };
+    }
     case 'collection-summary':
       return {
         data: {
@@ -279,6 +299,20 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
       // CollectionSummary yang dulu meng-echo sudah tidak dirender lagi).
       return { data: TOPICS.map((t) => ({ ...t, label: `${keyword} — ${t.label}` })), meta: META() };
     }
+    case 'top-keywords': {
+      // Display wall (Conversation Overview / Top Engagement) memakai
+      // endpoint ini sebagai sumber rotasi keyword (?limit=5).
+      const limit = Number(url.searchParams.get('limit') ?? 5);
+      const kws = ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan'];
+      return {
+        data: kws.slice(0, Math.max(0, limit)).map((k, i) => ({
+          id: k.toLowerCase(),
+          keyword: k,
+          count: 100 - i * 10,
+        })),
+        meta: META(),
+      };
+    }
     case 'top-accounts':
       // Bentuk baru: handle tanpa @ prefix
       return { data: TOP_ACCOUNTS, meta: META() };
@@ -306,6 +340,33 @@ export function mockScrapePlatform(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ data: platforms, meta: null }),
+    });
+  });
+}
+
+/**
+ * Mock GET /v1/dashboard/top-keywords — SUMBER KEYWORD display wall
+ * (Conversation Overview & Top Engagement berotasi atas daftar ini).
+ *
+ * Dipakai BERSAMA endpoint chart lain yang TIDAK di-mock: wall butuh
+ * shape respons baru, jadi chart endpoints dibiarkan ke BE asli sementara
+ * daftar keyword dikendalikan di sini agar deterministik.
+ */
+export function mockTopKeywords(page: Page, keywords: string[] = ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']) {
+  return page.route(/\/v1\/dashboard\/top-keywords/, async (route) => {
+    const url = new URL(route.request().url());
+    const limit = Number(url.searchParams.get('limit') ?? keywords.length);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: keywords.slice(0, Math.max(0, limit)).map((k, i) => ({
+          id: k.toLowerCase(),
+          keyword: k,
+          count: 100 - i * 10,
+        })),
+        meta: META(),
+      }),
     });
   });
 }
@@ -405,6 +466,9 @@ const PLATFORM_TO_SLUG: Record<string, string> = {
 };
 
 function schedulerToManagementItem(item: MockSchedulerItem) {
+  // Schedule berisi timestamp nyata (bukan null) — form Edit scheduled
+  // memvalidasi tanggal & menolak save bila kosong.
+  const now = Date.now();
   return {
     id: item.id,
     keyword: item.keyword,
@@ -414,17 +478,17 @@ function schedulerToManagementItem(item: MockSchedulerItem) {
     source: 'MANUAL',
     schedule_enabled: true,
     schedule: {
-      start_at: null,
-      end_at: null,
+      start_at: new Date(now - 3600_000).toISOString(),
+      end_at: new Date(now + 86_400_000).toISOString(),
       frequency: { value: 30, unit: 'MINUTE' },
-      next_run_at: null,
-      last_run_at: null,
+      next_run_at: new Date(now + 1800_000).toISOString(),
+      last_run_at: item.meta.includes('Never') ? null : new Date(now - 7200_000).toISOString(),
     },
     last_execution_status: null,
     last_run_at: null,
     last_success_at: null,
     last_failure_at: null,
-    created_at: new Date().toISOString(),
+    created_at: new Date(now - 172_800_000).toISOString(),
     updated_at: new Date().toISOString(),
   };
 }
@@ -545,11 +609,37 @@ export function mockCreateScheduler(
       });
       return;
     }
+    // Respons harus berbentuk item keyword-management lengkap DAN meng-echo
+    // payload yang dikirim (keyword bisa array dari combobox).
+    const reqBody = (route.request().postDataJSON() ?? {}) as Record<string, unknown>;
+    const rawKw = reqBody.keyword;
+    const keywordEcho = Array.isArray(rawKw) ? String(rawKw[0] ?? '') : String(rawKw ?? '');
+    const platforms = Array.isArray(reqBody.platform)
+      ? (reqBody.platform as string[])
+      : Array.isArray(reqBody.platforms)
+        ? (reqBody.platforms as string[])
+        : ['instagram'];
+    const nowIso = new Date().toISOString();
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
       body: JSON.stringify({
-        data: { id: 'sch-new', keyword: 'created', platforms: [], state: 'active' },
+        data: {
+          id: '11111111-1111-4111-8111-111111111111',
+          keyword: keywordEcho,
+          platforms,
+          period: String(reqBody.period ?? 'ALL'),
+          status: 'ACTIVE',
+          source: 'MANUAL',
+          schedule_enabled: Boolean(reqBody.schedule_enabled ?? false),
+          schedule: null,
+          last_execution_status: null,
+          last_run_at: null,
+          last_success_at: null,
+          last_failure_at: null,
+          created_at: nowIso,
+          updated_at: nowIso,
+        },
       }),
     });
   });
@@ -737,12 +827,12 @@ export function mockUnscheduledHistory(page: Page, runs: MockUnscheduledItem[] =
 }
 
 /**
- * Mock GET /unscheduled/:id — halaman detail keyword on-demand.
+ * Mock GET detail keyword on-demand — halaman
+ * /monitoring/keyword/unscheduled/:id.
+ * Endpoint BARU (2026-08): /v1/scrape/keyword-management/unscheduled/:id;
+ * UI menerima payload item unscheduled (shape lama) dibungkus { data }.
  * Opsi `failFirst` membuat N request pertama gagal 500 lalu sukses
  * (dipakai test error state + tombol Retry).
- * Catatan: regex juga cocok dengan path /cancel & /retry — aman selama mock
- * cancel/retry TIDAK didaftarkan bersamaan dengan mock ini (pola per-test
- * saat ini: tiap test hanya mendaftarkan mock yang dipakainya).
  */
 export function mockUnscheduledDetail(
   page: Page,
@@ -750,22 +840,25 @@ export function mockUnscheduledDetail(
   { failFirst = 0 }: { failFirst?: number } = {},
 ) {
   let calls = 0;
-  return page.route(/\/api\/admin\/keyword\/unscheduled\/[^/?]+$/, async (route) => {
-    if (route.request().method() !== 'GET') {
-      await route.continue();
-      return;
-    }
-    calls += 1;
-    if (calls <= failFirst) {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to load data.' }) });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ data: item }),
-    });
-  });
+  return page.route(
+    /\/v1\/scrape\/keyword-management\/unscheduled\/[^/?]+$/,
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      calls += 1;
+      if (calls <= failFirst) {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Failed to load data.' }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: item }),
+      });
+    },
+  );
 }
 
 /** Mock POST /unscheduled/:id/cancel — aksi Cancel baris queued/processing. */

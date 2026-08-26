@@ -113,13 +113,19 @@ export class KeywordPage extends BasePage {
     return this.rowOf(keyword).getByRole('button', { name: `Move ${keyword} to scheduled keyword` });
   }
 
-  /** Tombol menu aksi pada baris Scheduled (berisi opsi Edit / Activate). */
-  actionMenuButton(keyword: string) {
-    return this.page.getByRole('button', { name: `Action menu for ${keyword}` });
+  /** Tombol Edit langsung pada baris Scheduled (arsitektur baru 2026-08). */
+  editRowButton(keyword: string) {
+    return this.rowOf(keyword).getByRole('button', { name: `Edit ${keyword}` });
   }
 
   async goto() {
     await this.page.goto('/monitoring/keyword');
+  }
+
+  /** Default landing kini On Demand — panggil ini bila butuh tab Scheduled. */
+  async gotoScheduledTab() {
+    await this.goto();
+    await this.tabScheduled.click();
   }
 
   async gotoOnDemandTab() {
@@ -199,8 +205,7 @@ export class KeywordPage extends BasePage {
   // ---- Aksi modal Edit scheduled keyword ----
 
   async openEditModal(keyword: string) {
-    await this.actionMenuButton(keyword).click();
-    await this.page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await this.editRowButton(keyword).click();
     await expect(this.editModal).toBeVisible();
   }
 

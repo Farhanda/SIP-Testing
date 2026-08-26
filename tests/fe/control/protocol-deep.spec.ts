@@ -31,20 +31,24 @@ test.describe('Display Wall — Coverage Mendalam', () => {
     }
   });
 
-  test('navigasi ke display wall melalui navbar "Display Wall" button', async ({ page }) => {
+  test('dropdown Display Wall memuat Conversation Overview & Top Engagement (tanpa protocol walls)', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
 
     const displayWallBtn = page.locator('header').getByRole('button', { name: 'Display Wall' });
     await expect(displayWallBtn).toBeVisible();
     await displayWallBtn.click();
 
-    // Klik salah satu wall dari dropdown menu
-    const alertLink = page.getByRole('link', { name: /Alert/ });
-    const hasAlertLink = await alertLink.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasAlertLink) {
-      await alertLink.click();
-      await expectUrlPath(page, '/control/alert-protocol');
-    }
+    // Dropdown kini hanya memuat 2 wall; protocol walls TIDAK lagi ditautkan
+    // di navbar (halamannya masih ada & dites via URL langsung di atas).
+    const coLink = page.getByRole('link', { name: 'Conversation Overview' });
+    const teLink = page.getByRole('link', { name: 'Top Engagement' });
+    await expect(coLink).toBeVisible();
+    await expect(coLink).toHaveAttribute('href', '/display/conversation-overview');
+    await expect(teLink).toBeVisible();
+    await expect(teLink).toHaveAttribute('href', '/display/top-engagement');
+
+    const alertLink = page.getByRole('link', { name: /Alert/i });
+    await expect(alertLink).toHaveCount(0);
   });
 
   // ── Wall Alert (deep) ────────────────────────────────────────────────

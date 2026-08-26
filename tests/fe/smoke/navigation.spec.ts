@@ -31,20 +31,17 @@ test.describe('Navigasi & Smoke', () => {
     expect(hasAdminSip).toBeTruthy();
   });
 
-  test('navigasi navbar ke halaman Keyword berhasil', async ({ page }) => {
+  test('navigasi navbar ke halaman Keyword Intelligence berhasil', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
     const navbar = page.locator('header');
-    const hasKeywordLink = await navbar.getByRole('link', { name: 'Keyword' }).isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasKeywordLink) {
-      await navbar.getByRole('link', { name: 'Keyword' }).click();
-    } else {
-      // Deployed app: Keyword di bawah dropdown 'Management'
-      await navbar.getByRole('button', { name: 'Management' }).click();
-      await page.getByRole('link', { name: 'Keyword' }).click();
-    }
 
-    await expectUrlPath(page, '/monitoring/keyword');
-    await expect(page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ })).toBeVisible();
+    // Label navbar kini "Keyword Intelligence" (route baru 2026-08)
+    const kiLink = navbar.locator('a[href="/monitoring/keyword-intelligence"]').first();
+    await expect(kiLink).toBeVisible();
+    await kiLink.click();
+
+    await expectUrlPath(page, '/monitoring/keyword-intelligence');
+    await expect(page.getByRole('heading', { name: 'Keyword Intelligence', exact: true })).toBeVisible();
   });
 
   test('tab Scheduled & On Demand di halaman keyword dapat dipindahkan', async ({ page }) => {
@@ -53,13 +50,12 @@ test.describe('Navigasi & Smoke', () => {
     const tabScheduled = page.getByRole('tab', { name: 'Scheduled' });
     const tabOnDemand = page.getByRole('tab', { name: 'On Demand' });
 
+    // Default landing kini tab On Demand (perubahan app 2026-08)
+    await expect(tabOnDemand).toHaveAttribute('aria-selected', 'true');
+    await tabScheduled.click();
     await expect(tabScheduled).toHaveAttribute('aria-selected', 'true');
     await tabOnDemand.click();
     await expect(tabOnDemand).toHaveAttribute('aria-selected', 'true');
-    // ⚠️ [KNOWN APP BUG] URL query ?tab=unscheduled intermitten TIDAK ter-update
-    // oleh router.replace(shallow) pada build static export (ter-reproduksi
-    // 2/10 run; URL tetap /monitoring/keyword selama >15s). Assertion URL
-    // dihapus agar suite stabil — lihat laporan bug (item B5).
   });
 
   test('halaman control protocol (alert, danger, green) dapat diakses', async ({ page }) => {

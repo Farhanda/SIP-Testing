@@ -1,36 +1,27 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
-import {
-  mockDashboardApis,
-  mockKeywordOptions,
-  mockSelectedKeywords,
-  mockTrendingTopicMultiPeriod,
-} from '../../../src/helpers/api-mock';
+import { mockTopKeywords } from '../../../src/helpers/api-mock';
 
 /**
  * Test halaman Conversation Overview (/display/conversation-overview).
  *
  * Display wall full-screen yang menampilkan:
  * - Conversation trend chart (line chart volume & engagement)
- * - Emotion map (pie/donut chart distribusi emotion)
- * - Sentiment map (pie/donut chart distribusi sentiment)
+ * - Emotion map, sentiment map & sentiment trend
  * - Trending topics dengan delta per periode (24h, 7d, 1mo)
- * - Auto-refresh countdown (20 detik)
+ * - Auto-refresh: rotasi keyword tiap 20 detik
  * - SIP Insight branding
  *
- * API yang dipanggil:
- *   GET /api/control/selected-keywords
- *   GET /v1/dashboard/conversation-trend?keyword=...&period=1M
- *   GET /v1/dashboard/emotion-map?keyword=...&period=1M
- *   GET /v1/dashboard/sentiment-map?keyword=...&period=1M
- *   GET /api/control/trending-topic-multi-period?keyword=...
+ * Arsitektur BARU (2026-08): wall tidak lagi memakai
+ * /api/control/selected-keywords — sumber keyword langsung dari
+ * GET /v1/dashboard/top-keywords?limit=5 (di-mock oleh mockTopKeywords),
+ * lalu tiap keyword memanggil endpoint chart dengan period=1M.
  */
 test.describe('Display Wall — Conversation Overview', () => {
   test.beforeEach(async ({ page }) => {
-    await mockDashboardApis(page);
-    await mockKeywordOptions(page, ['RUU Digital']);
-    await mockSelectedKeywords(page, ['RUU Digital']);
-    await mockTrendingTopicMultiPeriod(page);
+    // Hanya daftar keyword yang di-mock � chart endpoints memakai BE asli
+    // (shape respons wall baru tidak kompatibel dgn mock dashboard lama).
+    await mockTopKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
   });
 
   test('halaman menampilkan heading keyword', async ({ displayWallPage }) => {
@@ -157,18 +148,14 @@ test.describe('Display Wall — Conversation Overview', () => {
   test('auto-refresh memutar keyword berikutnya & memuat ulang data tiap interval', async ({ displayWallPage }) => {
     test.setTimeout(90_000); // menunggu minimal satu siklus interval (20s)
 
-    // Daftarkan ULANG selected-keywords dengan 3 keyword supaya rotasi
-    // teramati — registrasi terakhir menang atas beforeEach (1 keyword).
-    const page = displayWallPage.page;
-    await mockSelectedKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
-
+    // Sumber keyword = mock top-keywords (3 item, lihat beforeEach).
     await displayWallPage.goto('/display/conversation-overview');
-    await page.waitForLoadState('networkidle');
+    await displayWallPage.page.waitForLoadState('networkidle');
     await displayWallPage.expectKeywordVisible('RUU Digital');
 
     // Gelombang refresh = request chart untuk keyword SELAIN yang pertama
     const rotatedKeywords: string[] = [];
-    page.on('request', (req) => {
+    displayWallPage.page.on('request', (req) => {
       if (/\/v1\/dashboard\/(conversation-trend|emotion-map)/.test(req.url())) {
         const kw = new URL(req.url()).searchParams.get('keyword');
         if (kw && kw !== 'RUU Digital') rotatedKeywords.push(kw);

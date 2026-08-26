@@ -17,7 +17,7 @@ test.describe('Monitoring Keyword', () => {
   test('daftar scheduled keyword tampil lengkap dengan tabel & filter', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
     await mockSchedulerList(keywordPage.page);
-    await keywordPage.goto();
+    await keywordPage.gotoScheduledTab();
 
     // Deployed app: 'Keyword Management' (bukan 'Monitoring Keyword')
     const heading = keywordPage.page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ });
@@ -29,6 +29,10 @@ test.describe('Monitoring Keyword', () => {
     for (const header of ['Keyword', 'Platform', 'Last Run', 'Status']) {
       await keywordPage.expectColumnHeader(header);
     }
+
+    // Section headings khas tab Scheduled (Scheduler Management + jobs on hold)
+    await expect(keywordPage.page.getByRole('heading', { name: 'Scheduler Management' })).toBeVisible();
+    await expect(keywordPage.page.getByRole('heading', { name: 'Automatic jobs on hold' })).toBeVisible();
 
     // Data mock ter-render
     await keywordPage.expectKeywordVisible('RUU Digital', true);
@@ -43,7 +47,7 @@ test.describe('Monitoring Keyword', () => {
     test(`filter status "${data.status}" menampilkan keyword sesuai status`, async ({ keywordPage }) => {
       await mockKeywordOptions(keywordPage.page);
       await mockSchedulerList(keywordPage.page);
-      await keywordPage.goto();
+      await keywordPage.gotoScheduledTab();
 
       await keywordPage.selectStatus(data.status);
       await keywordPage.applyFilters();
@@ -56,7 +60,7 @@ test.describe('Monitoring Keyword', () => {
   test('filter platform bekerja mempersempit daftar', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
     await mockSchedulerList(keywordPage.page);
-    await keywordPage.goto();
+    await keywordPage.gotoScheduledTab();
 
     // Platform TikTok: keyword yang tidak ada di TikTok tidak tampil
     await keywordPage.selectPlatform('TikTok');
@@ -69,7 +73,7 @@ test.describe('Monitoring Keyword', () => {
   test('pencarian keyword memfilter daftar', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
     await mockSchedulerList(keywordPage.page);
-    await keywordPage.goto();
+    await keywordPage.gotoScheduledTab();
 
     await keywordPage.searchKeyword('RUU');
 
@@ -99,7 +103,7 @@ test.describe('Monitoring Keyword', () => {
   test('tombol Reset filter mengosongkan pencarian & mengembalikan daftar lengkap', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
     await mockSchedulerList(keywordPage.page);
-    await keywordPage.goto();
+    await keywordPage.gotoScheduledTab();
 
     // Filter dulu: pencarian 'RUU' menyembunyikan keyword lain
     await keywordPage.searchKeyword('RUU');

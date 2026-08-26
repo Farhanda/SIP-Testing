@@ -27,7 +27,7 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
     await mockKeywordOptions(keywordPage.page);
     await mockSchedulerList(keywordPage.page);
     await mockCreateScheduler(keywordPage.page, { succeed: true });
-    await keywordPage.goto();
+    await keywordPage.gotoScheduledTab();
 
     // Buka modal "Add scheduled keyword" & isi form lengkap
     const modal = keywordPage.page.getByRole('dialog', { name: 'Add scheduled keyword' });
@@ -59,7 +59,7 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
   test('REGRESI R2: periode Custom dengan tanggal terbalik harus DITOLAK (tanpa request)', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
     await mockUnscheduledList(keywordPage.page);
-    await mockCreateUnscheduled(keywordPage.page, { succeed: true });
+    await mockCreateScheduler(keywordPage.page, { succeed: true });
     await keywordPage.gotoOnDemandTab();
 
     const postRequests: string[] = [];

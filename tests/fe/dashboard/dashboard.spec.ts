@@ -61,29 +61,31 @@ test.describe('Dashboard', () => {
   // Data-driven (FR-20): satu test per keyword di test-data/dashboard-keywords.json
   const keywords = loadJsonData<{ keyword: string; code: string }[]>('dashboard-keywords.json');
   for (const data of keywords) {
-    test(`cari keyword "${data.keyword}" → hasil dashboard tampil & data render (mock API)`, async ({ dashboardPage }) => {
+    test(`cari keyword "${data.keyword}" → filter terkirim ke API & hasil tampil (mock API)`, async ({ dashboardPage }) => {
       await mockDashboardApis(dashboardPage.page);
       await mockKeywordOptions(dashboardPage.page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
       await dashboardPage.goto();
 
+      // Bukti filter terkirim: request topic-intelligence memakai keyword
+      // yang dipilih (UI mengirim nama keyword, bukan slug).
+      const summaryReqUrls: string[] = [];
+      dashboardPage.page.on('request', (req) => {
+        if (req.url().includes('/summary')) summaryReqUrls.push(req.url());
+      });
+
       // Auto-select memilih keyword pertama saat load. Kosongkan pilihan
       // (tombol Clear selection), lalu pilih keyword eksplisit → Apply.
-      // Catatan: menghapus keyword TIDAK menghapus hasil yang sudah render
-      // (hasil hanya berubah setelah Apply) — jadi tidak assert empty state
-      // di tengah; bukti filter terkirim = collectionId hasil apply.
       await dashboardPage.clearKeyword();
       await dashboardPage.selectKeyword(data.keyword);
       await dashboardPage.applyFilter();
 
-      // Hasil tampil: heading kartu + data dari mock benar-benar ter-render
+      // Hasil tampil: heading kartu utama ter-render
       await dashboardPage.expectResultsRendered();
-      // Mock topic-intelligence "menggema" keyword dari query param ke label
-      // chart (aria-label, mis. "RUU Digital — Layanan publik: 72% (640 post)")
-      // → bukti filter terkirim & respons ter-render. UI mengirim nama keyword
-      // (bukan slug) sebagai query param.
-      await expect(
-        dashboardPage.page.getByRole('img', { name: new RegExp(`${data.keyword} —` ) }),
-      ).toBeVisible();
+      // Request terakhir membawa keyword eksplisit hasil Apply
+      // (query serialisasi memakai '+' untuk spasi)
+      await expect
+        .poll(() => summaryReqUrls[summaryReqUrls.length - 1] ?? '')
+        .toContain(`keyword=${data.keyword.replace(/ /g, '+')}`);
     });
   }
 
@@ -200,20 +202,38 @@ test.describe('Dashboard', () => {
 
   // ── Topic Intelligence chart ─────────────────────────────────────────
 
-  test('Topic Intelligence menampilkan chart dengan label topik', async ({ dashboardPage }) => {
+  test('section Topic intelligence tersedia di dashboard', async ({ dashboardPage }) => {
     await mockDashboardApis(dashboardPage.page);
     await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
     await dashboardPage.goto();
 
     await dashboardPage.expectResultsRendered();
 
-    // Heading "Topic intelligence" terlihat
+    // Section tetap ada di dashboard (chart detailnya kini di halaman
+    // Keyword Intelligence — lihat keyword-intelligence.spec.ts)
     await expect(dashboardPage.topicIntelligenceHeading).toBeVisible();
+  });
 
-    // Chart (role="img") punya aria-label yang berisi label topik dari mock
-    // Mock echo keyword: "ruu-digital — Layanan publik" & "ruu-digital — Edukasi digital"
-    const chart = dashboardPage.page.getByRole('img', { name: /Layanan publik/ });
-    await expect(chart).toBeVisible();
+  // ── Sentiment & Emotion Analysis cards ───────────────────────────────
+
+  test('kartu Sentiment trend & Sentiment map terrender di grup Sentiment', async ({ dashboardPage }) => {
+    await mockDashboardApis(dashboardPage.page);
+    await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
+    await dashboardPage.goto();
+
+    await dashboardPage.expectResultsRendered();
+
+    // Dari keempat kartu grup Sentiment, dua sudah dites terpisah
+    // (conversation trend & emotion map via be-widgets) — di sini dua sisanya.
+    await expect(dashboardPage.page.getByRole('heading', { name: 'Sentiment trend' })).toBeVisible();
+    await expect(dashboardPage.page.getByRole('heading', { name: 'Sentiment map' })).toBeVisible();
+
+    // Keduanya benar-benar menggambar chart (svg), bukan sekadar heading
+    const sentimentGroup = dashboardPage.page
+      .locator('section, div')
+      .filter({ has: dashboardPage.page.getByRole('heading', { name: 'Sentiment & Emotion Analysis' }) })
+      .first();
+    await expect(sentimentGroup.locator('svg').first()).toBeVisible();
   });
 
   // ── Top Accounts ─────────────────────────────────────────────────────
