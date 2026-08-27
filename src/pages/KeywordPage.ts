@@ -136,13 +136,13 @@ export class KeywordPage extends BasePage {
   async gotoScheduledTab() {
     await this.goto();
     await this.tabScheduled.click();
-    await this.page.waitForTimeout(300); // settle tab
+    await expect(this.tabScheduled).toHaveAttribute('aria-selected', 'true');
   }
 
   async gotoOnDemandTab() {
     await this.goto();
     await this.tabOnDemand.click();
-    await this.page.waitForTimeout(300); // settle tab
+    await expect(this.tabOnDemand).toHaveAttribute('aria-selected', 'true');
   }
 
   async selectStatus(value: string) {

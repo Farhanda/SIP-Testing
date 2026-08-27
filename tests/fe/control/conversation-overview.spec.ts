@@ -138,7 +138,10 @@ test.describe('Display Wall — Conversation Overview', () => {
 
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
-    await displayWallPage.page.waitForTimeout(2000);
+    // Tunggu hingga chart request benar-benar dikirim (max 10s)
+    await expect
+      .poll(() => requests.filter(r => r.includes('period=')).length, { timeout: 10_000 })
+      .toBeGreaterThan(0);
 
     // Semua request harus menggunakan period=1M
     const periodRequests = requests.filter(r => r.includes('period='));

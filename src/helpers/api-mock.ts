@@ -36,6 +36,34 @@ const TRENDING_7D = [
 
 const META = () => ({ generated_at: new Date().toISOString() });
 
+/** Shared response builder for top-keywords endpoint. */
+function topKeywordsResponse(keywords: string[], limit: number) {
+  return {
+    data: keywords.slice(0, Math.max(0, limit)).map((k, i) => ({
+      id: k.toLowerCase(),
+      keyword: k,
+      count: 100 - i * 10,
+    })),
+    meta: META(),
+  };
+}
+
+/** Shared pagination meta for list endpoints (scrape service / dashboard-service). */
+function paginatedMeta(page: number, size: number, total: number) {
+  return {
+    page,
+    size,
+    total,
+    total_pages: Math.max(1, Math.ceil(total / size)),
+    generated_at: new Date().toISOString(),
+  };
+}
+
+/** Standard error response shape for scrape service endpoints. */
+function scrapeErrorResponse(message = 'internal server error') {
+  return { error: { code: 'internal_error', message } };
+}
+
 const TREND_SERIES = () =>
   [
     { date: '2026-08-01', label: '01 Agu', volume: 320, engagement: 190 },
@@ -303,14 +331,7 @@ function dashboardResponse(path: string, url: URL, keyword: string): unknown {
       // endpoint ini sebagai sumber rotasi keyword (?limit=5).
       const limit = Number(url.searchParams.get('limit') ?? 5);
       const kws = ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan'];
-      return {
-        data: kws.slice(0, Math.max(0, limit)).map((k, i) => ({
-          id: k.toLowerCase(),
-          keyword: k,
-          count: 100 - i * 10,
-        })),
-        meta: META(),
-      };
+      return topKeywordsResponse(kws, limit);
     }
     case 'top-accounts':
       // Bentuk baru: handle tanpa @ prefix
@@ -358,14 +379,7 @@ export function mockTopKeywords(page: Page, keywords: string[] = ['RUU Digital',
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        data: keywords.slice(0, Math.max(0, limit)).map((k, i) => ({
-          id: k.toLowerCase(),
-          keyword: k,
-          count: 100 - i * 10,
-        })),
-        meta: META(),
-      }),
+      body: JSON.stringify(topKeywordsResponse(keywords, limit)),
     });
   });
 }
@@ -563,13 +577,7 @@ export function mockSchedulerList(page: Page, items: MockSchedulerItem[] = MOCK_
         contentType: 'application/json',
         body: JSON.stringify({
           data: data.map(schedulerToManagementItem),
-          meta: {
-            page: pageNum,
-            size,
-            total: filtered.length,
-            total_pages: Math.max(1, Math.ceil(filtered.length / size)),
-            generated_at: new Date().toISOString(),
-          },
+          meta: paginatedMeta(pageNum, size, filtered.length),
         }),
       });
       return;
@@ -690,7 +698,7 @@ export function mockCreateUnscheduled(
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
-        body: JSON.stringify({ error: { code: 'internal_error', message: 'internal server error' } }),
+        body: JSON.stringify(scrapeErrorResponse()),
       });
       return;
     }
@@ -778,13 +786,7 @@ export function mockUnscheduledList(page: Page, items: MockUnscheduledItem[] = M
         contentType: 'application/json',
         body: JSON.stringify({
           data: data.map(unscheduledToManagementItem),
-          meta: {
-            page: pageNum,
-            size,
-            total: filtered.length,
-            total_pages: Math.max(1, Math.ceil(filtered.length / size)),
-            generated_at: new Date().toISOString(),
-          },
+          meta: paginatedMeta(pageNum, size, filtered.length),
         }),
       });
       return;
@@ -1126,13 +1128,7 @@ export function mockProviderList(page: Page, items: MockProviderItem[] = MOCK_PR
       contentType: 'application/json',
       body: JSON.stringify({
         data,
-        meta: {
-          page: pageNum,
-          size,
-          total: filtered.length,
-          total_pages: Math.max(1, Math.ceil(filtered.length / size)),
-          generated_at: new Date().toISOString(),
-        },
+        meta: paginatedMeta(pageNum, size, filtered.length),
       }),
     });
   });

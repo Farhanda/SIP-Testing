@@ -88,7 +88,8 @@ export class DashboardPage extends BasePage {
       }
 
       await selectedOption.click();
-      await this.page.waitForTimeout(300); // tunggu siklus tutup/buka popover
+      // Tunggu popover menutup sebelum iterasi berikutnya membuka ulang
+      await selectedOption.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
     }
   }
 

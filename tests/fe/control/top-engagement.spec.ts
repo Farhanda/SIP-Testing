@@ -122,7 +122,10 @@ test.describe('Display Wall — Top Engagement', () => {
 
     await displayWallPage.goto('/display/top-engagement');
     await displayWallPage.page.waitForLoadState('networkidle');
-    await displayWallPage.page.waitForTimeout(2000);
+    // Tunggu hingga chart request benar-benar dikirim (max 10s)
+    await expect
+      .poll(() => requests.filter(r => r.includes('period=')).length, { timeout: 10_000 })
+      .toBeGreaterThan(0);
 
     // Semua request harus menggunakan period=1M
     const periodRequests = requests.filter(r => r.includes('period='));
