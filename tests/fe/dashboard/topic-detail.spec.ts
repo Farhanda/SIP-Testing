@@ -33,11 +33,11 @@ test.describe('Topic Detail — /monitoring/dashboard/topic/:topic', () => {
     await expect(topicDetailPage.postListHeading).toBeVisible();
   });
 
-  test('tabel post memiliki kolom Platform, Post, Emotion, Sentiment, Engagement', async ({ topicDetailPage }) => {
+  test('tabel post memiliki kolom Platform, Post, Emotion, Sentiment, Views, Engagement', async ({ topicDetailPage }) => {
     await topicDetailPage.goto('lainnya', 'RUU Digital');
 
     await topicDetailPage.expectHeaders([
-      'Platform', 'Post', 'Emotion', 'Sentiment', 'Engagement',
+      'Platform', 'Post', 'Emotion', 'Sentiment', 'Views', 'Engagement',
     ]);
   });
 

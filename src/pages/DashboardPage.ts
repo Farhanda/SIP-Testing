@@ -87,10 +87,22 @@ export class DashboardPage extends BasePage {
         return;
       }
 
-      await selectedOption.click();
+      // Klik dengan timeout pendek: popover bisa tertutup/di-render ulang
+      // di antara waitFor & click (race) — bawaan click menunggu sampai
+      // timeout test penuh. Gagal → tutup popover & ulangi iterasi.
+      const clicked = await selectedOption
+        .click({ timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!clicked) {
+        await this.page.keyboard.press('Escape').catch(() => {});
+        continue;
+      }
       // Tunggu popover menutup sebelum iterasi berikutnya membuka ulang
       await selectedOption.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
     }
+    // Jaring pengaman: pastikan popover tertutup di akhir
+    await this.page.keyboard.press('Escape').catch(() => {});
   }
 
   async applyFilter() {

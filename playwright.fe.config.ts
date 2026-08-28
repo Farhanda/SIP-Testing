@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import { Env } from './src/config/env';
+import { AUTH_STATE_PATH } from './src/helpers/auth';
 
 dotenv.config({ override: true });
 
@@ -31,16 +32,34 @@ const MODULES = [
 const browsers = Env.browsers.length > 0 ? Env.browsers : ['chromium'];
 const multiBrowser = browsers.length > 1;
 
-const projects = browsers.flatMap((browser) =>
-  MODULES.map((mod) => ({
-    name: multiBrowser ? `${mod.name}-${browser}` : mod.name,
-    testMatch: mod.testMatch,
-    use: {
-      ...devices['Desktop Chrome'],
-      browserName: browser as 'chromium' | 'firefox' | 'webkit',
-    },
-  })),
-);
+/**
+ * Project setup auth: login via UI sekali dengan kredensial dari .env lalu
+ * simpan storageState (.auth/fe-state.json). Dijalankan otomatis sebagai
+ * dependency semua project modul KECUALI `login` — halaman /login justru
+ * di-redirect ke dashboard oleh aplikasi bila sudah terautentikasi.
+ */
+const authProject = {
+  name: multiBrowser ? 'auth-chromium' : 'auth',
+  testMatch: /auth\.setup\.ts/,
+  use: { ...devices['Desktop Chrome'], browserName: 'chromium' as const },
+};
+
+const projects = [
+  authProject,
+  ...browsers.flatMap((browser) =>
+    MODULES.map((mod) => ({
+      name: multiBrowser ? `${mod.name}-${browser}` : mod.name,
+      testMatch: mod.testMatch,
+      dependencies: mod.name === 'login' ? [] : [authProject.name],
+      use: {
+        ...devices['Desktop Chrome'],
+        browserName: browser as 'chromium' | 'firefox' | 'webkit',
+        ...(mod.name === 'login' ? {} : { storageState: AUTH_STATE_PATH }),
+      },
+    })),
+  ),
+];
+
 
 export default defineConfig({
   testDir: './tests/fe',

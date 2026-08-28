@@ -18,8 +18,8 @@ export class DisplayWallPage extends BasePage {
   /** Auto-refresh countdown button (mis. "20 seconds"). */
   readonly refreshCountdown = this.page.locator('button').filter({ hasText: /seconds?/i }).first();
 
-  /** SIP Insight branding link. */
-  readonly sipInsightLink = this.page.getByRole('link', { name: 'SIP Insight' });
+  /** SIP Insight branding di header wall — teks statis (by design BUKAN link). */
+  readonly sipInsightBranding = this.page.getByText('SIP Insight', { exact: true }).first();
 
   /** All SVG chart elements on the page. */
   readonly charts = this.page.locator('svg');
@@ -56,8 +56,8 @@ export class DisplayWallPage extends BasePage {
     await expect(this.refreshCountdown).toBeVisible();
   }
 
-  async expectSipInsightLink() {
-    await expect(this.sipInsightLink).toBeVisible();
+  async expectSipInsightBranding() {
+    await expect(this.sipInsightBranding).toBeVisible();
   }
 
   async expectChartsVisible(minCount: number = 1) {

@@ -3,12 +3,13 @@ import { BasePage } from './BasePage';
 
 /**
  * POM halaman Monitoring Keyword (/monitoring/keyword).
- * Dua tab: "Scheduled" (daftar keyword terjadwal) dan "On Demand"
- * (keyword sekali-jalan), masing-masing dengan filter & tabel.
+ * UI saat ini (2026-08) hanya memiliki SATU tab: "On Demand" — tab
+ * "Scheduled" dan aksi Move-to-scheduled / Edit-scheduled sudah dihapus
+ * dari aplikasi. Aksi baris yang tersedia: Toggle status, View detail,
+ * Reprocess.
  */
 export class KeywordPage extends BasePage {
   readonly heading = this.page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ });
-  readonly tabScheduled = this.page.getByRole('tab', { name: 'Scheduled' });
   readonly tabOnDemand = this.page.getByRole('tab', { name: 'On Demand' });
   readonly searchInput = this.page.getByPlaceholder('Search keyword');
   readonly applyFilterButton = this.page.getByRole('button', { name: 'Apply filter' });
@@ -37,8 +38,8 @@ export class KeywordPage extends BasePage {
   readonly unscDateFromInput = this.createModal.getByRole('textbox', { name: 'Start date' });
   readonly unscDateToInput = this.createModal.getByRole('textbox', { name: 'End date' });
 
-  // Modal Add (On Demand): Platform = LISTBOX dropdown (bukan checkbox) &
-  // Period = <select> (bukan radio) — struktur berubah (dicek 2026-08-14).
+  // Modal Add: Platform = LISTBOX dropdown (bukan checkbox) &
+  // Period = <select> (bukan radio) — struktur dicek 2026-08-14.
   readonly unscPeriodSelect = this.createModal.locator('#unsc-period');
   readonly unscPlatformButton = this.createModal.getByRole('button', {
     name: /All platforms|Select platform/,
@@ -81,28 +82,12 @@ export class KeywordPage extends BasePage {
     await this.page.keyboard.press('Escape');
   }
 
-  /** Checkbox platform — dipakai modal Edit scheduled (Scheduled) & Move. */
+  /** Checkbox platform — dipakai modal Add (On Demand) legacy path. */
   platformCheckbox(name: string) {
     return this.page.getByRole('checkbox', { name, exact: true });
   }
 
-  // ---- Modal "Edit scheduled keyword" (tab Scheduled) ----
-  readonly editModal = this.page.getByRole('dialog', { name: 'Edit scheduled keyword' });
-  readonly editKeywordInput = this.page.locator('#edit-keyword');
-  readonly saveChangesButton = this.page.getByRole('button', { name: 'Save changes' });
-
-  // ---- Modal "Move to scheduled keyword" (tab On Demand) ----
-  readonly moveModal = this.page.getByRole('dialog', { name: 'Move to scheduled keyword' });
-  readonly moveKeywordInput = this.page.locator('#move-keyword');
-  readonly moveFrequencySelect = this.page.locator('#move-frequency');
-  readonly moveMaxPostsInput = this.page.locator('#move-max-posts');
-  readonly moveSubmitButton = this.page.getByRole('button', { name: 'Move keyword' });
-
-  movePlatformCheckbox(name: string) {
-    return this.moveModal.getByRole('checkbox', { name, exact: true });
-  }
-
-  // ---- Aksi baris tabel tab On Demand ----
+  // ---- Aksi baris tabel (On Demand) ----
 
   /** Baris tabel yang memuat teks `keyword` (dipakai untuk men-scope aksi). */
   rowOf(keyword: string) {
@@ -119,26 +104,21 @@ export class KeywordPage extends BasePage {
   readonly reprocessKeywordInput = this.reprocessDialog.getByRole('combobox', { name: 'Keyword' });
   readonly startReprocessingButton = this.reprocessDialog.getByRole('button', { name: 'Start reprocessing' });
 
-  moveButton(keyword: string) {
-    return this.rowOf(keyword).getByRole('button', { name: `Move ${keyword} to scheduled keyword` });
+  /** Link "View detail" menuju halaman detail unscheduled. */
+  viewDetailLink(keyword: string) {
+    return this.rowOf(keyword).getByRole('link', { name: `View detail for ${keyword}` });
   }
 
-  /** Tombol Edit langsung pada baris Scheduled (arsitektur baru 2026-08). */
-  editRowButton(keyword: string) {
-    return this.rowOf(keyword).getByRole('button', { name: `Edit ${keyword}` });
+  /** Switch Toggle status pada baris On Demand. */
+  toggleStatus(keyword: string) {
+    return this.rowOf(keyword).getByRole('switch', { name: `Toggle status for ${keyword}` });
   }
 
   async goto() {
     await this.page.goto('/monitoring/keyword');
   }
 
-  /** Default landing kini On Demand — panggil ini bila butuh tab Scheduled. */
-  async gotoScheduledTab() {
-    await this.goto();
-    await this.tabScheduled.click();
-    await expect(this.tabScheduled).toHaveAttribute('aria-selected', 'true');
-  }
-
+  /** Default landing = tab On Demand (satu-satunya tab di UI saat ini). */
   async gotoOnDemandTab() {
     await this.goto();
     await this.tabOnDemand.click();
@@ -163,9 +143,8 @@ export class KeywordPage extends BasePage {
     await this.applyFilterButton.click();
   }
 
-  async expectTabSelected(tab: 'Scheduled' | 'On Demand') {
-    const locator = tab === 'Scheduled' ? this.tabScheduled : this.tabOnDemand;
-    await expect(locator).toHaveAttribute('aria-selected', 'true');
+  async expectOnDemandTabSelected() {
+    await expect(this.tabOnDemand).toHaveAttribute('aria-selected', 'true');
   }
 
   /** Assert sebuah keyword tampil / tidak tampil di tabel. */
@@ -211,30 +190,6 @@ export class KeywordPage extends BasePage {
       await expect(this.createModal).toBeVisible();
     } else {
       await expect(this.createModal).toHaveCount(0);
-    }
-  }
-
-  // ---- Aksi modal Edit scheduled keyword ----
-
-  async openEditModal(keyword: string) {
-    // Klik bisa hilang saat halaman belum selesai hidrasi � retry hingga 3x
-    for (let i = 0; i < 3; i++) {
-      await this.editRowButton(keyword).click();
-      const ok = await this.editModal.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
-      if (ok) return;
-    }
-    await expect(this.editModal).toBeVisible();
-  }
-
-  async saveEdit() {
-    await this.saveChangesButton.click();
-  }
-
-  async expectEditModalOpen(open: boolean) {
-    if (open) {
-      await expect(this.editModal).toBeVisible();
-    } else {
-      await expect(this.editModal).toHaveCount(0);
     }
   }
 

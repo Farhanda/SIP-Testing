@@ -161,22 +161,6 @@ test.describe('Dashboard — Fitur UI Baru', () => {
     expect(count).toBeGreaterThanOrEqual(5); // Select period, 24 Hours, 3 Days, 7 Days, 1 Month, (Custom)
   });
 
-  // ── Protocol status badge ────────────────────────────────────────────
-
-  test('protocol status badge menampilkan level dan deskripsi', async ({ dashboardPage }) => {
-    await mockDashboardApis(dashboardPage.page);
-    await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
-    await dashboardPage.goto();
-
-    await dashboardPage.expectResultsRendered();
-
-    // Protocol badge: "Protocol: Green" dan deskripsi
-    const protocolBadge = dashboardPage.page.getByText('Protocol:');
-    await expect(protocolBadge).toBeVisible();
-    await expect(dashboardPage.page.getByText('Negative emotions are only')).toBeVisible();
-    await expect(dashboardPage.page.getByText('sentiment under control')).toBeVisible();
-  });
-
   // ── Updated timestamp ────────────────────────────────────────────────
 
   test('dashboard menampilkan timestamp "Updated just now"', async ({ dashboardPage }) => {

@@ -102,25 +102,32 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
 
   // ── User menu ────────────────────────────────────────────────────────
 
-  test('tombol user menu (AS Admin SIP) terlihat di navbar', async ({ page }) => {
+  test('tombol user menu (identitas user aktif) terlihat di navbar', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
-    const userMenu = page.locator('header').getByRole('button', { name: /Admin SIP/ });
+    // Label berubah-ubah ('Admin SIP', 'AS Admin SIP', kini 'A admin') — assert
+    // tombol yang memuat nama user ('admin') di area header paling kanan.
+    const userMenu = page.locator('header').getByRole('button', { name: /admin/i }).last();
     await expect(userMenu).toBeVisible();
   });
 
   test('user menu menampilkan opsi Profile & Logout saat dibuka', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
-    await page.locator('header').getByRole('button', { name: /Admin SIP/ }).click();
+    await page.locator('header').getByRole('button', { name: /admin/i }).last().click();
 
-    // Label "Profile2" sesuai teks aktual aplikasi (kemungkinan typo di UI)
+    // Label "Profile2" sesuai teks aktual aplikasi (kemungkinan typo di UI).
+    // Profile2 masih disabled by design (konfirmasi owner), Logout kini
+    // FUNGSIONAL (klik → redirect ke /login).
     const profileItem = page.getByRole('button', { name: 'Profile2' });
     const logoutItem = page.getByRole('button', { name: 'Logout' });
     await expect(profileItem).toBeVisible();
     await expect(logoutItem).toBeVisible();
 
-    // Kedua item disabled by design (konfirmasi owner) — dikunci di sini
     await expect(profileItem).toBeDisabled();
-    await expect(logoutItem).toBeDisabled();
+    await expect(logoutItem).toBeEnabled();
+
+    // Logout berfungsi — klik → kembali ke halaman login
+    await logoutItem.click();
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
   });
 
   // ── Dark mode di halaman berbeda ─────────────────────────────────────

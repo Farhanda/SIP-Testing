@@ -2,16 +2,15 @@ import { expect } from '../fixtures';
 import { test } from '../fixtures';
 import {
   mockKeywordOptions,
-  mockSchedulerList,
   mockUnscheduledList,
   mockCreateScheduler,
-  mockUpdateScheduler,
 } from '../../../src/helpers/api-mock';
 
 /**
  * Test modal di halaman Monitoring Keyword (FR-13 — form & validasi).
- * Arsitektur BARU (2026-08): kedua tab memanggil BE langsung
- * /v1/scrape/keyword-management — create = POST, edit = PUT /:id.
+ * UI saat ini (2026-08) hanya punya tab On Demand; create = POST ke
+ * /v1/scrape/keyword-management (schedule_enabled=false). Modal Edit
+ * scheduled sudah dihapus dari aplikasi → test-nya ikut dihapus.
  * Endpoint di-mock agar deterministik (aplikasi punya random failure).
  */
 test.describe('Monitoring Keyword — Modal', () => {
@@ -104,81 +103,5 @@ test.describe('Monitoring Keyword — Modal', () => {
       await keywordPage.expectCreateModalOpen(true);
     });
   });
-
-  test.describe('Modal Edit scheduled keyword (Scheduled)', () => {
-    test('modal Edit scheduled keyword terbuka dengan data baris terisi', async ({ keywordPage }) => {
-      await mockKeywordOptions(keywordPage.page);
-      await mockSchedulerList(keywordPage.page);
-      await keywordPage.gotoScheduledTab();
-
-      // Tunggu baris target benar-benar terrender sebelum membuka modal
-      await expect(keywordPage.editRowButton('RUU Digital')).toBeVisible({ timeout: 10_000 });
-      await keywordPage.openEditModal('RUU Digital');
-
-      // Data baris ter-prefill
-      await expect(keywordPage.editKeywordInput).toHaveValue('RUU Digital');
-
-      // Checkbox platform kini DINAMIS (hanya platform relevan yang tampil)
-      const boxes = keywordPage.page
-        .getByRole('dialog')
-        .locator('input[type="checkbox"]');
-      const boxCount = await boxes.count();
-      expect(boxCount).toBeGreaterThanOrEqual(1);
-      for (let i = 0; i < boxCount; i++) {
-        await expect(boxes.nth(i)).toBeChecked();
-      }
-      await expect(keywordPage.saveChangesButton).toBeVisible();
-    });
-
-    test('validasi keyword kosong tidak menyimpan (modal tetap terbuka)', async ({ keywordPage }) => {
-      const page = keywordPage.page;
-      await mockKeywordOptions(page);
-      await mockSchedulerList(page);
-      await mockUpdateScheduler(page, { succeed: true });
-      await keywordPage.gotoScheduledTab();
-
-      await keywordPage.openEditModal('RUU Digital');
-
-      const puts: string[] = [];
-      page.on('request', (req) => {
-        if ((req.method() === 'PUT' || req.method() === 'PATCH') && req.url().includes('/v1/scrape/keyword-management/')) puts.push(req.url());
-      });
-
-      await keywordPage.editKeywordInput.fill('');
-      await keywordPage.saveEdit();
-      await keywordPage.expectEditModalOpen(true);
-      await expect.poll(() => puts.length).toBe(0);
-    });
-
-    test('simpan perubahan mengirim PUT ke BE & menutup modal', async ({ keywordPage }) => {
-      const page = keywordPage.page;
-      await mockKeywordOptions(page);
-      await mockSchedulerList(page);
-      await mockUpdateScheduler(page, { succeed: true });
-      await keywordPage.gotoScheduledTab();
-
-      const putBodies: Record<string, unknown>[] = [];
-      page.on('request', (req) => {
-        if ((req.method() === 'PUT' || req.method() === 'PATCH') && req.url().includes('/v1/scrape/keyword-management/')) {
-          try {
-            putBodies.push(JSON.parse(req.postData() ?? '{}'));
-          } catch {
-            putBodies.push({});
-          }
-        }
-      });
-
-      await keywordPage.openEditModal('RUU Digital');
-      await keywordPage.editKeywordInput.fill('RUU Digital Baru');
-      await keywordPage.saveEdit();
-
-      // Parameter yang dikirim sesuai kontrak baru (platform slug lowercase)
-      await expect.poll(() => putBodies.length).toBeGreaterThan(0);
-      expect(putBodies[0].keyword).toBe('RUU Digital Baru');
-      expect(putBodies[0].schedule_enabled).toBe(true);
-      expect(Array.isArray(putBodies[0].platforms)).toBe(true);
-
-      await keywordPage.expectEditModalOpen(false);
-    });
-  });
 });
+

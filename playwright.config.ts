@@ -4,6 +4,8 @@ import { Env } from './src/config/env';
 
 dotenv.config();
 
+import { AUTH_STATE_PATH } from './src/helpers/auth';
+
 /**
  * Konfigurasi DEFAULT — menjalankan SEMUA platform (FE + BE + AI) dalam satu
  * run, dijalankan dengan `npm test` (atau `npx playwright test`) → report
@@ -50,8 +52,18 @@ export default defineConfig({
   },
 
   projects: [
-    // FE → base URL aplikasi web; BE & AI → base URL API backend.
-    { name: 'fe', testMatch: /fe\/.*\.spec\.ts/, use: { baseURL: Env.baseUrl } },
+    // FE — auth asli aktif: setup login sekali (storageState) lalu modul lain
+    // reuse sesi. Modul `login` dipecah terpisah & TANPA storageState karena
+    // /login di-redirect ke dashboard bila sudah terautentikasi.
+    { name: 'fe-auth', testMatch: /fe\/auth\.setup\.ts/, use: { baseURL: Env.baseUrl } },
+    { name: 'fe-login', testMatch: /fe\/login\/.*\.spec\.ts/, use: { baseURL: Env.baseUrl } },
+    {
+      name: 'fe',
+      testMatch: /fe\/(?!login\/).*\.spec\.ts/,
+      dependencies: ['fe-auth'],
+      use: { baseURL: Env.baseUrl, storageState: AUTH_STATE_PATH },
+    },
+    // BE & AI → base URL API backend.
     { name: 'be', testMatch: /be\/.*\.spec\.ts/, use: { baseURL: Env.beBaseUrl } },
     { name: 'ai', testMatch: /ai\/.*\.spec\.ts/, use: { baseURL: Env.beBaseUrl } },
   ],

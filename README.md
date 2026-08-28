@@ -15,9 +15,10 @@ Automation **Web UI (E2E) + API** testing dengan **Playwright + TypeScript** unt
 - ✅ **Trace, screenshot & video on failure** — memudahkan debugging
 - ✅ **Ekspor test case ke Excel** — lengkap dengan status PASS/FAIL (`npm run test-cases`)
 - ✅ **Test regresi bug** — `tests/fe/*/regression-bugs.spec.ts` meng-encode perilaku yang **benar** (kategori `Regression`): sengaja FAIL selama bug belum diperbaiki. Status saat ini:
-  - ✅ **PASS — bug fixed**: R1 Add scheduled kirim POST, R2 tanggal terbalik ditolak
-  - 🔴 **Masih merah (bug terbuka)**: B4 Move to scheduled toast-only, L05/A1 login tidak redirect, R4/U06 delete Super Admin tanpa guard, C7/P04 change password tanpa verifikasi current password
-  - 🗑️ **Dihapus**: A2/D10 Export report (tombol sudah dihapus dari UI)
+  - ✅ **PASS — bug fixed**: R1 Add scheduled kirim POST, R2 tanggal terbalik ditolak, L05/A1 login redirect (auth asli sudah aktif)
+  - 🔴 **Masih merah (bug terbuka)**: R2 periode Custom tanggal terbalik diterima (halaman keyword On Demand), C7/P04 change password tanpa verifikasi current password, R4/U06 delete Super Admin tanpa guard
+  - 🗑️ **Dihapus**: A2/D10 Export report & D29 protocol status badge (elemen sudah dihapus dari UI); R1 (Add scheduled) & B4 (Move to scheduled) — tab Scheduled & aksi Move sudah dihapus dari aplikasi keyword (2026-08)
+- ✅ **Auth asli + storageState (2026-08)** — aplikasi kini memakai login sungguhan. Project setup `auth` login via UI sekali (kredensial `UI_TEST_USERNAME` / `UI_TEST_PASSWORD` di `.env`) dan menyimpan storageState di `.auth/fe-state.json` yang dipakai semua project modul **kecuali `login`** (halaman `/login` di-redirect ke dashboard bila sudah terautentikasi). Route `/display/*` memang tanpa login (by design — wall publik).
 - ✅ **Coverage modul baru** — Provider Management (`/administration/provider`, konsumsi BE langsung `/v1/scrape/credential`) & halaman Keyword Intelligence (`/monitoring/keyword-intelligence`)
 - ✅ **BE scrape service** — modul `tests/be/scrape/`: health api-gateway, platform, keyword-management (filter/pagination), credential (+ toggle round-trip aman), validasi create on-demand
 - ✅ **Test validasi form** — P03 Change Password (3 skenario invalid + 1 valid) di `tests/fe/profile/profile.spec.ts`
@@ -244,10 +245,12 @@ Kolom eksekusi diisi otomatis: **Actual Result** & **Status** dari file report p
 | `AI_SERVICE_TOKEN` | `dev-local-service-token` | Token header `X-Service-Token` (AI Service) |
 | `TEST_ENV` | `Local`/`Staging` | Environment di kolom Excel test case |
 | `TEST_EXECUTED_BY` | `—` | Nama eksekutor di kolom Excel test case |
+| `UI_TEST_USERNAME` | `admin` | Username user test untuk login UI (setup auth & test case login) |
+| `UI_TEST_PASSWORD` | `12tiga` | Password user test untuk login UI (setup auth & test case login) |
 
 ## Catatan Penting
 
-- **Aplikasi target adalah simulasi front-end**: login tidak memanggil API auth, sebagian data datang dari API route Next.js (`/api/*`) yang mensimulasikan latensi & kegagalan acak, sebagian lagi memanggil BE langsung. Karena itu test fungsional utama memakai **mock API** agar deterministik; validasi integrasi dengan API asli ada di `tests/fe/smoke/`, `tests/fe/dashboard/api-integration.spec.ts` (KPI dari `GET /v1/dashboard/summary`), `tests/fe/dashboard/be-widgets.spec.ts` (chart & Top accounts/hashtags dari BE), dan display wall (chart endpoints BE asli; hanya daftar keyword yang di-mock).
+- **Aplikasi target**: auth **asli sudah aktif** — login memanggil API auth; route selain `/login` & `/display/*` wajib login (guard redirect ke `/login?redirect=...`, dan sukses login redirect balik). Sebagian data datang dari API route Next.js (`/api/*`) yang mensimulasikan latensi & kegagalan acak, sebagian lagi memanggil BE langsung. Karena itu test fungsional utama memakai **mock API** agar deterministik; validasi integrasi dengan API asli ada di `tests/fe/smoke/`, `tests/fe/dashboard/api-integration.spec.ts` (KPI dari `GET /v1/dashboard/summary`), `tests/fe/dashboard/be-widgets.spec.ts` (chart & Top accounts/hashtags dari BE), dan display wall (chart endpoints BE asli; hanya daftar keyword yang di-mock). Display wall (`/display/*`) **sengaja tanpa login** (by design) dan branding "SIP Insight" di wall **sengaja bukan link** (by design, konfirmasi owner).
 - **Arsitektur backend = 2 service**:
   - **dashboard-service** (`BASE_URL_BE`, default `:8091`) — 17 endpoint `/v1/dashboard/*` + `/health/live|ready` (Swagger di `/swagger/doc.json`). Semua dites di `tests/be/dashboard/`.
   - **scrape service / api-gateway** (`BASE_URL_SCRAPE`, default `:8080`) — `/health`, `/v1/scrape/platform`, `/v1/scrape/keyword-management` (GET/POST/PUT), `/v1/scrape` (create on-demand), `/v1/scrape/credential` (CRUD + PATCH enable/disable). Dites di `tests/be/scrape/`. Write lifecycle valid sengaja tidak diuji langsung ke staging (tidak ada endpoint DELETE → tak bisa bersih-bersih); alur sukses ter-cover via mock FE.

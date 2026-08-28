@@ -8,9 +8,11 @@ import { BasePage } from './BasePage';
  */
 export class ProfilePage extends BasePage {
   readonly heading = this.page.getByRole('heading', { name: 'Profile' });
-  // Scope ke <main> karena "Admin SIP" juga tampil di navbar
+  // Scope ke <main> karena identitas user juga ada di navbar.
   readonly main = this.page.locator('main');
-  readonly nameText = this.main.getByText('Admin SIP');
+  // Nama tampil sebagai avatar inisial + username (mis. "A admin"); identitas
+  // kredibel lewat username "admin" & role.
+  readonly nameText = this.main.getByText(/admin/i).first();
   readonly usernameText = this.main.getByText('@admin');
   readonly roleTag = this.main.getByText('Super Admin', { exact: true });
   readonly statusTag = this.main.getByText('Active', { exact: true });

@@ -1,10 +1,12 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
+import { Env } from '../../../src/config/env';
 
 /**
- * Test Login (FR-10, diadaptasi untuk aplikasi simulasi):
- * aplikasi SIP Insight belum memiliki auth API — form login memvalidasi
- * field kosong lalu menampilkan state "Processing…" (tidak redirect).
+ * Test Login (FR-10): aplikasi kini memakai AUTH ASLI.
+ * - Kredensial valid → redirect ke /monitoring/dashboard.
+ * - Kredensial salah → pesan "Invalid username or password", tetap di /login.
+ * Kredensial valid diambil dari .env (UI_TEST_USERNAME / UI_TEST_PASSWORD).
  */
 test.describe('Login', () => {
   test('form login menampilkan field username, password, dan tombol Log in', async ({ loginPage }) => {
@@ -23,13 +25,24 @@ test.describe('Login', () => {
     await loginPage.expectValidationError();
   });
 
-  test('submit dengan kredensial terisi menampilkan state Processing (simulasi)', async ({ loginPage }) => {
+  test('submit dengan username/password salah menampilkan pesan error dan tidak redirect', async ({ loginPage }) => {
     await loginPage.goto();
-    await loginPage.login('admin', 'password123');
+    await loginPage.login('admin', 'password-salah-123');
 
-    // Tidak ada error validasi & button berubah menjadi "Processing…"
-    await loginPage.expectNoValidationError();
-    await loginPage.expectProcessingState();
+    // Auth asli: kredensial salah → pesan error tampil, tetap di /login
+    await loginPage.expectInvalidCredentials();
+    await expect(loginPage.page).toHaveURL(/\/login/);
+  });
+
+  test('login dengan kredensial valid (admin) → redirect ke dashboard', async ({ loginPage }) => {
+    await loginPage.goto();
+    await loginPage.login(Env.testUsername, Env.testPassword);
+
+    // Auth asli: sukses → pindah ke dashboard & heading tampil
+    await expect(loginPage.page).toHaveURL(/\/monitoring\/dashboard/, { timeout: 20_000 });
+    await expect(
+      loginPage.page.getByRole('heading', { name: 'Dashboard Overview' })
+    ).toBeVisible();
   });
 
   test('halaman login menampilkan panel branding SIP Insight', async ({ loginPage }) => {

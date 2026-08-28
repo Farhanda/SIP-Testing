@@ -4,9 +4,9 @@ import { BasePage } from './BasePage';
 /**
  * POM halaman Login (/login).
  *
- * Catatan: di aplikasi SIP Insight (simulasi), submit login TIDAK memanggil
- * API — hanya memvalidasi field kosong lalu menampilkan state "Processing…".
- * Test mengikuti perilaku nyata tersebut (FR-10 diadaptasi).
+ * Aplikasi kini memakai AUTH ASLI: submit kredensial valid → redirect ke
+ * /monitoring/dashboard; kredensial salah → pesan "Invalid username or
+ * password" dan tetap di /login.
  */
 export class LoginPage extends BasePage {
   readonly usernameInput = this.page.getByLabel('Username');
@@ -15,6 +15,7 @@ export class LoginPage extends BasePage {
   readonly submitButton = this.page.getByRole('button', { name: 'Log in' });
   readonly heading = this.page.getByRole('heading', { name: 'Log in to your account' });
   readonly validationError = this.page.getByText('Username and password are required.');
+  readonly invalidCredentialsError = this.page.getByText('Invalid username or password');
   readonly brandingPanel = this.page.getByText('Social Intelligence Platform');
 
   async goto() {
@@ -40,15 +41,9 @@ export class LoginPage extends BasePage {
     await this.submit();
   }
 
-  /**
-   * Button berubah menjadi "Processing…" selama ~900ms (simulasi).
-   * Timeout sengaja dibatasi agar assertion tidak menunggu lebih lama
-   * dari durasi state-nya (mencegah race window 900ms).
-   */
-  async expectProcessingState() {
-    await expect(
-      this.page.getByRole('button', { name: 'Processing…' })
-    ).toBeVisible({ timeout: 2000 });
+  /** Pesan error untuk kredensial yang salah (auth asli). */
+  async expectInvalidCredentials() {
+    await expect(this.invalidCredentialsError).toBeVisible();
   }
 
   async expectValidationError() {

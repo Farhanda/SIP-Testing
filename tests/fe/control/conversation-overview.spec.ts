@@ -50,19 +50,21 @@ test.describe('Display Wall — Conversation Overview', () => {
     expect(text).toMatch(/\d+\s*seconds?/i);
   });
 
-  test('SIP Insight branding link terlihat', async ({ displayWallPage }) => {
+  test('SIP Insight branding terlihat (teks statis — by design bukan link)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    await displayWallPage.expectSipInsightLink();
+    await displayWallPage.expectSipInsightBranding();
   });
 
-  test('SIP Insight link mengarah ke homepage (/)', async ({ displayWallPage }) => {
+  test('SIP Insight branding tidak berupa link (by design)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    const href = await displayWallPage.sipInsightLink.getAttribute('href');
-    expect(href).toBe('/');
+    await displayWallPage.expectSipInsightBranding();
+    // By design: branding sengaja bukan <a> — tidak boleh ada link "SIP Insight"
+    const linkCount = await displayWallPage.page.getByRole('link', { name: 'SIP Insight' }).count();
+    expect(linkCount).toBe(0);
   });
 
   test('minimal 4 chart SVG terrender (conversation trend + emotion + sentiment + trending)', async ({ displayWallPage }) => {

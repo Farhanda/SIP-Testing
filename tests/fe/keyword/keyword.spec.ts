@@ -1,79 +1,44 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
-import { loadJsonData } from '../../../src/helpers/data';
 import {
   mockKeywordOptions,
-  mockSchedulerList,
   mockUnscheduledList,
 } from '../../../src/helpers/api-mock';
 
 /**
- * Test Monitoring Keyword (/monitoring/keyword) — arsitektur BARU (2026-08):
- * kedua tab memanggil BE langsung GET /v1/scrape/keyword-management dengan
- * schedule_enabled=true (Scheduled) / false (On Demand).
+ * Test Monitoring Keyword (/monitoring/keyword) — UI saat ini (2026-08)
+ * hanya punya SATU tab "On Demand" yang memanggil BE langsung
+ * GET /v1/scrape/keyword-management?schedule_enabled=false.
+ * Tab Scheduled, Move-to-scheduled, dan Edit-scheduled sudah dihapus dari
+ * aplikasi → seluruh coverage diarahkan ke On Demand.
  * Daftar di-mock (deterministik); filter diuji end-to-end UI → API.
  */
 test.describe('Monitoring Keyword', () => {
-  test('daftar scheduled keyword tampil lengkap dengan tabel & filter', async ({ keywordPage }) => {
+  test('daftar On Demand tampil lengkap dengan tabel & filter', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
-    await mockSchedulerList(keywordPage.page);
-    await keywordPage.gotoScheduledTab();
+    await mockUnscheduledList(keywordPage.page);
+    await keywordPage.gotoOnDemandTab();
 
-    // Deployed app: 'Keyword Management' (bukan 'Monitoring Keyword')
+    // Deployed app: 'Keyword Management' (atau 'Monitoring Keyword')
     const heading = keywordPage.page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ });
     await heading.first().waitFor({ state: 'visible' });
-    await keywordPage.expectTabSelected('Scheduled');
+    await keywordPage.expectOnDemandTabSelected();
     await expect(keywordPage.searchInput).toBeVisible();
 
-    // Kolom tabel (arsitektur baru: Keyword, Platform, Last Run, Status, Actions)
-    for (const header of ['Keyword', 'Platform', 'Last Run', 'Status']) {
+    // Kolom tabel On Demand
+    for (const header of ['Keyword', 'Platform', 'Created', 'Last Run', 'Status']) {
       await keywordPage.expectColumnHeader(header);
     }
-
-    // Section headings khas tab Scheduled (Scheduler Management + jobs on hold)
-    await expect(keywordPage.page.getByRole('heading', { name: 'Scheduler Management' })).toBeVisible();
-    await expect(keywordPage.page.getByRole('heading', { name: 'Automatic jobs on hold' })).toBeVisible();
 
     // Data mock ter-render
     await keywordPage.expectKeywordVisible('RUU Digital', true);
     await expect(keywordPage.paginationText).toBeVisible();
   });
 
-  // Data-driven: filter status diuji per data test-data/keyword-filters.json
-  const statusFilters = loadJsonData<
-    { status: string; visibleKeyword: string; hiddenKeyword: string }[]
-  >('keyword-filters.json');
-  for (const data of statusFilters) {
-    test(`filter status "${data.status}" menampilkan keyword sesuai status`, async ({ keywordPage }) => {
-      await mockKeywordOptions(keywordPage.page);
-      await mockSchedulerList(keywordPage.page);
-      await keywordPage.gotoScheduledTab();
-
-      await keywordPage.selectStatus(data.status);
-      await keywordPage.applyFilters();
-
-      await keywordPage.expectKeywordVisible(data.visibleKeyword, true);
-      await keywordPage.expectKeywordVisible(data.hiddenKeyword, false);
-    });
-  }
-
-  test('filter platform bekerja mempersempit daftar', async ({ keywordPage }) => {
+  test('pencarian keyword memfilter daftar On Demand', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
-    await mockSchedulerList(keywordPage.page);
-    await keywordPage.gotoScheduledTab();
-
-    // Platform TikTok: keyword yang tidak ada di TikTok tidak tampil
-    await keywordPage.selectPlatform('TikTok');
-    await keywordPage.applyFilters();
-
-    await keywordPage.expectKeywordVisible('RUU Digital', true);
-    await keywordPage.expectKeywordVisible('Isu Pendidikan', false);
-  });
-
-  test('pencarian keyword memfilter daftar', async ({ keywordPage }) => {
-    await mockKeywordOptions(keywordPage.page);
-    await mockSchedulerList(keywordPage.page);
-    await keywordPage.gotoScheduledTab();
+    await mockUnscheduledList(keywordPage.page);
+    await keywordPage.gotoOnDemandTab();
 
     await keywordPage.searchKeyword('RUU');
 
@@ -82,28 +47,24 @@ test.describe('Monitoring Keyword', () => {
     await keywordPage.expectKeywordVisible('BPJS Kesehatan', false);
   });
 
-  test('tab On Demand menampilkan daftar & filter status', async ({ keywordPage }) => {
+  test('aksi baris On Demand tersedia (Toggle status, View detail, Reprocess)', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
     await mockUnscheduledList(keywordPage.page);
     await keywordPage.gotoOnDemandTab();
 
-    await keywordPage.expectTabSelected('On Demand');
-    await keywordPage.expectColumnHeader('Keyword');
-    await keywordPage.expectColumnHeader('Created');
-    await keywordPage.expectColumnHeader('Status');
-
     // Data mock ter-render
     await keywordPage.expectKeywordVisible('RUU Digital', true);
 
-    // Aksi baris On Demand tersedia (Reprocess & Move)
+    // Aksi baris On Demand yang tersedia di UI saat ini
+    await expect(keywordPage.toggleStatus('RUU Digital')).toBeVisible();
+    await expect(keywordPage.viewDetailLink('RUU Digital')).toBeVisible();
     await expect(keywordPage.reprocessButton('RUU Digital')).toBeVisible();
-    await expect(keywordPage.moveButton('RUU Digital')).toBeVisible();
   });
 
   test('tombol Reset filter mengosongkan pencarian & mengembalikan daftar lengkap', async ({ keywordPage }) => {
     await mockKeywordOptions(keywordPage.page);
-    await mockSchedulerList(keywordPage.page);
-    await keywordPage.gotoScheduledTab();
+    await mockUnscheduledList(keywordPage.page);
+    await keywordPage.gotoOnDemandTab();
 
     // Filter dulu: pencarian 'RUU' menyembunyikan keyword lain
     await keywordPage.searchKeyword('RUU');
@@ -117,3 +78,4 @@ test.describe('Monitoring Keyword', () => {
     await keywordPage.expectKeywordVisible('Ketenagakerjaan', true);
   });
 });
+

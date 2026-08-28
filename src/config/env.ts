@@ -26,6 +26,11 @@ export const Env = {
   // Timeout default per assertion/aksi (ms)
   defaultTimeout: Number(process.env.UI_TIMEOUT ?? 15000),
 
+  // ----- Kredensial user test (login UI, auth asli) -----
+  // Dipakai setup auth (storageState) & test case login. JANGAN hardcode di spec.
+  testUsername: process.env.UI_TEST_USERNAME ?? 'admin',
+  testPassword: process.env.UI_TEST_PASSWORD ?? '12tiga',
+
   // ----- Backend API (testing platform BE & AI) -----
   // Base URL API backend target (deployed)
   beBaseUrl: process.env.BASE_URL_BE ?? 'http://10.200.101.13:8091',

@@ -4,6 +4,7 @@ node_modules/
 # Environment (jangan pernah commit secret)
 .env
 .env.local
+.auth/
 
 # Artefak test Playwright
 test-results/

@@ -20,16 +20,19 @@ test.describe('Dark Mode — Theme Toggle', () => {
     const toggle = dashboardPage.page.getByRole('button', { name: 'Enable dark mode' });
     await expect(toggle).toBeVisible();
 
-    // Tema diterapkan di wrapper div Layout (className bg-sip-bg, data-theme),
-    // BUKAN di <html> — lihat src/layouts/Layout.tsx.
-    const wrapper = dashboardPage.page.locator('[data-theme]').first();
+    // Tema diterapkan di wrapper div Layout (className bg-sip-bg, data-theme).
+    // Catatan (2026-08): <html> JUGA punya atribut data-theme (background-nya
+    // transparan) — ambil div-nya secara eksplisit.
+    const wrapper = dashboardPage.page.locator('div[data-theme]').first();
     await expect(wrapper).toBeVisible();
     const bgBefore = await wrapper.evaluate((el) => getComputedStyle(el).backgroundColor);
 
     await toggle.click();
 
     // State toggle bekerja: atribut tema berubah & label tombol berganti.
-    await expect(dashboardPage.page.locator('[data-theme="dark"]')).toBeVisible();
+    // Catatan (2026-08): app kini set data-theme="dark" di <html> DAN wrapper
+    // div Layout — pakai html agar locator tidak ambigu (strict mode).
+    await expect(dashboardPage.page.locator('html[data-theme="dark"]')).toBeVisible();
     await expect(
       dashboardPage.page.getByRole('button', { name: 'Enable light mode' })
     ).toBeVisible();

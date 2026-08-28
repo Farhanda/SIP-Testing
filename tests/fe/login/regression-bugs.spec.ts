@@ -1,28 +1,25 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
-import { mockAuthLogin } from '../../../src/helpers/api-mock';
+import { Env } from '../../../src/config/env';
 
 /**
- * A1 (Bug): submit login di aplikasi saat ini TIDAK redirect — handleSubmit
- * hanya memvalidasi field kosong, menampilkan state "Processing…" selama
- * 900ms, lalu kembali normal (tanpa memanggil API auth & tanpa navigasi).
- *
- * Test meng-encode perilaku yang BENAR: login dengan kredensial valid HARUS
+ * A1 (Bug — FIXED): dulu submit login hanya simulasi (state "Processing…" tanpa
+ * API & tanpa navigasi). Aplikasi kini memakai auth asli — login valid HARUS
  * mengarahkan user ke dashboard (/monitoring/dashboard).
- * → FAIL sekarang (URL tetap /login), PASS setelah alur login disambungkan.
+ *
+ * Test memakai kredensial nyata dari .env (UI_TEST_USERNAME / UI_TEST_PASSWORD)
+ * dan memanggil auth API asli (tanpa mock) supaya alur login → dashboard
+ * selalu terverifikasi end-to-end.
  */
 test.describe('Regresi Bug — Login', () => {
   test('REGRESI A1: login dengan kredensial valid harus redirect ke dashboard', async ({ loginPage }) => {
-    // Jaring pengaman: kalau fix memanggil API auth, mock ini memastikan sukses
-    // (tidak bergantung pada API asli yang belum ada).
-    await mockAuthLogin(loginPage.page, { succeed: true });
     await loginPage.goto();
 
-    await loginPage.login('admin', 'password123');
+    await loginPage.login(Env.testUsername, Env.testPassword);
 
-    // Bug A1: saat ini tidak ada redirect → waitForURL timeout → FAIL.
+    // Perilaku yang benar (sudah aktif): sukses login → dashboard
     await expect(loginPage.page).toHaveURL(/\/monitoring\/dashboard/, {
-      timeout: 15_000,
+      timeout: 20_000,
     });
   });
 });

@@ -26,35 +26,27 @@ test.describe('Navigasi & Smoke', () => {
       await expect(navbar.getByRole('button', { name: 'Management' })).toBeVisible();
     }
     await expect(navbar.getByRole('button', { name: 'Notifications' })).toBeVisible();
-    // User aktif: 'Admin SIP' atau 'AS Admin SIP'
-    const hasAdminSip = await navbar.getByText('Admin SIP').isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasAdminSip).toBeTruthy();
+    // User aktif: label tombol user menu berubah-ubah antar deploy
+    // ('Admin SIP', 'AS Admin SIP', kini 'A admin'). Assert tombolnya
+    // (yang memuat 'admin') & identitas user visible, bukan teks spesifik.
+    await expect(navbar.getByRole('button', { name: /admin/i }).last()).toBeVisible();
   });
 
-  test('navigasi navbar ke halaman Keyword Intelligence berhasil', async ({ page }) => {
-    await page.goto('/monitoring/dashboard');
-    const navbar = page.locator('header');
-
-    // Label navbar kini "Keyword Intelligence" (route baru 2026-08)
-    const kiLink = navbar.locator('a[href="/monitoring/keyword-intelligence"]').first();
-    await expect(kiLink).toBeVisible();
-    await kiLink.click();
+  test('halaman Keyword Intelligence dapat diakses', async ({ page }) => {
+    // Link 'Keyword Intelligence' tidak lagi ada di navbar utama/dropdown
+    // (Management kini berisi Providers & Keywords) — navigasi langsung via URL.
+    await page.goto('/monitoring/keyword-intelligence');
 
     await expectUrlPath(page, '/monitoring/keyword-intelligence');
     await expect(page.getByRole('heading', { name: 'Keyword Intelligence', exact: true })).toBeVisible();
   });
 
-  test('tab Scheduled & On Demand di halaman keyword dapat dipindahkan', async ({ page }) => {
+  test('tab On Demand ada di halaman keyword (tab Scheduled dihapus dari UI)', async ({ page }) => {
     await page.goto('/monitoring/keyword');
 
-    const tabScheduled = page.getByRole('tab', { name: 'Scheduled' });
+    // UI kini hanya punya satu tab: "On Demand" (default & satu-satunya)
     const tabOnDemand = page.getByRole('tab', { name: 'On Demand' });
-
-    // Default landing kini tab On Demand (perubahan app 2026-08)
-    await expect(tabOnDemand).toHaveAttribute('aria-selected', 'true');
-    await tabScheduled.click();
-    await expect(tabScheduled).toHaveAttribute('aria-selected', 'true');
-    await tabOnDemand.click();
+    await expect(tabOnDemand).toBeVisible();
     await expect(tabOnDemand).toHaveAttribute('aria-selected', 'true');
   });
 
@@ -76,9 +68,8 @@ test.describe('Navigasi & Smoke', () => {
     await page.goto('/profile');
 
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
-    // 'Admin SIP' bisa tampil sebagai 'AS Admin SIP' di deployed app
-    const hasAdminSip = await page.locator('main').getByText('Admin SIP').isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasAdminSip).toBeTruthy();
+    // Main content berisi informasi identitas user aktif
+    await expect(page.locator('main').getByText(/admin/i).first()).toBeVisible();
   });
 
   test('halaman user management dapat diakses', async ({ page }) => {
