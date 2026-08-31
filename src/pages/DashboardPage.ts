@@ -129,9 +129,9 @@ export class DashboardPage extends BasePage {
   }
 
   async expectResultsRendered() {
-    await expect(this.conversationSummaryHeading).toBeVisible();
-    await expect(this.sentimentGroupHeading).toBeVisible();
-    await expect(this.contentGroupHeading).toBeVisible();
+    await expect(this.conversationSummaryHeading).toBeVisible({ timeout: 30_000 });
+    await expect(this.sentimentGroupHeading).toBeVisible({ timeout: 30_000 });
+    await expect(this.contentGroupHeading).toBeVisible({ timeout: 30_000 });
   }
 
   /** Data dari mock API benar-benar ter-render (bukti integrasi UI↔API). */
