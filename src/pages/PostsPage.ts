@@ -9,9 +9,11 @@ export class PostsPage extends BasePage {
   readonly postRows = this.page.locator('table tbody tr');
   readonly tableHeaders = this.page.locator('table th');
   readonly sortBySelect = this.page.getByRole('combobox', { name: 'Sort by' });
-  readonly topicSelect = this.page.locator('#tpTopic');
-  readonly searchInput = this.page.locator('#tpSearch');
-  readonly emotionSelect = this.page.locator('#tpEmotion');
+  readonly topicSelect = this.page.getByRole('combobox', { name: 'Topic' });
+  readonly searchInput = this.page.getByPlaceholder('Search keyword...');
+  readonly emotionSelect = this.page.getByRole('combobox', { name: 'Emotion' });
+  readonly sentimentSelect = this.page.getByRole('combobox', { name: 'Sentiment' });
+  readonly platformButton = this.page.getByRole('button', { name: /Platform/ });
   readonly paginationPrev = this.page.getByRole('button', { name: '‹' });
   readonly paginationNext = this.page.getByRole('button', { name: '›' });
   readonly paginationPage1 = this.page.getByRole('button', { name: '1', exact: true });

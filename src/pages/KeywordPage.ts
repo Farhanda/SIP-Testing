@@ -30,17 +30,17 @@ export class KeywordPage extends BasePage {
 
   // ---- Modal "Add keyword" (tab On Demand) ----
   readonly addKeywordButton = this.page.getByRole('button', { name: '+ Add keyword' });
-  readonly createModal = this.page.getByRole('dialog', { name: 'Add keyword' });
-  readonly unscKeywordInput = this.page.locator('#unsc-keyword');
+  readonly createModal = this.page.getByRole('dialog', { name: 'Add keyword', exact: true });
+  readonly unscKeywordInput = this.createModal.getByRole('combobox', { name: 'Keyword' });
   readonly startProcessButton = this.page.getByRole('button', { name: 'Start process' });
-  // Date field muncul saat period = Custom — label berubah jadi "Start date"
-  // & "End date" (bukan id #unsc-date-from/to; dicek 2026-08-14).
-  readonly unscDateFromInput = this.createModal.getByRole('textbox', { name: 'Start date' });
-  readonly unscDateToInput = this.createModal.getByRole('textbox', { name: 'End date' });
+  // Date field muncul saat period = Custom range — render di popup period,
+  // BUKAN di dalam dialog modal (dicek 2026-08-31).
+  readonly unscDateFromInput = this.page.getByRole('textbox', { name: 'Start date' });
+  readonly unscDateToInput = this.page.getByRole('textbox', { name: 'End date' });
 
-  // Modal Add: Platform = LISTBOX dropdown (bukan checkbox) &
-  // Period = <select> (bukan radio) — struktur dicek 2026-08-14.
-  readonly unscPeriodSelect = this.createModal.locator('#unsc-period');
+  // Modal Add: Period kini berupa button (HeadlessUI Listbox), bukan <select>.
+  // Untuk memilih opsi: klik button → pilih option di listbox.
+  readonly unscPeriodButton = this.createModal.locator('#unsc-period');
   readonly unscPlatformButton = this.createModal.getByRole('button', {
     name: /All platforms|Select platform/,
   });
@@ -49,6 +49,19 @@ export class KeywordPage extends BasePage {
    * Set pilihan platform di modal Add (On Demand) via listbox.
    * Buka dropdown, klik option yang beda state, lalu tutup (Escape).
    */
+  /** Set pilihan period di modal Add (On Demand) — period berupa tombol-tombol.
+   *  Klik button period → popup muncul → pilih tombol dengan label yang sesuai.
+   *  Daftar opsi: 24 Hours, 3 Days, 7 Days, 1 Month, Custom range. */
+  async setUnscPeriod(option: string) {
+    await this.unscPeriodButton.click();
+    // Tunggu popup period muncul (render di luar dialog)
+    const popup = this.page.locator('button[aria-expanded="true"]').first();
+    await popup.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    // Cari tombol dengan teks yang mengandung `option` (case-insensitive)
+    const btn = this.page.getByRole('button', { name: new RegExp(option, 'i') });
+    await btn.click();
+  }
+
   async setUnscPlatforms(selected: string[]) {
     await this.unscPlatformButton.click();
     for (const platform of ['Instagram', 'TikTok', 'Twitter/X']) {
@@ -169,6 +182,7 @@ export class KeywordPage extends BasePage {
   }
 
   async fillUnscKeyword(keyword: string) {
+    await this.unscKeywordInput.click();
     await this.unscKeywordInput.fill(keyword);
   }
 
@@ -183,6 +197,12 @@ export class KeywordPage extends BasePage {
 
   async submitCreate() {
     await this.startProcessButton.click();
+    // UI baru: muncul dialog konfirmasi "Add keyword?" — klik Start process lagi
+    const confirmBtn = this.page.getByRole('dialog').last().getByRole('button', { name: 'Start process' });
+    await confirmBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    if (await confirmBtn.isVisible().catch(() => false)) {
+      await confirmBtn.click();
+    }
   }
 
   async expectCreateModalOpen(open: boolean) {

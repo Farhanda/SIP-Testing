@@ -17,6 +17,7 @@ export class DashboardPage extends BasePage {
   readonly period24hButton = this.page.getByRole('button', { name: '24 Hours' });
   readonly period7dButton = this.page.getByRole('button', { name: '7 Days' });
   readonly searchFiltersHeading = this.page.getByRole('heading', { name: 'Search filters' });
+  readonly periodButton = this.page.getByRole('button', { name: 'Period' });
   readonly applyFilterButton = this.page.getByRole('button', { name: 'Apply filter' });
   readonly resetFiltersButton = this.page.getByRole('button', { name: 'Reset filters' });
   readonly keywordInput = this.page.getByRole('combobox', { name: 'Keyword' });

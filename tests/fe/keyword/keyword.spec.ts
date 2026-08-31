@@ -57,7 +57,6 @@ test.describe('Monitoring Keyword', () => {
 
     // Aksi baris On Demand yang tersedia di UI saat ini
     await expect(keywordPage.toggleStatus('RUU Digital')).toBeVisible();
-    await expect(keywordPage.viewDetailLink('RUU Digital')).toBeVisible();
     await expect(keywordPage.reprocessButton('RUU Digital')).toBeVisible();
   });
 

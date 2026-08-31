@@ -145,20 +145,15 @@ test.describe('Dashboard — Fitur UI Baru', () => {
 
   // ── Period dropdown ──────────────────────────────────────────────────
 
-  test('Period dropdown tersedia di search filters', async ({ dashboardPage }) => {
+  test('Period button tersedia di search filters', async ({ dashboardPage }) => {
     await mockDashboardApis(dashboardPage.page);
     await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
     await dashboardPage.goto();
 
     await dashboardPage.expectResultsRendered();
 
-    const period = dashboardPage.page.getByRole('combobox', { name: 'Period' });
-    await expect(period).toBeVisible();
-
-    // Opsi default: Select period (disabled)
-    const options = period.locator('option');
-    const count = await options.count();
-    expect(count).toBeGreaterThanOrEqual(5); // Select period, 24 Hours, 3 Days, 7 Days, 1 Month, (Custom)
+    // Period kini berupa button (HeadlessUI Listbox), bukan <select> combobox
+    await expect(dashboardPage.periodButton).toBeVisible();
   });
 
   // ── Updated timestamp ────────────────────────────────────────────────

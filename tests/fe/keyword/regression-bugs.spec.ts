@@ -34,7 +34,7 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
 
     await keywordPage.openCreateModal();
     await keywordPage.fillUnscKeyword('Tes Tanggal Terbalik');
-    await keywordPage.unscPeriodSelect.selectOption('custom'); // period = select (bukan radio)
+    await keywordPage.setUnscPeriod('Custom range'); // period kini berupa tombol-tombol
     await keywordPage.unscDateFromInput.fill('2026-08-10');
     await keywordPage.unscDateToInput.fill('2026-08-01'); // TERBALIK: from > to
     await keywordPage.submitCreate();

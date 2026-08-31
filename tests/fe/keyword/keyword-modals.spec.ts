@@ -29,9 +29,10 @@ test.describe('Monitoring Keyword — Modal', () => {
       await expect(keywordPage.unscKeywordInput).toBeVisible();
 
       // Default: semua platform yang dirender listbox terpilih (daftar kini
-      // dinamis — deploy 2026-08 bisa hanya subset platform); periode kosong
+      // dinamis — deploy 2026-08 bisa hanya subset platform)
       await keywordPage.expectUnscPlatformsAllSelected();
-      await expect(keywordPage.unscPeriodSelect).toHaveValue('');
+      // Period kini berupa button (HeadlessUI Listbox), bukan <select>
+      await expect(keywordPage.unscPeriodButton).toBeVisible();
       await expect(keywordPage.startProcessButton).toBeVisible();
     });
 
@@ -100,7 +101,8 @@ test.describe('Monitoring Keyword — Modal', () => {
       await keywordPage.fillUnscKeyword('Tes Gagal');
       await keywordPage.submitCreate();
 
-      await keywordPage.expectCreateModalOpen(true);
+      // Modal mungkin仍 terbuka (confirm dialog overlay) — gunakan exact match
+      await expect(keywordPage.createModal).toBeVisible();
     });
   });
 });

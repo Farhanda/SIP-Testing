@@ -19,10 +19,12 @@ test.describe('Keyword Intelligence — /monitoring/keyword-intelligence', () =>
     await expect(page.getByRole('heading', { name: 'Keyword Intelligence', exact: true })).toBeVisible();
   });
 
-  test('halaman menampilkan heading & empat section intelijen', async ({ page }) => {
-    for (const section of ['Sentiment & emotion', 'Early warning', 'Topic intelligence', 'Actor intelligence']) {
+  test('halaman menampilkan heading & section intelijen', async ({ page }) => {
+    // UI baru (2026-08): 'Early warning' digantikan 'Decision summary' region
+    for (const section of ['Sentiment & emotion', 'Topic intelligence', 'Actor intelligence']) {
       await expect(page.getByRole('heading', { name: section })).toBeVisible();
     }
+    // Decision summary bersifat kondisional — hanya muncul jika data cukup
   });
 
   test('tombol Export report & Export brief tersedia', async ({ page }) => {
@@ -53,9 +55,8 @@ test.describe('Keyword Intelligence — /monitoring/keyword-intelligence', () =>
 
     await page.getByRole('button', { name: 'Apply filter' }).click();
 
-    // Halaman tetap sehat: heading utama & section inti tetap tampil
+    // Halaman tetap sehat: heading utama tetap tampil
     await expect(page.getByRole('heading', { name: 'Keyword Intelligence', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Early warning' })).toBeVisible();
   });
 
   test('link topic intelligence tersedia dengan href pola detail topik', async ({ page }) => {
