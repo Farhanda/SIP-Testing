@@ -18,7 +18,7 @@ export class DisplayWallPage extends BasePage {
   /** Auto-refresh countdown button (mis. "20 seconds"). */
   readonly refreshCountdown = this.page.locator('button').filter({ hasText: /seconds?/i }).first();
 
-  /** SIP Insight branding di header wall — teks statis (by design BUKAN link). */
+  /** SIP Insight branding di header wall — bisa berupa link atau teks statis. */
   readonly sipInsightBranding = this.page.getByText('SIP Insight', { exact: true }).first();
 
   /** All SVG chart elements on the page. */

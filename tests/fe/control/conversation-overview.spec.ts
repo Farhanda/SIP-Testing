@@ -50,7 +50,7 @@ test.describe('Display Wall — Conversation Overview', () => {
     expect(text).toMatch(/\d+\s*seconds?/i);
   });
 
-  test('SIP Insight branding terlihat (teks statis — by design bukan link)', async ({ displayWallPage }) => {
+  test('SIP Insight branding terlihat', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
 

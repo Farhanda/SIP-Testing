@@ -95,10 +95,6 @@ export class KeywordPage extends BasePage {
     await this.page.keyboard.press('Escape');
   }
 
-  /** Checkbox platform — dipakai modal Add (On Demand) legacy path. */
-  platformCheckbox(name: string) {
-    return this.page.getByRole('checkbox', { name, exact: true });
-  }
 
   // ---- Aksi baris tabel (On Demand) ----
 
@@ -184,15 +180,6 @@ export class KeywordPage extends BasePage {
   async fillUnscKeyword(keyword: string) {
     await this.unscKeywordInput.click();
     await this.unscKeywordInput.fill(keyword);
-  }
-
-  async deselectAllPlatforms() {
-    for (const platform of ['Twitter/X', 'Instagram', 'TikTok']) {
-      const checkbox = this.platformCheckbox(platform);
-      if (await checkbox.isChecked()) {
-        await checkbox.click();
-      }
-    }
   }
 
   async submitCreate() {

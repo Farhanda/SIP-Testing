@@ -47,7 +47,7 @@ test.describe('Display Wall — Top Engagement', () => {
     await displayWallPage.expectRefreshButtonVisible();
   });
 
-  test('SIP Insight branding terlihat (teks statis — by design bukan link)', async ({ displayWallPage }) => {
+  test('SIP Insight branding terlihat', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
     await displayWallPage.page.waitForLoadState('networkidle');
 

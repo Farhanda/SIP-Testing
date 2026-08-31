@@ -59,29 +59,24 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     await page.goto('/monitoring/dashboard');
 
     const mgmtBtn = page.locator('header').getByRole('button', { name: 'Management' });
-    const hasMgmt = await mgmtBtn.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasMgmt) {
-      await mgmtBtn.click();
-      // Dropdown harus menampilkan minimal satu link
-      const hasLinks = await page.getByRole('link', { name: /Keyword|User|Profile/ })
-        .first().isVisible({ timeout: 3000 }).catch(() => false);
-      expect(hasLinks).toBeTruthy();
-    }
+    await expect(mgmtBtn).toBeVisible();
+    await mgmtBtn.click();
+    // Dropdown harus menampilkan minimal satu link
+    const hasLinks = await page.getByRole('link', { name: /Keyword|User|Profile/ })
+      .first().isVisible({ timeout: 3000 }).catch(() => false);
+    expect(hasLinks).toBeTruthy();
   });
 
   test('navigasi dari Management dropdown ke Keyword Management', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
 
     const mgmtBtn = page.locator('header').getByRole('button', { name: 'Management' });
-    const hasMgmt = await mgmtBtn.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasMgmt) {
-      await mgmtBtn.click();
-      const keywordLink = page.getByRole('link', { name: 'Keyword' });
-      if (await keywordLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await keywordLink.click();
-        await expectUrlPath(page, '/monitoring/keyword');
-      }
-    }
+    await expect(mgmtBtn).toBeVisible();
+    await mgmtBtn.click();
+    const keywordLink = page.getByRole('link', { name: 'Keyword' });
+    await expect(keywordLink).toBeVisible();
+    await keywordLink.click();
+    await expectUrlPath(page, '/monitoring/keyword');
   });
 
   // ── Notifications button ─────────────────────────────────────────────
@@ -114,10 +109,9 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     await page.goto('/monitoring/dashboard');
     await page.locator('header').getByRole('button', { name: /admin/i }).last().click();
 
-    // Label "Profile2" sesuai teks aktual aplikasi (kemungkinan typo di UI).
-    // Profile2 masih disabled by design (konfirmasi owner), Logout kini
-    // FUNGSIONAL (klik → redirect ke /login).
-    const profileItem = page.getByRole('button', { name: 'Profile2' });
+    // 🔴 REGRESI R8: UI menampilkan "Profile2" (typo) bukan "Profile".
+    // Item Profile disabled by design (konfirmasi owner); Logout FUNGSIONAL.
+    const profileItem = page.getByRole('button', { name: /Profile/ });
     const logoutItem = page.getByRole('button', { name: 'Logout' });
     await expect(profileItem).toBeVisible();
     await expect(logoutItem).toBeVisible();

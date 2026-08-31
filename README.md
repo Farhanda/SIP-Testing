@@ -258,7 +258,7 @@ Kolom eksekusi diisi otomatis: **Actual Result** & **Status** dari file report p
   - Halaman Keyword memakai endpoint baru `/v1/scrape/keyword-management` (satu endpoint untuk tab Scheduled & On Demand via `schedule_enabled=true|false`); default landing tab = **On Demand**; aksi Edit per baris (bukan action-menu); Reprocess menggantikan Retry/Cancel/Run history.
   - Display wall mengambil keyword dari `top-keywords?limit=5` dan berotasi tiap ~20 detik (label "20 seconds" = label interval statis).
   - Halaman baru **Keyword Intelligence** (`/monitoring/keyword-intelligence`) dengan Export report/brief.
-  - Tombol Export report **dihapus** dari dashboard → regresi A2 dihapus dari suite.
+  - Tombol Export report **masih ada** di dashboard (diverifikasi 2026-08-31).
 - **Bug aplikasi yang diketahui (hasil bug-hunt BE 2026-08)** — dipantau test regresi / belum ada guard-nya:
   - Endpoint scrape **tidak memiliki autentikasi** — mutasi (PATCH provider, POST keyword) bisa dipanggil tanpa token (perlu konfirmasi: internal-only atau bug).
   - `GET /v1/scrape/openapi.json` → **500 internal_error**.
@@ -266,7 +266,9 @@ Kolom eksekusi diisi otomatis: **Actual Result** & **Status** dari file report p
   - Filter `top-keywords?keyword=` hanya **exact-match penuh** (inkonsisten dengan semantik contains di endpoint lain).
   - Pagination scrape service: `page` overflow → rows kosong (dashboard-service clamp); `size=0/negatif` mengembalikan semua baris.
   - POST create keyword on-demand kadang **menggantung tanpa respons** (intermiten) — alasan test FE tidak men-assert penutupan modal.
-  - Menu user navbar: item "Profile2" (typo label) & Logout **disabled by design** (konfirmasi owner) — dikunci assertion.
+  - Menu user navbar: item "Profile2" (typo label) & Logout **disabled by design** (konfirmasi owner) — dikunci assertion (REGRESI R8).
+  - **REGRESI R9** (2026-08-31): Escape key **tidak menutup** modal Add keyword — hanya Close/Cancel yang berfungsi (a11y issue).
+  - **REGRESI R10** (2026-08-31): Raw error codes (PROVIDER_PERMANENT_ERROR, dll) **ter-expose** ke user di keyword list — harusnya user-friendly.
 - **AI Service (SIP AI Service v1.0.0)**: 5 endpoint di `{BASE_URL_AI}` (health, meta, analyze batch/jobs/sync), semua wajib header `X-Service-Token`. Taxonomy di `/v1/meta` jangan di-hardcode (label bisa berubah).
 - **Stabilitas (NFR-02)**: test dijalankan dengan 1 retry lokal / 2 retry di CI untuk menahan kegagalan acak aplikasi.
 - Chrome bawaan sistem bisa dipakai tanpa `npx playwright install` lewat `UI_BROWSER_CHANNEL=chrome`.
