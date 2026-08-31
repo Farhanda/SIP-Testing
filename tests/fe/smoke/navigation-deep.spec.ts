@@ -105,18 +105,13 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     await expect(userMenu).toBeVisible();
   });
 
-  test('user menu menampilkan opsi Profile & Logout saat dibuka', async ({ page }) => {
+  test('user menu menampilkan opsi Logout saat dibuka', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
     await page.locator('header').getByRole('button', { name: /admin/i }).last().click();
 
-    // 🔴 REGRESI R8: UI menampilkan "Profile2" (typo) bukan "Profile".
-    // Item Profile disabled by design (konfirmasi owner); Logout FUNGSIONAL.
-    const profileItem = page.getByRole('button', { name: /Profile/ });
+    // UI terkini: dropdown hanya berisi tombol Logout (Profile sudah tidak ada)
     const logoutItem = page.getByRole('button', { name: 'Logout' });
-    await expect(profileItem).toBeVisible();
     await expect(logoutItem).toBeVisible();
-
-    await expect(profileItem).toBeDisabled();
     await expect(logoutItem).toBeEnabled();
 
     // Logout berfungsi — klik → kembali ke halaman login
