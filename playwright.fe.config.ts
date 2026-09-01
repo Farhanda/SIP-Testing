@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import { Env } from './src/config/env';
 import { AUTH_STATE_PATH } from './src/helpers/auth';
+import { CLIENT_AUTH_STATE_PATH } from './src/helpers/client-auth';
 
 dotenv.config({ override: true });
 
@@ -29,6 +30,19 @@ const MODULES = [
   { name: 'profile', testMatch: /profile\/.*\.spec\.ts/ },
 ] as const;
 
+/**
+ * Client modules — client role hanya bisa akses home & display wall.
+ * Test di folder `tests/fe/client/` menggunakan auth state terpisah
+ * (.auth/fe-client-state.json) dengan kredensial client.
+ */
+const CLIENT_MODULES = [
+  { name: 'client-login', testMatch: /client\/login\.spec\.ts/ },
+  { name: 'client-home', testMatch: /client\/home\.spec\.ts/ },
+  { name: 'client-access', testMatch: /client\/access-control\.spec\.ts/ },
+  { name: 'client-display', testMatch: /client\/display-wall\.spec\.ts/ },
+  { name: 'client-logout', testMatch: /client\/logout\.spec\.ts/ },
+] as const;
+
 const browsers = Env.browsers.length > 0 ? Env.browsers : ['chromium'];
 const multiBrowser = browsers.length > 1;
 
@@ -40,7 +54,7 @@ const multiBrowser = browsers.length > 1;
  */
 const authProject = {
   name: multiBrowser ? 'auth-chromium' : 'auth',
-  testMatch: /auth\.setup\.ts/,
+  testMatch: /tests\/fe\/auth\.setup\.ts/,
   use: { ...devices['Desktop Chrome'], browserName: 'chromium' as const },
 };
 
@@ -55,6 +69,29 @@ const projects = [
         ...devices['Desktop Chrome'],
         browserName: browser as 'chromium' | 'firefox' | 'webkit',
         ...(mod.name === 'login' ? {} : { storageState: AUTH_STATE_PATH }),
+      },
+    })),
+  ),
+];
+
+// ── Client auth project & client module projects ──────────────────────
+const clientAuthProject = {
+  name: multiBrowser ? 'client-auth-chromium' : 'client-auth',
+  testMatch: /tests\/fe\/client\/auth\.setup\.ts/,
+  use: { ...devices['Desktop Chrome'], browserName: 'chromium' as const },
+};
+
+const clientProjects = [
+  clientAuthProject,
+  ...browsers.flatMap((browser) =>
+    CLIENT_MODULES.map((mod) => ({
+      name: multiBrowser ? `${mod.name}-${browser}` : mod.name,
+      testMatch: mod.testMatch,
+      dependencies: mod.name === 'client-login' ? [] : [clientAuthProject.name],
+      use: {
+        ...devices['Desktop Chrome'],
+        browserName: browser as 'chromium' | 'firefox' | 'webkit',
+        ...(mod.name === 'client-login' ? {} : { storageState: CLIENT_AUTH_STATE_PATH }),
       },
     })),
   ),
@@ -98,5 +135,5 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
 
-  projects,
+  projects: [...projects, ...clientProjects],
 });

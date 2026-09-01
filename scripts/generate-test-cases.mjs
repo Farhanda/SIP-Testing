@@ -1759,6 +1759,131 @@ function buildProfileCases() {
   ];
 }
 
+// ---------- daftar test case client role (tests/fe/client/) ----------
+// Client role: akses terbatas — hanya home (/monitoring/home) & display wall.
+// Kredensial: client / signalsclient (UI_CLIENT_USERNAME / UI_CLIENT_PASSWORD)
+
+function buildClientCases() {
+  return [
+    // ── Login ───────────────────────────────────────────────────────────
+    {
+      id: 'TC-UI-CL01', name: 'Login client → redirect ke /monitoring/home', category: 'Positive', priority: 'High',
+      method: 'Form', endpoint: '/login', headers: '—', params: '—',
+      requestBody: '{ username: "client", password: "signalsclient" }',
+      precondition: 'User membuka halaman /login',
+      expectedStatus: 'Sukses — redirect', expectedResponse: 'URL berubah ke /monitoring/home; heading "Select a monitoring view" tampil',
+      specTitle: 'login dengan kredensial client → redirect ke /monitoring/home',
+      assertions: 'toHaveURL(/monitoring/home); heading visible',
+      source: 'tests/fe/client/login.spec.ts', notes: 'Client redirect ke /monitoring/home, bukan /monitoring/dashboard',
+    },
+    {
+      id: 'TC-UI-CL02', name: 'Login client dengan password salah → pesan error', category: 'Negative', priority: 'High',
+      method: 'Form', endpoint: '/login', headers: '—', params: '—',
+      requestBody: '{ username: "client", password: "wrong" }',
+      precondition: 'User membuka halaman /login',
+      expectedStatus: 'Ditolak', expectedResponse: 'Pesan "Invalid username or password" tampil; tetap di /login',
+      specTitle: 'submit dengan username/password salah menampilkan pesan error',
+      assertions: 'invalidCredentialsError visible; URL tetap /login',
+      source: 'tests/fe/client/login.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-UI-CL03', name: 'Login client — field kosong menampilkan validasi', category: 'Negative', priority: 'Medium',
+      method: 'Form', endpoint: '/login', headers: '—', params: '—',
+      requestBody: '{ username: "", password: "" }',
+      precondition: 'User membuka halaman /login',
+      expectedStatus: 'Validasi client', expectedResponse: 'Pesan "Username and password are required." tampil',
+      specTitle: 'submit dengan field kosong menampilkan pesan validasi',
+      assertions: 'validationError visible',
+      source: 'tests/fe/client/login.spec.ts', notes: '—',
+    },
+    // ── Home Page ────────────────────────────────────────────────────────
+    {
+      id: 'TC-UI-CL04', name: 'Home page menampilkan "Select a monitoring view" & 2 kartu navigasi', category: 'Positive', priority: 'High',
+      method: 'Navigate', endpoint: '/monitoring/home', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Client sudah login; berada di /monitoring/home',
+      expectedStatus: 'Sukses', expectedResponse: 'Heading "Select a monitoring view" tampil; kartu "Conversation Overview" & "Top Engagement" terlihat',
+      specTitle: 'home page menampilkan 2 kartu navigasi',
+      assertions: 'heading visible; getByText("Conversation Overview") & getByText("Top Engagement") visible',
+      source: 'tests/fe/client/home.spec.ts', notes: 'Client tidak punya dashboard — home page adalah landing page utama',
+    },
+    {
+      id: 'TC-UI-CL05', name: 'Klik kartu Conversation Overview → navigasi ke /monitoring/conversation-overview', category: 'Positive', priority: 'High',
+      method: 'Navigate', endpoint: '/monitoring/conversation-overview', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Client di /monitoring/home',
+      expectedStatus: 'Sukses — navigasi', expectedResponse: 'URL berubah ke /monitoring/conversation-overview',
+      specTitle: 'klik kartu Conversation Overview → navigasi ke /monitoring/conversation-overview',
+      assertions: 'toHaveURL(/monitoring/conversation-overview)',
+      source: 'tests/fe/client/home.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-UI-CL06', name: 'Klik kartu Top Engagement → navigasi ke /monitoring/top-engagement', category: 'Positive', priority: 'High',
+      method: 'Navigate', endpoint: '/monitoring/top-engagement', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Client di /monitoring/home',
+      expectedStatus: 'Sukses — navigasi', expectedResponse: 'URL berubah ke /monitoring/top-engagement',
+      specTitle: 'klik kartu Top Engagement → navigasi ke /monitoring/top-engagement',
+      assertions: 'toHaveURL(/monitoring/top-engagement)',
+      source: 'tests/fe/client/home.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-UI-CL07', name: 'Navbar client menampilkan branding SIP Insight & user menu (tanpa nav link)', category: 'Positive', priority: 'Medium',
+      method: 'Navigate', endpoint: '/monitoring/home', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Client sudah login; berada di /monitoring/home',
+      expectedStatus: 'Sukses', expectedResponse: 'Navbar: "SIP Insight" branding visible; user menu visible; TIDAK ada link Dashboard/Keyword/Management',
+      specTitle: 'navbar tidak menampilkan link navigasi admin (Dashboard, Keyword, Management)',
+      assertions: 'branding visible; nav links count 0',
+      source: 'tests/fe/client/home.spec.ts', notes: 'Client navbar minimal — hanya branding + user menu + dark mode',
+    },
+    // ── Access Control (RBAC) ────────────────────────────────────────────
+    {
+      id: 'TC-UI-CL08', name: 'Dashboard, Keyword, Control, Profile, Admin → redirect ke /monitoring/home', category: 'RBAC', priority: 'Highest',
+      method: 'Navigate', endpoint: '/monitoring/dashboard · /monitoring/keyword · /control/* · /profile · /administration/*', headers: '—', params: '10 URL', requestBody: '—',
+      precondition: 'Client sudah login',
+      expectedStatus: 'Redirect', expectedResponse: 'Semua halaman admin redirect ke /monitoring/home',
+      specTitle: '/monitoring/dashboard redirect ke /monitoring/home (+ 9 halaman lainnya)',
+      assertions: 'toHaveURL(/monitoring/home) untuk semua 10 halaman',
+      source: 'tests/fe/client/access-control.spec.ts', notes: 'RBAC: client hanya boleh akses home & display wall',
+    },
+    {
+      id: 'TC-UI-CL09', name: 'Conversation Overview & Top Engagement dapat diakses client', category: 'RBAC', priority: 'High',
+      method: 'Navigate', endpoint: '/monitoring/conversation-overview · /monitoring/top-engagement', headers: '—', params: '2 URL', requestBody: '—',
+      precondition: 'Client sudah login',
+      expectedStatus: 'Sukses — tidak redirect', expectedResponse: 'Kedua halaman dapat diakses tanpa redirect ke /monitoring/home',
+      specTitle: '/monitoring/conversation-overview dapat diakses client',
+      assertions: 'toHaveURL(/monitoring/conversation-overview); toHaveURL(/monitoring/top-engagement)',
+      source: 'tests/fe/client/access-control.spec.ts', notes: '—',
+    },
+    // ── Display Wall ─────────────────────────────────────────────────────
+    {
+      id: 'TC-UI-CL10', name: 'Top Engagement menampilkan heading, chart, post links, branding', category: 'Positive', priority: 'High',
+      method: 'Navigate', endpoint: '/display/top-engagement', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Client sudah login',
+      expectedStatus: 'Sukses', expectedResponse: 'Heading keyword, 6+ chart SVG, post links, SIP Insight branding tampil',
+      specTitle: 'Top Engagement menampilkan heading keyword (+ 6 test lainnya)',
+      assertions: 'keyword visible; charts >= 6; postLinks > 0; branding visible',
+      source: 'tests/fe/client/display-wall.spec.ts', notes: 'Display wall full-screen tanpa navbar',
+    },
+    {
+      id: 'TC-UI-CL11', name: 'Conversation Overview menampilkan heading, branding, auto-refresh', category: 'Positive', priority: 'High',
+      method: 'Navigate', endpoint: '/display/conversation-overview', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Client sudah login',
+      expectedStatus: 'Sukses', expectedResponse: 'Heading keyword, SIP Insight branding, auto-refresh countdown tampil',
+      specTitle: 'Conversation Overview menampilkan heading keyword (+ 4 test lainnya)',
+      assertions: 'keyword visible; branding visible; refresh button visible',
+      source: 'tests/fe/client/display-wall.spec.ts', notes: '—',
+    },
+    // ── Logout ───────────────────────────────────────────────────────────
+    {
+      id: 'TC-UI-CL12', name: 'Logout client → redirect ke /login & session terhapus', category: 'Positive', priority: 'High',
+      method: 'Click', endpoint: '/login (via user menu → Logout)', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Client sudah login; user menu terbuka',
+      expectedStatus: 'Sukses — logout', expectedResponse: 'URL berubah ke /login; akses /monitoring/home tanpa login → redirect ke /login',
+      specTitle: 'klik Logout → redirect ke /login (+ 3 test lainnya)',
+      assertions: 'toHaveURL(/login); subsequent access redirect ke /login',
+      source: 'tests/fe/client/logout.spec.ts', notes: '—',
+    },
+  ];
+}
+
 // ---------- daftar test case platform BE (tests/be/) ----------
 // Sumber: Swagger BE di {BASE_URL_BE}/swagger/ (spec: /swagger/doc.json).
 // Status per 2026-08-14: hanya 3 endpoint yang tersisa & aktif —
@@ -3308,6 +3433,7 @@ const PLATFORM_FE = {
       { sheet: 'User', project: 'user', accent: 'FF166534', cases: buildUserCases() },
       { sheet: 'Provider', project: 'user', accent: 'FF4D7C0F', cases: buildProviderCases() },
       { sheet: 'Profile', project: 'profile', accent: 'FF9D174D', cases: buildProfileCases() },
+      { sheet: 'Client', project: 'client', accent: 'FF1E40AF', cases: buildClientCases() },
     ];
   },
   coverage: () => ({ sheetName: 'Coverage TC-UI', title: 'TC-UI', rows: buildCoverageRows() }),

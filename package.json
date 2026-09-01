@@ -15,6 +15,7 @@
     "test:control": "playwright test -c playwright.fe.config.ts --project=control --reporter=list",
     "test:user": "playwright test -c playwright.fe.config.ts --project=user --reporter=list",
     "test:profile": "playwright test -c playwright.fe.config.ts --project=profile --reporter=list",
+    "test:client": "playwright test -c playwright.fe.config.ts --project=client-login --project=client-home --project=client-access --project=client-display --project=client-logout --reporter=list",
     "test:headed": "playwright test -c playwright.fe.config.ts --headed --reporter=list",
     "report:fe": "playwright show-report playwright-report-fe",
     "report:be": "playwright show-report playwright-report-be",

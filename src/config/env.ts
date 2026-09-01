@@ -31,6 +31,10 @@ export const Env = {
   testUsername: process.env.UI_TEST_USERNAME ?? 'admin',
   testPassword: process.env.UI_TEST_PASSWORD ?? '12tiga',
 
+  // ----- Kredensial client (role terbatas: hanya home & display wall) -----
+  clientUsername: process.env.UI_CLIENT_USERNAME ?? 'client',
+  clientPassword: process.env.UI_CLIENT_PASSWORD ?? 'signalsclient',
+
   // ----- Backend API (testing platform BE & AI) -----
   // Base URL API backend target (deployed)
   beBaseUrl: process.env.BASE_URL_BE ?? 'http://10.200.101.13:8091',
