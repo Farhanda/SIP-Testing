@@ -5,6 +5,7 @@ import { Env } from './src/config/env';
 dotenv.config();
 
 import { AUTH_STATE_PATH } from './src/helpers/auth';
+import { CLIENT_AUTH_STATE_PATH } from './src/helpers/client-auth';
 
 /**
  * Konfigurasi DEFAULT — menjalankan SEMUA platform (FE + BE + AI) dalam satu
@@ -59,9 +60,26 @@ export default defineConfig({
     { name: 'fe-login', testMatch: /fe\/login\/.*\.spec\.ts/, use: { baseURL: Env.baseUrl } },
     {
       name: 'fe',
-      testMatch: /fe\/(?!login\/).*\.spec\.ts/,
+      testMatch: /fe\/(?!login\/|client\/|auth\.setup\.ts).*\.spec\.ts/,
       dependencies: ['fe-auth'],
       use: { baseURL: Env.baseUrl, storageState: AUTH_STATE_PATH },
+    },
+    // Client role — auth state TERPISAH (kredensial client), bukan admin.
+    // Spec di tests/fe/client/* memakai role client (hanya home & display
+    // wall), jadi membutuhkan project auth sendiri. Halaman login client
+    // (client/login.spec.ts) dipecah terpisah TANPA storageState karena
+    // /login di-redirect ke home bila sudah terautentikasi.
+    { name: 'fe-client-auth', testMatch: /fe\/client\/auth\.setup\.ts/, use: { baseURL: Env.baseUrl } },
+    {
+      name: 'fe-client-login',
+      testMatch: /fe\/client\/login\.spec\.ts/,
+      use: { baseURL: Env.baseUrl },
+    },
+    {
+      name: 'fe-client',
+      testMatch: /fe\/client\/(?!login\.spec\.ts).*\.spec\.ts/,
+      dependencies: ['fe-client-auth'],
+      use: { baseURL: Env.baseUrl, storageState: CLIENT_AUTH_STATE_PATH },
     },
     // BE & AI → base URL API backend.
     { name: 'be', testMatch: /be\/.*\.spec\.ts/, use: { baseURL: Env.beBaseUrl } },

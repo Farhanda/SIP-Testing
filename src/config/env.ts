@@ -53,4 +53,17 @@ export const Env = {
   // Token service AI — dikirim via header X-Service-Token (semua endpoint
   // AI wajib membawanya; isi "dev-local-service-token" untuk dev lokal)
   aiServiceToken: process.env.AI_SERVICE_TOKEN ?? 'dev-local-service-token',
+
+  // ----- Scraper service RAW (backend, tanpa prefix /scrape/) -----
+  // Backend BE ada DUA service: dashboard-service (BASE_URL_BE) &
+  // scraper service langsung (BASE_URL_SCRAPER, default :8090) — beda
+  // host/port dari api-gateway scrape (BASE_URL_SCRAPE, prefix /v1/scrape).
+  scraperBaseUrl: process.env.BASE_URL_SCRAPER ?? 'http://10.200.101.13:8090',
+
+  // ----- Intelligence AI Service (SIP Intelligence, port :8000) -----
+  // Service AI kedua: SIP AI Service (BASE_URL_AI, :8100, header
+  // X-Service-Token) & Intelligence AI Service (BASE_URL_AI_INTELLIGENCE,
+  // :8000, header X-AI-Service-Token). Token per-service dari .env.
+  aiIntelligenceBaseUrl: process.env.BASE_URL_AI_INTELLIGENCE ?? 'http://10.200.102.2:8000',
+  aiIntelligenceToken: process.env.AI_INTELLIGENCE_TOKEN ?? '',
 };
