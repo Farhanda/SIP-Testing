@@ -20,13 +20,28 @@ import { Env } from '../../src/config/env';
  * ⚠️ File ini sengaja TIDAK berakhiran .spec.ts supaya tidak ter-collect
  *    sebagai test file oleh testMatch di playwright.be.config.ts.
  */
-export const test = base.extend<{ api: APIRequestContext; scrapeApi: APIRequestContext }>({
+export const test = base.extend<{
+  api: APIRequestContext;
+  scrapeApi: APIRequestContext;
+  scraperApi: APIRequestContext;
+}>({
   api: async ({ request }, use) => use(request),
   // Scrape service / api-gateway berjalan di host/port TERPISAH dari
   // dashboard-service — butuh APIRequestContext sendiri (BASE_URL_SCRAPE).
   scrapeApi: async ({ playwright }, use) => {
     const ctx = await playwright.request.newContext({
       baseURL: Env.scrapeBaseUrl,
+      extraHTTPHeaders: { Accept: 'application/json' },
+    });
+    await use(ctx);
+    await ctx.dispose();
+  },
+  // Scraper service RAW (backend, tanpa prefix /scrape/) — service BE
+  // KEDUA di BASE_URL_SCRAPER (default :8090). Endpoint-nya konsisten
+  // dengan api-gateway tapi di-path polos (/v1/keyword-management, dsb).
+  scraperApi: async ({ playwright }, use) => {
+    const ctx = await playwright.request.newContext({
+      baseURL: Env.scraperBaseUrl,
       extraHTTPHeaders: { Accept: 'application/json' },
     });
     await use(ctx);
@@ -42,6 +57,11 @@ export function apiUrl(path: string): string {
 /** Bangun URL absolut scrape service: `${BASE_URL_SCRAPE}${path}` */
 export function scrapeUrl(path: string): string {
   return `${Env.scrapeBaseUrl}${path}`;
+}
+
+/** Bangun URL absolut scraper service RAW: `${BASE_URL_SCRAPER}${path}` */
+export function scraperUrl(path: string): string {
+  return `${Env.scraperBaseUrl}${path}`;
 }
 
 /**
