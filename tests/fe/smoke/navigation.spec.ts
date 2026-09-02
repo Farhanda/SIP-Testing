@@ -41,13 +41,19 @@ test.describe('Navigasi & Smoke', () => {
     await expect(page.getByRole('heading', { name: 'Keyword Intelligence', exact: true })).toBeVisible();
   });
 
-  test('tab On Demand ada di halaman keyword (tab Scheduled dihapus dari UI)', async ({ page }) => {
+  test('tab On Demand & Scheduled ada di halaman keyword (On Demand default)', async ({ page }) => {
     await page.goto('/monitoring/keyword');
 
-    // UI kini hanya punya satu tab: "On Demand" (default & satu-satunya)
+    // UI deploy 2026-09: DUA tab — "On Demand" (default terpilih) & "Scheduled"
     const tabOnDemand = page.getByRole('tab', { name: 'On Demand' });
+    const tabScheduled = page.getByRole('tab', { name: 'Scheduled' });
     await expect(tabOnDemand).toBeVisible();
     await expect(tabOnDemand).toHaveAttribute('aria-selected', 'true');
+    await expect(tabScheduled).toBeVisible();
+
+    // Pindah ke Scheduled → tab aktif berubah
+    await tabScheduled.click();
+    await expect(tabScheduled).toHaveAttribute('aria-selected', 'true');
   });
 
   test('halaman control protocol (alert, danger, green) dapat diakses', async ({ page }) => {

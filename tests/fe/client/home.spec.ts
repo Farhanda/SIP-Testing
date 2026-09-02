@@ -62,20 +62,19 @@ test.describe('Client — Home Page', () => {
 
   test('navbar menampilkan tombol user menu', async ({ page }) => {
     const header = page.locator('header');
-    // Client user menu menampilkan inisial nama user
-    const userButtons = header.locator('button');
-    const count = await userButtons.count();
-    expect(count).toBeGreaterThan(0);
+    // Client user menu menampilkan inisial nama user — tunggu tombol benar-benar
+    // ter-render (header di-render setelah auth/hydration selesai)
+    await expect(header.getByRole('button').first()).toBeVisible();
   });
 
   test('navbar tidak menampilkan link navigasi admin (Dashboard, Keyword, Management)', async ({ page }) => {
     const header = page.locator('header');
     const nav = header.locator('nav');
 
-    // Client navbar kosong — tidak ada link navigasi
-    const navLinks = nav.getByRole('link');
-    const linkCount = await navLinks.count();
-    expect(linkCount).toBe(0);
+    // Client navbar kosong — tidak ada link navigasi.
+    // ⚠️ Pakai expect Auto-Waiting (bukan count() sekali) agar kebal race
+    // saat header masih transisi dari auth/redirect.
+    await expect(nav.getByRole('link')).toHaveCount(0);
   });
 
   test('navbar menampilkan tombol dark mode toggle', async ({ page }) => {

@@ -73,7 +73,9 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     const mgmtBtn = page.locator('header').getByRole('button', { name: 'Management' });
     await expect(mgmtBtn).toBeVisible();
     await mgmtBtn.click();
-    const keywordLink = page.getByRole('link', { name: 'Keyword' });
+    // Link dropdown bernama "Keywords" (plural) — exact agar tidak bentrok
+    // dengan link post TikTok di tabel Top posts yang memuat kata "keyword".
+    const keywordLink = page.getByRole('link', { name: 'Keywords', exact: true });
     await expect(keywordLink).toBeVisible();
     await keywordLink.click();
     await expectUrlPath(page, '/monitoring/keyword');
