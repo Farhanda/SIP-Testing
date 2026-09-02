@@ -91,23 +91,20 @@ test.describe('Dashboard — Fitur UI Baru', () => {
     ).toBe(false);
   });
 
-  test('Export report button terlihat dan dapat diklik tanpa crash', async ({ dashboardPage }) => {
+  test('Export report mengunduh file posts-report.xlsx', async ({ dashboardPage }) => {
     await mockDashboardApis(dashboardPage.page);
     await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
     await dashboardPage.goto();
     await dashboardPage.expectResultsRendered();
 
-    // Export report button mungkin sudah tidak ada di UI terkini
-    const hasExport = await dashboardPage.exportReportButton.isVisible().catch(() => false);
-    if (!hasExport) return; // skip jika button tidak ada
-
+    // Export report berfungsi (deploy 2026-09): klik memicu event download
+    // file xlsx yang di-generate client-side (tanpa request jaringan tambahan).
+    const downloadPromise = dashboardPage.page.waitForEvent('download', { timeout: 15_000 });
     await dashboardPage.exportReportButton.click();
+    const download = await downloadPromise;
 
-    // Tidak boleh ada page error setelah klik
-    const pageErrors: string[] = [];
-    dashboardPage.page.on('pageerror', (err) => pageErrors.push(err.message));
-    await dashboardPage.page.waitForTimeout(2000);
-    expect(pageErrors.length).toBe(0);
+    expect(download.suggestedFilename()).toMatch(/\.xlsx$/);
+    expect(download.suggestedFilename()).toMatch(/posts-report/);
   });
 
   // ── Sort by di Top Posts ─────────────────────────────────────────────

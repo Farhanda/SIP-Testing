@@ -27,8 +27,10 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
     // Tabel mungkin belum render jika mock API belum match
     const hasTable = await postsPage.tableHeaders.count();
     if (hasTable > 0) {
+      // 8 kolom (deploy 2026-09): Platform, Published, Post, Emotion,
+      // Sentiment, Topic, Views, Engagement
       await expect(postsPage.tableHeaders).toHaveText([
-        'Platform', 'Post', 'Emotion', 'Topic', 'Views', 'Engagement',
+        'Platform', 'Published', 'Post', 'Emotion', 'Sentiment', 'Topic', 'Views', 'Engagement',
       ]);
     }
     // NOTE: jika hasTable === 0, test tetap PASS — halaman ter-load tapi
@@ -181,5 +183,47 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
     }
     // NOTE: jika rowCount === 0, halaman tetap ter-load — data BE
     // dinamis.
+  });
+
+  // ── Perbaikan teks di post list (deploy 2026-09) ────────────────────
+
+  test('teks post adalah link ke sumber asli (source_url) dan dibuka di tab baru', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+
+    const rowCount = await postsPage.postRows.count();
+    if (rowCount > 0) {
+      // Sel Post (kolom ke-3) harus memuat <a> dengan href = source_url
+      // dari mock (post-1 → https://www.tiktok.com/@user1/video/123).
+      const postLink = postsPage.postRows.first().locator('td').nth(2).locator('a').first();
+      await expect(postLink).toBeVisible();
+      await expect(postLink).toHaveAttribute('href', 'https://www.tiktok.com/@user1/video/123');
+      await expect(postLink).toHaveAttribute('target', '_blank');
+      // Link memuat teks post asli (bukan ter-mutasi/concatenate tanggal)
+      await expect(postLink).toContainText('Transformasi layanan publik perlu dimulai dari data...');
+    }
+  });
+
+  test('teks post yang panjang menampilkan tombol "Show more" untuk memperluas', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+
+    // Tombol hanya muncul kalau teks post ter-clamp (line-clamp-5). Dengan
+    // mock data pendek, cek keberadaan secara kondisional — yang penting
+    // tidak ada teks tanggal yang menempel pada teks post (bug lama).
+    const hasRows = (await postsPage.postRows.count()) > 0;
+    if (hasRows) {
+      const postCell = postsPage.postRows.first().locator('td').nth(2);
+      const text = (await postCell.textContent()) ?? '';
+      // Tanggal render sebagai kolom/elemen terpisah, bukan menempel di
+      // akhir teks post tanpa pemisah (pola bug lama "...teks19 Aug, 19:00").
+      expect(text).not.toMatch(/[a-z0-9#]\d{1,2} (Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar|Apr|May|Jun|Jul), \d{2}:\d{2}$/);
+
+      const showMore = postCell.getByRole('button', { name: 'Show more' });
+      const hasShowMore = await showMore.count().catch(() => 0);
+      if (hasShowMore > 0) {
+        await showMore.click();
+        // Setelah klik, tombol berubah jadi "Show less" — teks diperluas
+        await expect(postCell.getByRole('button', { name: 'Show less' })).toBeVisible();
+      }
+    }
   });
 });

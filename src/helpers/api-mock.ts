@@ -98,7 +98,7 @@ const TOPICS = [
 ];
 
 const TOP_ACCOUNTS = [
-  { id: 'acc-1', handle: 'sip_indonesia', platform: 'X', posts: 120 },
+  { id: 'acc-1', handle: 'sip_indonesia', platform: 'Twitter/X', posts: 120 },
   { id: 'acc-2', handle: 'beritakota_id', platform: 'TikTok', posts: 84 },
 ];
 

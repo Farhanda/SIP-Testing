@@ -247,14 +247,54 @@ test.describe('Dashboard', () => {
     await expect(dashboardPage.topPerformersHeading).toBeVisible();
     await expect(dashboardPage.topAccountsHeading).toBeVisible();
 
-    // Data mock: sip_indonesia (X, 120 posts) & beritakota_id (TikTok, 84 posts)
+    // Data mock: sip_indonesia (Twitter/X, 120 posts) & beritakota_id (TikTok, 84 posts)
     const accountsSection = dashboardPage.page.locator('article').filter({ hasText: 'Top accounts' }).first();
     await expect(accountsSection).toContainText('sip_indonesia');
-    await expect(accountsSection).toContainText('X');
+    await expect(accountsSection).toContainText('Twitter/X');
     await expect(accountsSection).toContainText('120 post');
     await expect(accountsSection).toContainText('beritakota_id');
     await expect(accountsSection).toContainText('TikTok');
     await expect(accountsSection).toContainText('84 post');
+  });
+
+  test('klik akun di Top accounts membuka halaman posts dengan filter platform & actor (deploy 2026-09)', async ({
+    dashboardPage,
+  }) => {
+    await mockDashboardApis(dashboardPage.page);
+    await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
+    await dashboardPage.goto();
+
+    await dashboardPage.expectResultsRendered();
+    const accountsSection = dashboardPage.page.locator('article').filter({ hasText: 'Top accounts' }).first();
+    await expect(accountsSection.locator('a').first()).toBeVisible();
+
+    // Item akun kini berupa LINK (deploy 2026-09): href ke halaman posts
+    // dengan param keyword, platform, dan actor dari data akun.
+    const firstLink = accountsSection.locator('a').first();
+    const href = await firstLink.getAttribute('href');
+    expect(href).toContain('/monitoring/dashboard/posts?');
+    expect(href).toContain('keyword=');
+    expect(href).toContain(`platform=${encodeURIComponent('Twitter/X')}`);
+    expect(href).toContain('actor=sip_indonesia');
+
+    // Link dibuka di tab baru (target=_blank)
+    await expect(firstLink).toHaveAttribute('target', '_blank');
+
+    // Klik → tab baru terbuka dengan filter platform & actor diterapkan
+    const popupPromise = dashboardPage.page.waitForEvent('popup');
+    await firstLink.click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState('domcontentloaded');
+
+    // URL posts membawa param filter yang sama
+    await expect(popup).toHaveURL(/\/monitoring\/dashboard\/posts\?/);
+    const popupUrl = new URL(popup.url());
+    expect(popupUrl.searchParams.get('platform')).toBe('Twitter/X');
+    expect(popupUrl.searchParams.get('actor')).toBe('sip_indonesia');
+
+    // Filter platform di halaman posts menunjukkan platform akun terpilih
+    const platButton = popup.getByRole('button', { name: /platform/i }).first();
+    await expect(platButton).toContainText('Twitter/X');
   });
 
   // ── Top Hashtags ─────────────────────────────────────────────────────
