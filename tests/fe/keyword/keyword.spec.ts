@@ -2,16 +2,16 @@ import { expect } from '../fixtures';
 import { test } from '../fixtures';
 import {
   mockKeywordOptions,
+  mockSchedulerList,
   mockUnscheduledList,
 } from '../../../src/helpers/api-mock';
 
 /**
- * Test Monitoring Keyword (/monitoring/keyword) — UI saat ini (2026-08)
- * hanya punya SATU tab "On Demand" yang memanggil BE langsung
- * GET /v1/scrape/keyword-management?schedule_enabled=false.
- * Tab Scheduled, Move-to-scheduled, dan Edit-scheduled sudah dihapus dari
- * aplikasi → seluruh coverage diarahkan ke On Demand.
- * Daftar di-mock (deterministik); filter diuji end-to-end UI → API.
+ * Test Monitoring Keyword (/monitoring/keyword) — UI deploy 2026-09 punya
+ * DUA tab: "On Demand" (default) & "Scheduled" (kembali aktif), keduanya
+ * memanggil BE langsung GET /v1/scrape/keyword-management (beda query
+ * schedule_enabled=true|false). Daftar di-mock (deterministik); filter
+ * diuji end-to-end UI → API.
  */
 test.describe('Monitoring Keyword', () => {
   test('daftar On Demand tampil lengkap dengan tabel & filter', async ({ keywordPage }) => {
@@ -75,6 +75,36 @@ test.describe('Monitoring Keyword', () => {
     await expect(keywordPage.searchInput).toHaveValue('');
     await keywordPage.expectKeywordVisible('RUU Digital', true);
     await keywordPage.expectKeywordVisible('Ketenagakerjaan', true);
+  });
+
+  test('tab Scheduled menampilkan daftar lengkap dengan tabel & aksi baris', async ({ keywordPage }) => {
+    await mockKeywordOptions(keywordPage.page);
+    await mockSchedulerList(keywordPage.page);
+    await keywordPage.gotoScheduledTab();
+
+    await expect(keywordPage.page.getByRole('heading', { name: 'Scheduled Keywords' })).toBeVisible();
+    await expect(keywordPage.searchInput).toBeVisible();
+
+    // Data mock scheduled ter-render
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
+    await expect(keywordPage.paginationText).toBeVisible();
+
+    // Aksi baris Scheduled: Toggle status, Edit, Move to on-demand
+    await expect(keywordPage.toggleStatus('RUU Digital')).toBeVisible();
+    await expect(keywordPage.editScheduledButton('RUU Digital')).toBeVisible();
+    await expect(keywordPage.moveToOnDemandButton('RUU Digital')).toBeVisible();
+  });
+
+  test('pencarian keyword memfilter daftar Scheduled', async ({ keywordPage }) => {
+    await mockKeywordOptions(keywordPage.page);
+    await mockSchedulerList(keywordPage.page);
+    await keywordPage.gotoScheduledTab();
+
+    await keywordPage.searchKeyword('RUU');
+
+    // Search 'RUU' hanya menampilkan keyword yang mengandung 'RUU'
+    await keywordPage.expectKeywordVisible('RUU Digital', true);
+    await keywordPage.expectKeywordVisible('BPJS Kesehatan', false);
   });
 });
 

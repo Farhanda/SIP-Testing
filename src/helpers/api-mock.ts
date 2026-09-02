@@ -507,6 +507,20 @@ function schedulerToManagementItem(item: MockSchedulerItem) {
 }
 
 function unscheduledToManagementItem(item: MockUnscheduledItem) {
+  const status = item.status.toUpperCase();
+  // last_execution_status TETAP status eksekusi (mis. FAILED); raw error code
+  // ditaruh di last_execution.failure_reason — persis kontrak BE asli (dipakai
+  // test regresi R10: UI menampilkan failure_reason mentah sebagai teks status).
+  const lastExecution =
+    item.lastExecutionStatus != null
+      ? {
+          status,
+          phase: 'SCRAPING',
+          hold_reason: null,
+          failure_reason: item.lastExecutionStatus,
+          platform: item.platforms[0]?.toLowerCase() ?? 'tiktok',
+        }
+      : null;
   return {
     id: item.id,
     keyword: item.keyword,
@@ -516,7 +530,8 @@ function unscheduledToManagementItem(item: MockUnscheduledItem) {
     source: 'MANUAL',
     schedule_enabled: false,
     schedule: null,
-    last_execution_status: item.status.toUpperCase(),
+    last_execution_status: status,
+    last_execution: lastExecution,
     last_run_at: item.createdAt,
     last_success_at: item.status === 'completed' ? item.createdAt : null,
     last_failure_at: item.status === 'failed' ? item.createdAt : null,
@@ -670,6 +685,8 @@ export type MockUnscheduledItem = {
   status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
   runCount: number;
   progressPct: number;
+  /** Override last_execution_status (mis. raw error code utk test regresi R10). */
+  lastExecutionStatus?: string;
 };
 
 export const MOCK_UNSCHEDULED_ITEMS: MockUnscheduledItem[] = [
@@ -739,6 +756,54 @@ export function mockUpdateScheduler(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ data: { id: 'sch-1', keyword: 'updated', state: 'active' } }),
+    });
+  });
+}
+
+/**
+ * Mock PATCH /v1/scrape/keyword-management/:id/activate|deactivate — toggle
+ * status switch pada baris On Demand & Scheduled (kontrak diverifikasi probe
+ * 2026-09-02: PATCH tanpa body; UI refetch list setelah toggle).
+ *
+ * Secara default MUTASI state item di array sumber (`state` utk scheduler,
+ * `status` utk unscheduled) sehingga refetch daftar mengembalikan state baru
+ * — sama seperti perilaku API asli (UI selalu refetch). Daftarkan SETELAH
+ * mock list. Opsi `succeed=false` untuk skenario error server.
+ */
+export function mockToggleKeyword(
+  page: Page,
+  items?: { scheduler?: MockSchedulerItem[]; unscheduled?: MockUnscheduledItem[] },
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/v1\/scrape\/keyword-management\/[^/?]+\/(activate|deactivate)$/, async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.fallback();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Failed to load data.' }),
+      });
+      return;
+    }
+    const segments = new URL(route.request().url()).pathname.split('/').filter(Boolean);
+    const id = segments[segments.length - 2];
+    const action = segments[segments.length - 1]; // activate | deactivate
+    const enable = action === 'activate';
+    if (items?.scheduler) {
+      const item = items.scheduler.find((i) => i.id === id);
+      if (item) item.state = enable ? 'active' : 'hold';
+    }
+    if (items?.unscheduled) {
+      const item = items.unscheduled.find((i) => i.id === id);
+      if (item) item.status = enable ? 'processing' : 'failed';
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id, state: enable ? 'active' : 'inactive' } }),
     });
   });
 }

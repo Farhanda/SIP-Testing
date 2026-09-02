@@ -3,10 +3,12 @@ import { BasePage } from './BasePage';
 
 /**
  * POM halaman Monitoring Keyword (/monitoring/keyword).
- * UI saat ini (2026-08) hanya memiliki SATU tab: "On Demand" — tab
- * "Scheduled" dan aksi Move-to-scheduled / Edit-scheduled sudah dihapus
- * dari aplikasi. Aksi baris yang tersedia: Toggle status, View detail,
- * Reprocess.
+ * UI deploy 2026-09 menghidupkan kembali fitur scheduled: ada DUA tab
+ * ("On Demand" default & "Scheduled"). Aksi baris On Demand: Toggle
+ * status, Reprocess, Move-to-scheduled. Aksi baris Scheduled: Toggle,
+ * Edit, Move-to-on-demand. Modal Add On Demand memakai checkbox platform
+ * (selector period sudah dihapus); dialog jadwal (Add/Move/Edit scheduled)
+ * memakai start/end datetime + frequency.
  */
 export class KeywordPage extends BasePage {
   readonly heading = this.page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ });
@@ -33,66 +35,84 @@ export class KeywordPage extends BasePage {
   readonly createModal = this.page.getByRole('dialog', { name: 'Add keyword', exact: true });
   readonly unscKeywordInput = this.createModal.getByRole('combobox', { name: 'Keyword' });
   readonly startProcessButton = this.page.getByRole('button', { name: 'Start process' });
-  // Date field muncul saat period = Custom range — render di popup period,
-  // BUKAN di dalam dialog modal (dicek 2026-08-31).
-  readonly unscDateFromInput = this.page.getByRole('textbox', { name: 'Start date' });
-  readonly unscDateToInput = this.page.getByRole('textbox', { name: 'End date' });
 
-  // Modal Add: Period kini berupa button (HeadlessUI Listbox), bukan <select>.
-  // Untuk memilih opsi: klik button → pilih option di listbox.
-  readonly unscPeriodButton = this.createModal.locator('#unsc-period');
-  readonly unscPlatformButton = this.createModal.getByRole('button', {
-    name: /All platforms|Select platform/,
-  });
-
-  /**
-   * Set pilihan platform di modal Add (On Demand) via listbox.
-   * Buka dropdown, klik option yang beda state, lalu tutup (Escape).
-   */
-  /** Set pilihan period di modal Add (On Demand) — period berupa tombol-tombol.
-   *  Klik button period → popup muncul → pilih tombol dengan label yang sesuai.
-   *  Daftar opsi: 24 Hours, 3 Days, 7 Days, 1 Month, Custom range. */
-  async setUnscPeriod(option: string) {
-    await this.unscPeriodButton.click();
-    // Tunggu popup period muncul (render di luar dialog)
-    const popup = this.page.locator('button[aria-expanded="true"]').first();
-    await popup.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    // Cari tombol dengan teks yang mengandung `option` (case-insensitive)
-    const btn = this.page.getByRole('button', { name: new RegExp(option, 'i') });
-    await btn.click();
+  // Modal Add On Demand (deploy 2026-09): pilihan platform kini CHECKBOX group
+  // (Instagram/TikTok/Twitter-X, semua checked secara default) — bukan lagi
+  // dropdown listbox, dan selector period sudah dihapus dari modal ini.
+  unscPlatformCheckbox(name: string) {
+    return this.createModal.getByRole('checkbox', { name, exact: true });
   }
 
+  /** Set pilihan platform di modal Add (On Demand) via checkbox. */
   async setUnscPlatforms(selected: string[]) {
-    await this.unscPlatformButton.click();
     for (const platform of ['Instagram', 'TikTok', 'Twitter/X']) {
-      const option = this.page.getByRole('option', { name: platform, exact: true });
-      const isSelected = (await option.getAttribute('aria-selected')) === 'true';
-      if (isSelected !== selected.includes(platform)) {
-        await option.click();
+      const checkbox = this.unscPlatformCheckbox(platform);
+      const isChecked = await checkbox.isChecked().catch(() => false);
+      if (isChecked !== selected.includes(platform)) {
+        await checkbox.click();
       }
     }
-    await this.page.keyboard.press('Escape');
   }
 
-  /** Verifikasi SEMUA opsi platform yang dirender listbox terpilih.
-   *  ⚠️ Daftar opsi kini DINAMIS (deploy 2026-08 bisa hanya subset platform),
-   *  jadi assertion struktural: minimal 1 opsi & semuanya selected. */
+  /** Verifikasi SEMUA checkbox platform terpilih (nilai default modal Add).
+   *  Assertion struktural: minimal 1 checkbox & semuanya checked. */
   async expectUnscPlatformsAllSelected() {
-    // Scope ke dalam [role=listbox] — getByRole('option') global ikut
-    // mencocokkan <option> native milik select filter yang tersembunyi.
-    const firstOption = this.page.locator('[role="listbox"] [role="option"]').first();
-    for (let i = 0; i < 3 && !(await firstOption.isVisible().catch(() => false)); i++) {
-      await this.unscPlatformButton.click();
-      await firstOption.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
-    }
-    const options = this.page.locator('[role="listbox"] [role="option"]');
-    await expect(firstOption).toBeVisible();
-    const total = await options.count();
+    const checkboxes = this.createModal.locator('input[type="checkbox"]');
+    const total = await checkboxes.count();
     expect(total).toBeGreaterThanOrEqual(1);
     for (let i = 0; i < total; i++) {
-      await expect(options.nth(i)).toHaveAttribute('aria-selected', 'true');
+      await expect(checkboxes.nth(i)).toBeChecked();
     }
-    await this.page.keyboard.press('Escape');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tab Scheduled (kembali aktif di deploy 2026-09) & dialog-dialog jadwal
+  // ---------------------------------------------------------------------------
+  readonly tabScheduled = this.page.getByRole('tab', { name: 'Scheduled' });
+
+  /** Baris tabel Scheduled yang memuat teks `keyword`. */
+  scheduledRowOf(keyword: string) {
+    return this.page.getByRole('row').filter({ hasText: keyword });
+  }
+
+  editScheduledButton(keyword: string) {
+    return this.scheduledRowOf(keyword).getByRole('button', { name: `Edit ${keyword}` });
+  }
+
+  moveToOnDemandButton(keyword: string) {
+    return this.scheduledRowOf(keyword).getByRole('button', { name: `Move ${keyword} to on-demand keyword` });
+  }
+
+  moveToScheduledButton(keyword: string) {
+    return this.rowOf(keyword).getByRole('button', { name: `Move ${keyword} to scheduled keyword` });
+  }
+
+  // Dialog jadwal (Add scheduled / Move to scheduled / Edit scheduled) punya
+  // struktur yang sama: keyword combobox + checkbox platform + start/end
+  // datetime-local + frequency value/unit. Field di-scope per id unik.
+  readonly addScheduleStartInput = this.page.locator('#add-schedule-start-at');
+  readonly addScheduleEndInput = this.page.locator('#add-schedule-end-at');
+  readonly moveScheduleStartInput = this.page.locator('#move-schedule-start-at');
+  readonly moveScheduleEndInput = this.page.locator('#move-schedule-end-at');
+  readonly editScheduleStartInput = this.page.locator('#edit-schedule-start-at');
+  readonly editScheduleEndInput = this.page.locator('#edit-schedule-end-at');
+  readonly editKeywordInput = this.page.locator('#edit-keyword');
+  readonly frequencyValueInput = this.page.getByLabel('Frequency value');
+  readonly frequencyUnitSelect = this.page.getByLabel('Frequency unit');
+  readonly saveKeywordButton = this.page.getByRole('button', { name: 'Save keyword' });
+  readonly moveKeywordButton = this.page.getByRole('button', { name: 'Move keyword' });
+  readonly saveChangesButton = this.page.getByRole('button', { name: 'Save changes' });
+
+  /** Buka modal Add scheduled (tab Scheduled → tombol "+ Add keyword"). */
+  async openAddScheduledModal() {
+    await this.addKeywordButton.click();
+    await expect(this.page.locator('#keyword')).toBeVisible();
+  }
+
+  async gotoScheduledTab() {
+    await this.goto();
+    await this.tabScheduled.click();
+    await expect(this.tabScheduled).toHaveAttribute('aria-selected', 'true');
   }
 
 
