@@ -18,6 +18,10 @@ test-cases/*.xlsx
 # Weekly developer report
 SIP_Weekly_Developer_Report*.xlsx
 
+# Hasil generate screenshots/PDF (jangan di-commit, biarin lokal)
+docs/
+tools/
+
 # Lainnya
 *.log
 .DS_Store
