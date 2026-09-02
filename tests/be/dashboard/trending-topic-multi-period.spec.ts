@@ -5,9 +5,9 @@ import { test, expect, apiUrl } from '../fixtures';
  * dengan delta per periode (24h / 7d / 1mo) untuk display wall
  * Conversation Overview.
  *
- * Struktur respons (diverifikasi live 2026-08-24):
- *   { data: [{ id, label, value, pct, deltas: [{label, value, up, primary?}] }],
- *     meta: {...} }
+ * Struktur respons (diverifikasi live 2026-09-02 — deploy menghilangkan `id`):
+ *   { data: [{ label, value, posts, pct, deltas: [{label, value, up,
+ *     change_pct, primary?}] }], meta: {...} }
  *
  * Catatan: Swagger menandai endpoint ini "placeholder data" — assertion
  * fokus pada KONTRAK struktur (bukan nilai bisnis), supaya tidak rapuh.
@@ -24,12 +24,14 @@ test.describe('GET /v1/dashboard/trending-topic-multi-period', () => {
     expect(body.data.length).toBeGreaterThan(0);
 
     for (const topic of body.data) {
-      expect(typeof topic.id).toBe('string');
       expect(typeof topic.label).toBe('string');
       expect(topic.label.length).toBeGreaterThan(0);
-      // value berupa string ringkas ("1.726 posts")
+      // value berupa string ringkas ("804 posts")
       expect(typeof topic.value).toBe('string');
       expect(topic.value.length).toBeGreaterThan(0);
+      // deploy 2026-09: item punya posts (jumlah post) & pct, tanpa id lagi
+      expect(typeof topic.posts).toBe('number');
+      expect(topic.posts).toBeGreaterThanOrEqual(0);
       expect(typeof topic.pct).toBe('number');
       expect(topic.pct).toBeGreaterThanOrEqual(0);
       expect(topic.pct).toBeLessThanOrEqual(100);

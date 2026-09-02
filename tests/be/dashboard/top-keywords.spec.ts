@@ -51,7 +51,10 @@ test.describe('GET /v1/dashboard/top-keywords', () => {
 
   for (const k of known) {
     test(`konsistensi: "${k.keyword}" muncul dengan count = ${k.expectedTotalPosts} (sama dgn summary)`, async ({ api }) => {
-      const res = await api.get(apiUrl('/v1/dashboard/top-keywords'));
+      // Tanpa limit hanya ~10 keyword teratas yang dikembalikan — keyword
+      // dengan post sedikit bisa tidak masuk. Minta limit cukup besar agar
+      // konsistensi lintas-endpoint tetap bisa diverifikasi (2026-09).
+      const res = await api.get(apiUrl('/v1/dashboard/top-keywords?limit=100'));
       expect(res.status()).toBe(200);
 
       const body = await res.json();

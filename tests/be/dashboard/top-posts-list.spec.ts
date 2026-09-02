@@ -7,11 +7,12 @@ import { test, expect, apiUrl, matchesPlatformFilter } from '../fixtures';
  * bisa difilter & diurutkan. Mirip top-posts tapi dengan pagination,
  * free-text search, emotion filter, dan sort_by.
  *
- * Kontrak Swagger:
+ * Kontrak aktual (perubahan deploy 2026-09):
  *   GET /v1/dashboard/top-posts-list?page=1&size=10&sort_by=view|engagement
  *        &keyword=&platform=&period=&search=&emotion=
- *   Response: { data: [{ id, platform, post, emotion, topic, engagement, views }],
- *              meta: { generated_at, page, size, total, total_pages } }
+ *   Response: { data: { stats: { total_posts, ... }, posts: [ { id, platform,
+ *              post, emotion, topic, engagement, views } ] },
+ *              meta: { generated_at, page, size, total, totalPages } }
  *
  * Default sort = views desc (bukan engagement seperti Swagger).
  * sort_by=view adalah no-op karena sudah default.
@@ -24,8 +25,11 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBeLessThanOrEqual(10);
+    // Deploy 2026-09: data = { stats, posts } (bukan array langsung)
+    const posts = body.data.posts;
+    expect(Array.isArray(posts)).toBe(true);
+    expect(posts.length).toBeLessThanOrEqual(10);
+    expect(typeof body.data.stats.total_posts).toBe('number');
     expect(body.meta.page).toBe(1);
     expect(body.meta.size).toBe(10);
     expect(typeof body.meta.total).toBe('number');
@@ -38,8 +42,9 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    if (body.data.length > 0) {
-      const p = body.data[0];
+    const posts = body.data.posts;
+    if (posts.length > 0) {
+      const p = posts[0];
       expect(typeof p.id).toBe('string');
       expect(typeof p.platform).toBe('string');
       expect(typeof p.post).toBe('string');
@@ -57,7 +62,7 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
 
     const body = await res.json();
     expect(body.meta.page).toBe(2);
-    expect(body.data.length).toBeLessThanOrEqual(3);
+    expect(body.data.posts.length).toBeLessThanOrEqual(3);
   });
 
   test('size=50 (max) → 200, bisa ambil semua data', async ({ api }) => {
@@ -66,8 +71,8 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
 
     const body = await res.json();
     expect(body.meta.size).toBe(50);
-    expect(body.data.length).toBeLessThanOrEqual(body.meta.total);
-    expect(body.data.length).toBeLessThanOrEqual(50);
+    expect(body.data.posts.length).toBeLessThanOrEqual(body.meta.total);
+    expect(body.data.posts.length).toBeLessThanOrEqual(50);
   });
 
   test('size=100 (over max) → 200, di-clamp ke 50', async ({ api }) => {
@@ -83,8 +88,9 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    if (body.data.length >= 2) {
-      expect(body.data[0].engagement).toBeGreaterThanOrEqual(body.data[1].engagement);
+    const posts = body.data.posts;
+    if (posts.length >= 2) {
+      expect(posts[0].engagement).toBeGreaterThanOrEqual(posts[1].engagement);
     }
   });
 
@@ -93,11 +99,12 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(Array.isArray(body.data)).toBe(true);
+    const posts = body.data.posts;
+    expect(Array.isArray(posts)).toBe(true);
 
     // Default sort sudah views desc — sort_by=view adalah no-op
-    if (body.data.length >= 2) {
-      const views = body.data.map((p: any) => p.views);
+    if (posts.length >= 2) {
+      const views = posts.map((p: any) => p.views);
       const isSorted = views.every((val: number, i: number) => i === 0 || val <= views[i - 1]);
       console.info('  [INFO] sort_by=view no-op — default already views desc');
     }
@@ -108,11 +115,12 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
+    const posts = body.data.posts;
     // BE search: full-text search, bisa match partial words
     expect(body.meta.total).toBeGreaterThan(0);
-    expect(body.data.length).toBeGreaterThan(0);
+    expect(posts.length).toBeGreaterThan(0);
     // Setiap item punya id, platform, post, engagement, views
-    for (const p of body.data) {
+    for (const p of posts) {
       expect(typeof p.id).toBe('string');
       expect(typeof p.platform).toBe('string');
       expect(typeof p.post).toBe('string');
@@ -125,7 +133,7 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(body.data).toHaveLength(0);
+    expect(body.data.posts).toHaveLength(0);
     expect(body.meta.total).toBe(0);
   });
 
@@ -143,8 +151,9 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    if (body.data.length > 0) {
-      for (const p of body.data) {
+    const posts = body.data.posts;
+    if (posts.length > 0) {
+      for (const p of posts) {
         expect(matchesPlatformFilter(p.platform, 'tiktok')).toBe(true);
       }
     }
@@ -155,8 +164,9 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    if (body.data.length > 0) {
-      for (const p of body.data) {
+    const posts = body.data.posts;
+    if (posts.length > 0) {
+      for (const p of posts) {
         expect(matchesPlatformFilter(p.platform, 'instagram')).toBe(true);
       }
     }
@@ -167,8 +177,9 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    if (body.data.length > 0) {
-      for (const p of body.data) {
+    const posts = body.data.posts;
+    if (posts.length > 0) {
+      for (const p of posts) {
         expect(matchesPlatformFilter(p.platform, 'x')).toBe(true);
       }
     }
@@ -179,7 +190,7 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(Array.isArray(body.data)).toBe(true);
+    expect(Array.isArray(body.data.posts)).toBe(true);
   });
 
   test('filter keyword → 200', async ({ api }) => {
@@ -187,7 +198,7 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(Array.isArray(body.data)).toBe(true);
+    expect(Array.isArray(body.data.posts)).toBe(true);
   });
 
   test('filter period=7d → 200', async ({ api }) => {
@@ -195,7 +206,7 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(res.status()).toBe(200);
 
     const body = await res.json();
-    expect(Array.isArray(body.data)).toBe(true);
+    expect(Array.isArray(body.data.posts)).toBe(true);
   });
 
   test('total_pages konsisten dengan total & size', async ({ api }) => {
@@ -246,6 +257,6 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     const body = await res.json();
     // Page di-clamp ke halaman terakhir
     expect(body.meta.page).toBe(body.meta.totalPages);
-    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data.posts.length).toBeGreaterThan(0);
   });
 });

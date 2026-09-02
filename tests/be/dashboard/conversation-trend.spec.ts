@@ -85,10 +85,15 @@ test.describe('Dashboard Conversation Trend API', () => {
     expect(body.data.length).toBeGreaterThanOrEqual(7);
     expect(body.data.length).toBeLessThanOrEqual(8);
 
-    // Keyword dengan data → setidaknya ada 1 hari bervolume > 0 (diverifikasi
-    // 2026-08-08 s/d 2026-08-12 punya volume > 0).
-    const totalVolume = body.data.reduce((sum, p) => sum + p.volume, 0);
-    expect(totalVolume, `total volume untuk ${KNOWN_KEYWORD} harus > 0`).toBeGreaterThan(0);
+    // ⚠️ Rolling window 7d bisa bernilai 0 bila belum ada data ter-ingest
+    // dalam seminggu terakhir (diverifikasi 2026-09-02: semua keyword 0) —
+    // jadi TIDAK diassert > 0; cukup tiap poin berisi angka volume valid.
+    for (const point of body.data) {
+      expect(typeof point.volume).toBe('number');
+      expect(point.volume).toBeGreaterThanOrEqual(0);
+      expect(typeof point.engagement).toBe('number');
+      expect(point.engagement).toBeGreaterThanOrEqual(0);
+    }
   });
 
   test('GET /v1/dashboard/conversation-trend dengan period tidak valid → 200 (fallback 1 bulan)', async ({ api }) => {
@@ -277,8 +282,9 @@ test.describe('Dashboard Conversation Trend Hourly — validasi lanjutan', () =>
   });
 
   test('conversation-trend-hourly date tanpa data → 200 & 24 point nol', async ({ api }) => {
-    // 2026-01-01 jauh sebelum seed → semua bucket 0 (tetap 24 point)
-    const res = await api.get(apiUrl(`${HOURLY_PATH}?date=2026-01-01`));
+    // 2030-01-01 jauh setelah seed → semua bucket 0 (tetap 24 point);
+    // (2026-01-01 dulunya kosong tetapi kini sudah berisi data)
+    const res = await api.get(apiUrl(`${HOURLY_PATH}?date=2030-01-01`));
     expect(res.status()).toBe(200);
 
     const body = (await res.json()) as TrendResponse;

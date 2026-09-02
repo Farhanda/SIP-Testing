@@ -6,7 +6,8 @@ import { test, expect, apiUrl, matchesPlatformFilter } from '../fixtures';
  *   GET {BASE_URL_BE}/v1/dashboard/top-accounts
  *     ?keyword=<slug>&platform=<comma-separated>&period=<...>
  *     → 200 { data: [{ id, handle, platform, posts }], meta: { generated_at } }
- *     (id = handle; diurutkan posts desc; maks 5)
+ *     (perubahan deploy 2026-09: id = slug lowercase, handle = display name —
+ *     TIDAK lagi selalu sama; diurutkan posts desc; maks 5)
  *
  *   GET {BASE_URL_BE}/v1/dashboard/top-hashtags
  *     → 200 { data: [{ id, tag, count }], meta: { generated_at } }
@@ -57,7 +58,7 @@ test.describe('Dashboard — GET /v1/dashboard/top-accounts', () => {
     expect(Array.isArray(body.data)).toBe(true);
     for (const item of body.data) {
       expect(item.id).toBeTruthy();
-      expect(item.handle).toBe(item.id); // id = handle di kontrak ini
+      expect(item.handle).toBeTruthy();
       expect(item.platform).toBeTruthy();
       expect(item.posts).toBeGreaterThanOrEqual(1);
     }
