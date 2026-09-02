@@ -15,11 +15,13 @@ Automation **Web UI (E2E) + API** testing dengan **Playwright + TypeScript** unt
 - ✅ **Trace, screenshot & video on failure** — memudahkan debugging
 - ✅ **Ekspor test case ke Excel** — lengkap dengan status PASS/FAIL (`npm run test-cases`)
 - ✅ **Test regresi bug** — `tests/fe/*/regression-bugs.spec.ts` meng-encode perilaku yang **benar** (kategori `Regression`): sengaja FAIL selama bug belum diperbaiki. Status saat ini:
-  - ✅ **PASS — bug fixed**: R1 Add scheduled kirim POST, R2 tanggal terbalik ditolak, L05/A1 login redirect (auth asli sudah aktif)
-  - 🔴 **Masih merah (bug terbuka)**: R2 periode Custom tanggal terbalik diterima (halaman keyword On Demand), C7/P04 change password tanpa verifikasi current password, R4/U06 delete Super Admin tanpa guard
-  - 🗑️ **Dihapus**: A2/D10 Export report & D29 protocol status badge (elemen sudah dihapus dari UI); R1 (Add scheduled) & B4 (Move to scheduled) — tab Scheduled & aksi Move sudah dihapus dari aplikasi keyword (2026-08)
+  - ✅ **PASS — bug fixed**: R2 tanggal terbalik ditolak (validasi di dialog Add scheduled, deploy 2026-09), L05/A1 login redirect (auth asli sudah aktif)
+  - 🔴 **Masih merah (bug terbuka)**: R9 Escape tidak menutup modal Add keyword, R10 raw error codes ter-expose di keyword list, C7/P04 change password tanpa verifikasi current password (R4/U06: test kini PASS — delete Super Admin diguard di UI dengan tidak mengirim request)
+  - 🗑️ **Dihapus**: D29 protocol status badge (elemen sudah dihapus dari UI)
+  - ♻️ **Dikembalikan (deploy 2026-09)**: A2/D10 Export report (kini unduh `posts-report.xlsx` via event download — verifikasi di `dashboard-features.spec.ts`), R1 (Add scheduled) & B4 (Move to scheduled) — tab Scheduled & aksi Move/Edit kembali aktif; coverage positifnya ada di `keyword-modals.spec.ts` (Add scheduled POST) & `keyword-actions.spec.ts` (Move/Edit PUT)
 - ✅ **Auth asli + storageState (2026-08)** — aplikasi kini memakai login sungguhan. Project setup `auth` login via UI sekali (kredensial `UI_TEST_USERNAME` / `UI_TEST_PASSWORD` di `.env`) dan menyimpan storageState di `.auth/fe-state.json` yang dipakai semua project modul **kecuali `login`** (halaman `/login` di-redirect ke dashboard bila sudah terautentikasi). Route `/display/*` memang tanpa login (by design — wall publik).
 - ✅ **Coverage modul baru** — Provider Management (`/administration/provider`, konsumsi BE langsung `/v1/scrape/credential`) & halaman Keyword Intelligence (`/monitoring/keyword-intelligence`)
+- ✅ **Perbaikan UI deploy 2026-09** — halaman Posts kini **8 kolom** (`Platform, Published, Post, Emotion, Sentiment, Topic, Views, Engagement`), teks post jadi link ke sumber asli (`source_url`, tab baru, tombol Show more), dan **Top accounts clickable** — klik akun membuka halaman posts dengan filter `platform` + `actor` terisi otomatis (di `posts-page.spec.ts` & `dashboard.spec.ts`)
 - ✅ **BE scrape service** — modul `tests/be/scrape/`: health api-gateway, platform, keyword-management (filter/pagination), credential (+ toggle round-trip aman), validasi create on-demand
 - ✅ **Test validasi form** — P03 Change Password (3 skenario invalid + 1 valid) di `tests/fe/profile/profile.spec.ts`
 - ✅ **Test positif API asli** — P05 Change password dengan current password BENAR → toast sukses & modal tertutup (pasangan C7)
@@ -254,8 +256,10 @@ Kolom eksekusi diisi otomatis: **Actual Result** & **Status** dari file report p
 - **Arsitektur backend = 2 service**:
   - **dashboard-service** (`BASE_URL_BE`, default `:8091`) — 17 endpoint `/v1/dashboard/*` + `/health/live|ready` (Swagger di `/swagger/doc.json`). Semua dites di `tests/be/dashboard/`.
   - **scrape service / api-gateway** (`BASE_URL_SCRAPE`, default `:8080`) — `/health`, `/v1/scrape/platform`, `/v1/scrape/keyword-management` (GET/POST/PUT), `/v1/scrape` (create on-demand), `/v1/scrape/credential` (CRUD + PATCH enable/disable). Dites di `tests/be/scrape/`. Write lifecycle valid sengaja tidak diuji langsung ke staging (tidak ada endpoint DELETE → tak bisa bersih-bersih); alur sukses ter-cover via mock FE.
-- **Perubahan besar UI (deploy 2026-08)** yang sudah diadaptasi suite:
-  - Halaman Keyword memakai endpoint baru `/v1/scrape/keyword-management` (satu endpoint untuk tab Scheduled & On Demand via `schedule_enabled=true|false`); default landing tab = **On Demand**; aksi Edit per baris (bukan action-menu); Reprocess menggantikan Retry/Cancel/Run history.
+- **Perubahan besar UI (deploy 2026-08 → 2026-09)** yang sudah diadaptasi suite:
+  - Halaman Keyword memakai endpoint baru `/v1/scrape/keyword-management` (satu endpoint untuk tab Scheduled & On Demand via `schedule_enabled=true|false`); default landing tab = **On Demand**; Reprocess menggantikan Retry/Cancel/Run history.
+  - **Tab Scheduled kembali aktif (deploy 2026-09)**: aksi **Add scheduled** (`+ Add keyword`, POST `schedule_enabled=true`), **Edit** & **Move to scheduled / to on-demand** (PUT `/keyword-management/:id`) — ketiganya memakai dialog jadwal berisi keyword + checkbox platform + start/end datetime-local + frequency value/unit.
+  - Modal Add On Demand kini memakai **checkbox platform** (bukan dropdown) dan **selector period dihapus** dari modal; validasi urutan tanggal (start ≤ end) hidup di dialog jadwal → regression R2 kini PASS.
   - Display wall mengambil keyword dari `top-keywords?limit=5` dan berotasi tiap ~20 detik (label "20 seconds" = label interval statis).
   - Halaman baru **Keyword Intelligence** (`/monitoring/keyword-intelligence`) dengan Export report/brief.
   - Tombol Export report **masih ada** di dashboard (diverifikasi 2026-08-31).

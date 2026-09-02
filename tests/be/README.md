@@ -28,6 +28,7 @@ Report: HTML di `playwright-report-be/` (`npm run report:be`), JSON di
 |---|---|---|
 | `BASE_URL_BE` | `http://localhost:8080` | Base URL API backend |
 | `BE_API_PREFIX` | `/v1` | Prefiks versi API |
+| `BASE_URL_SCRAPER` | `http://10.200.101.13:8090` | Base URL Scraper Service API (folder `tests/be/scraper/`) |
 
 ## Sumber kebenaran: Swagger BE
 
@@ -47,7 +48,7 @@ topic-intelligence-detail** ditambahkan saat eksplorasi ulang):
 | `GET /v1/dashboard/summary` | ✅ 200 | query opsional: keyword, platform, date_from, date_to |
 | `GET /v1/dashboard/conversation-trend` | ✅ 200 | query opsional: keyword, platform, period (`24h`/`3d`/`7d`/`1m`/`1y`/`YYYY-MM-DD`/range) — malformed → fallback 1 bulan |
 | `GET /v1/dashboard/conversation-trend-hourly` | ✅ 200 · 400 | query: date (`YYYY-MM-DD`, **wajib**) + keyword/platform opsional — tanpa date / format salah → 400 `invalid_request` |
-| `GET /v1/dashboard/top-accounts` | ✅ 200 | `{ data: [{ id, handle, platform, posts }] }` — id = handle; urut posts desc; maks 5 |
+| `GET /v1/dashboard/top-accounts` | ✅ 200 | `{ data: [{ id, handle, platform, posts }] }` — deploy 2026-09: id = slug lowercase, handle = display name (tidak lagi selalu sama); urut posts desc; maks 5 |
 | `GET /v1/dashboard/top-hashtags` | ✅ 200 | `{ data: [{ id, tag, count }] }` — tag `#Xxx`; urut count desc; maks 5 |
 | `GET /v1/dashboard/top-posts` | ✅ 200 | `{ data: [{ id, platform, post, emotion, topic, engagement }] }` — urut engagement desc; maks 5 |
 | `GET /v1/dashboard/topic-intelligence` | ✅ 200 | `{ data: [{ id, label, pct, count }] }` — id = label; pct = round(count/total*100) |
@@ -101,6 +102,33 @@ Struktur respons `GET /v1/dashboard/summary` (dicek langsung ke BE):
 Format error terstruktur (Swagger `bootstrap.apiErrorResponse`):
 `{ "error": { "code", "message", "request_id" } }`.
 
+## Scraper Service API — `tests/be/scraper/` (port 8090, service ganda)
+
+Selain api-gateway (`BASE_URL_SCRAPE`, 8080), ada **Scraper Service API**
+terpisah di **`http://10.200.101.13:8090`** (env `BASE_URL_SCRAPER`,
+Swagger: `/swagger/` — ditemukan & di-cover 2026-09-02):
+
+- **Tanpa prefix `/scrape/`** di path (mis. `GET /v1/keyword-management`,
+  `GET /v1/credential`, `GET /v1/platform`, `GET /v1/keyword`,
+  `POST /v1/scrape`) dan **tanpa autentikasi**.
+- Data & kontrak identik dengan gateway 8080 (endpoint `/v1/scrape/*` di
+  gateway = `/v1/*` di sini) — test di folder ini memverifikasi kontrak
+  service langsung, termasuk `GET /v1/keyword-management/summary`,
+  `scheduled-holds`, dan perilaku `GET /v1/scrape/{id}` (unknown → 404).
+- Pola write lifecycle sama: **create sukses sengaja tidak diuji** (tanpa
+  DELETE → berisiko mencemari staging); yang diuji hanya validasi negatif
+  (POST body kosong → 400) yang aman.
+- **Audit write lifecycle 2026-09-02** (`write-lifecycle.spec.ts`):
+  `POST /v1/keyword-management` & `POST /v1/credential` → **201 tanpa
+  unique constraint** (duplikat pun 201 + insert baris baru) dan **tidak ada
+  DELETE di service manapun** — create = cipratan staging permanen yang tak
+  bisa dibersihkan via API (terbukti nyata saat audit). Karena itu create
+  TIDAK diuji; yang diuji hanya pola aman & reversibel: PUT id tak dikenal
+  → 404, **PUT round-trip** (modifikasi period lalu restore persis di
+  `finally`), dan **PATCH activate/deactivate round-trip** (pola sama dengan
+  toggle credential TC-BE-SR11).
+- 24 case (TC-BE-SR01–SR24) di sheet **Scraper** Excel BE.
+
 ## Menambah keyword data dashboard (data BE bertambah)
 
 Saat data BE bertambah keyword baru, cukup tambah baris di
@@ -140,3 +168,6 @@ test('contoh: GET /v1/dashboard/summary', async ({ api }) => {
 3. Tambahkan baris test case-nya di `scripts/generate-test-cases.mjs`
    (`buildBe*Cases` — `specTitle` harus **persis** sama dengan judul test)
    supaya Excel `test-cases/BE-Test-Cases.xlsx` selalu sinkron.
+
+   Khusus service di `tests/be/scraper/`, pakai fixture `scraperApi` dari
+   `../fixtures` (base URL `BASE_URL_SCRAPER`) — lihat spec yang ada.

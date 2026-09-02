@@ -29,6 +29,8 @@ Untuk laporan eksekusi test BE, jalankan `npm run test:be` dulu (membaca
 |---|---|---|
 | `BASE_URL_AI` | `http://10.200.102.2:8100` | Base URL AI Service (docs: `/docs`) |
 | `AI_SERVICE_TOKEN` | `dev-local-service-token` | Token header `X-Service-Token` |
+| `BASE_URL_AI_INTELLIGENCE` | `http://10.200.102.2:8000` | Base URL Intelligence AI Service (folder `tests/ai/intelligence/`) |
+| `AI_INTELLIGENCE_TOKEN` | *(dari env)* | Token header `X-AI-Service-Token` |
 
 ## AI Service (SIP AI Service v1.0.0)
 
@@ -54,6 +56,26 @@ Format error FastAPI: `{ "detail": "..." }` (404) atau
 > itu **kondisi service, bukan kegagalan kontrak**. Test sync sudah toleran:
 > hanya memverifikasi topik/emosi saat post benar-benar `analyzed`; status
 > `pending`/`not_analyzable`/`failed` harus punya `reason`.
+
+## Intelligence AI Service — `tests/ai/intelligence/` (port 8000, service ganda)
+
+Selain SIP AI Service (8100), ada **Intelligence AI Service** terpisah di
+**`http://10.200.102.2:8000`** (env `BASE_URL_AI_INTELLIGENCE`, docs:
+`/docs`, OpenAPI: `/openapi.json` — ditemukan & di-cover 2026-09-02):
+
+- **Auth header `X-AI-Service-Token`** (BUKAN `X-Service-Token`) — 401 tanpa
+  token; `GET /health` publik (tanpa token).
+- Endpoint: `POST /v1/topic-intelligence` dan `POST /v1/actor-intelligence`
+  (request: `{ request_id, keyword, period{from,to}, topic{name} |
+  actor{username}, posts[] }`; respons diskriminator `status`:
+  `completed`/`insufficient_evidence`/`failed` + `computed_facts`
+  `{ post_count, sentiment, dominant_emotion }`). Actor result TANPA
+  `recommended_action`.
+- **429 + `error_code: "provider_rate_limited"`** saat Gemini daily quota
+  membuka circuit breaker — **kondisi service, bukan kegagalan kontrak**
+  (test menerima union `200 | 429` dan memverifikasi struktur masing-masing).
+- 7 case (TC-AI-I01–I07) di sheet **Intelligence** Excel AI. Helper:
+  `intelApiUrl` / `intelHeaders` / `intelAuth` dari `./fixtures`.
 
 ## Test data-driven sync (berbagai isu)
 
@@ -88,14 +110,18 @@ npm run test-cases:ai    # regenerate Excel (sheet Analyze Sync)
 
 ```
 tests/ai/
-├── health/health.spec.ts       # liveness + kuota + 401
-├── meta/meta.spec.ts           # taxonomy label emosi/topik
-├── analyze/batch.spec.ts       # submit batch async (202/401/422)
-├── analyze/jobs.spec.ts        # polling job sampai selesai + 404/401
-├── analyze/sync.spec.ts        # analisis blocking (200/401/422)
-├── generate-report.spec.ts     # generate laporan dari data BE
-├── report.ts                   # helper bangun laporan markdown
-└── fixtures.ts                 # api, aiApiUrl, aiHeaders/aiAuth, uniqueKey
+├── health/health.spec.ts            # liveness + kuota + 401
+├── meta/meta.spec.ts                # taxonomy label emosi/topik
+├── analyze/batch.spec.ts            # submit batch async (202/401/422)
+├── analyze/jobs.spec.ts             # polling job sampai selesai + 404/401
+├── analyze/sync.spec.ts             # analisis blocking (200/401/422)
+├── intelligence/                    # Intelligence AI Service (base 8000, X-AI-Service-Token)
+│   ├── health.spec.ts               #   GET /health publik → 200
+│   ├── topic-intelligence.spec.ts   #   POST /v1/topic-intelligence (401/400/200|429)
+│   └── actor-intelligence.spec.ts   #   POST /v1/actor-intelligence (401/400/200|429)
+├── generate-report.spec.ts          # generate laporan dari data BE
+├── report.ts                        # helper bangun laporan markdown
+└── fixtures.ts                      # api, aiApiUrl/intelApiUrl, aiHeaders/intelHeaders, uniqueKey
 ```
 
 ## Hasil generate (sheet Generate)

@@ -55,7 +55,9 @@ const BASE_URL_UI = process.env.BASE_URL_UI || 'http://localhost:3000';
 const BASE_URL_BE = process.env.BASE_URL_BE || 'http://localhost:8080';
 const BE_API_PREFIX = process.env.BE_API_PREFIX || '/v1';
 const BASE_URL_SCRAPE = process.env.BASE_URL_SCRAPE || 'http://10.200.101.13:8080';
+const BASE_URL_SCRAPER = process.env.BASE_URL_SCRAPER || 'http://10.200.101.13:8090';
 const BASE_URL_AI = process.env.BASE_URL_AI || 'http://10.200.102.2:8100';
+const BASE_URL_AI_INTELLIGENCE = process.env.BASE_URL_AI_INTELLIGENCE || 'http://10.200.102.2:8000';
 
 // Environment kolom eksekusi (bisa di-override lewat env; default dari base URL)
 function environmentFor(baseUrl) {
@@ -163,13 +165,13 @@ function buildSmokeCases() {
       source: 'Hardcoded di spec', notes: '—',
     },
     {
-      id: 'TC-UI-S04', name: 'Tab Scheduled & On Demand di halaman keyword', category: 'Smoke', priority: 'Medium',
+      id: 'TC-UI-S04', name: 'Tab On Demand & Scheduled di halaman keyword (On Demand default)', category: 'Smoke', priority: 'Medium',
       method: 'Navigate', endpoint: '/monitoring/keyword', headers: '—', params: '—', requestBody: '—',
       precondition: 'User berada di halaman Monitoring Keyword',
-      expectedStatus: 'Sukses — tab berpindah (URL tidak sinkron, lihat Notes)', expectedResponse: 'Tab aktif berpindah ke On Demand (assert URL dikecualikan karena Bug A3)',
-      specTitle: 'tab On Demand ada di halaman keyword (tab Scheduled dihapus dari UI)',
-      assertions: 'aria-selected tab Scheduled; click On Demand → tab aktif berubah',
-      source: 'Hardcoded di spec', notes: 'Bug A3: URL tidak berubah (router.replace shallow pada static export) — hanya tab yang di-assert',
+      expectedStatus: 'Sukses — tab berpindah (URL tidak sinkron, lihat Notes)', expectedResponse: 'Tab On Demand terpilih default & tab Scheduled tersedia; klik Scheduled → tab aktif berubah',
+      specTitle: 'tab On Demand & Scheduled ada di halaman keyword (On Demand default)',
+      assertions: 'tab On Demand visible & aria-selected true; tab Scheduled visible; click Scheduled → aria-selected true',
+      source: 'Hardcoded di spec', notes: 'Tab Scheduled kembali aktif di deploy 2026-09 (dulu sempat dihapus). Bug A3: URL tidak berubah — hanya tab yang di-assert',
     },
     {
       id: 'TC-UI-S05', name: 'Ketiga control protocol wall dapat diakses', category: 'Smoke', priority: 'Medium',
@@ -491,13 +493,13 @@ function buildDashboardCases() {
     },
 
     {
-      id: 'TC-UI-D09c', name: 'Export report mengunduh file xlsx & menampilkan toast sukses', category: 'Positive', priority: 'High',
-      method: 'View', endpoint: '/monitoring/dashboard', headers: '—', params: '—', requestBody: 'GET /api/dashboard/export-report',
+      id: 'TC-UI-D09c', name: 'Export report mengunduh file posts-report.xlsx', category: 'Positive', priority: 'High',
+      method: 'View', endpoint: '/monitoring/dashboard', headers: '—', params: '—', requestBody: '—',
       precondition: 'Mock API dashboard aktif; hasil sudah tampil',
-      expectedStatus: 'Sukses - unduhan berjalan', expectedResponse: 'Event download dgn nama file .xlsx; toast "Report exported successfully."',
-      specTitle: 'Export report mengunduh file xlsx & menampilkan toast sukses',
-      assertions: 'waitForEvent(download); suggestedFilename matches .xlsx; toast visible',
-      source: 'Hardcoded di spec', notes: 'Tombol dikembalikan app & kini FUNGSIONAL (dulu bug A2 no-op).',
+      expectedStatus: 'Sukses - unduhan berjalan', expectedResponse: 'Event download file posts-report.xlsx (generate client-side, tanpa request jaringan)',
+      specTitle: 'Export report mengunduh file posts-report.xlsx',
+      assertions: 'waitForEvent(download); suggestedFilename matches .xlsx & posts-report',
+      source: 'Hardcoded di spec', notes: 'Tombol FUNGSIONAL kembali (deploy 2026-09) — verify via event download, bukan toast.',
     },    {
       id: 'TC-UI-D10', name: 'Section Topic intelligence tersedia di dashboard', category: 'Positive', priority: 'Medium',
       method: 'View', endpoint: '/monitoring/dashboard', headers: '—', params: '—', requestBody: '—',
@@ -624,6 +626,15 @@ function buildDashboardCases() {
       specTitle: 'Top Hashtags menampilkan daftar hashtag dengan tag dan jumlah post',
       assertions: 'topHashtagsHeading visible; item hashtag terrender',
       source: 'Hardcoded di spec', notes: '—',
+    },
+    {
+      id: 'TC-UI-D21e', name: 'Klik akun di Top accounts membuka posts dengan filter platform & actor (tab baru)', category: 'Positive', priority: 'High',
+      method: 'Navigation', endpoint: '/monitoring/dashboard → /monitoring/dashboard/posts?platform=&actor=', headers: '—', params: 'keyword, platform, actor', requestBody: '—',
+      precondition: 'Mock API dashboard aktif; hasil sudah tampil',
+      expectedStatus: 'Sukses — tab baru terbuka dengan filter', expectedResponse: 'Item Top accounts adalah link target=_blank; klik → popup URL posts?platform=<platform>&actor=<handle>; filter platform terpilih di dropdown',
+      specTitle: 'klik akun di Top accounts membuka halaman posts dengan filter platform & actor (deploy 2026-09)',
+      assertions: 'href contains /posts?keyword=&platform=&actor=; target=_blank; popup URL param platform & actor; platform button berisi platform',
+      source: 'Hardcoded di spec', notes: 'Fitur baru: akun kini clickable (deploy 2026-09) — filter platform terisi otomatis saat klik akun.',
     },    // ---- Fitur baru UI (2026-08-22) ----
     {
       id: 'TC-UI-D22', name: 'Auto-refresh dropdown menampilkan opsi default Off dan 7 interval lainnya', category: 'Positive', priority: 'Medium',
@@ -717,12 +728,30 @@ function buildDashboardCases() {
     },
     // ── Posts Page (/monitoring/dashboard/posts) ──────────────────────
     {
-      id: 'TC-UI-D32', name: 'Halaman Posts menampilkan tabel dengan kolom benar', category: 'Positive', priority: 'High',
+      id: 'TC-UI-D32', name: 'Halaman Posts menampilkan tabel dengan kolom benar (8 kolom)', category: 'Positive', priority: 'High',
       method: 'View', endpoint: '/monitoring/dashboard/posts?keyword=RUU+Digital&sort_by=view', headers: '—', params: 'keyword, sort_by', requestBody: '—',
       precondition: 'Mock API dashboard aktif; user membuka halaman posts',
-      expectedStatus: 'Sukses — tabel tampil', expectedResponse: 'Tabel dengan 6 kolom: Platform, Post, Emotion, Topic, Views, Engagement',
+      expectedStatus: 'Sukses — tabel tampil', expectedResponse: 'Tabel dengan 8 kolom: Platform, Published, Post, Emotion, Sentiment, Topic, Views, Engagement',
       specTitle: 'halaman posts menampilkan tabel dengan kolom yang benar',
-      assertions: 'table th = [Platform, Post, Emotion, Topic, Views, Engagement]',
+      assertions: 'table th = [Platform, Published, Post, Emotion, Sentiment, Topic, Views, Engagement]',
+      source: 'posts-page.spec.ts', notes: 'Kolom bertambah (deploy 2026-09): Published & Sentiment.',
+    },
+    {
+      id: 'TC-UI-D32b', name: 'Teks post adalah link ke sumber asli (source_url) & dibuka di tab baru', category: 'Positive', priority: 'High',
+      method: 'View', endpoint: '/monitoring/dashboard/posts?keyword=RUU+Digital&sort_by=view', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Mock API top-posts-list berisi source_url',
+      expectedStatus: 'Sukses — link sumber tampil', expectedResponse: 'Sel Post memuat <a href=source_url target=_blank> dengan teks post asli (bukan teks ter-mutasi/concatenate)',
+      specTitle: 'teks post adalah link ke sumber asli (source_url) dan dibuka di tab baru',
+      assertions: 'td ke-3 row pertama: a[href=source_url][target=_blank] visible & berisi teks post',
+      source: 'posts-page.spec.ts', notes: 'Perbaikan teks di post list (deploy 2026-09): teks jadi link sumber, tanggal tidak menempel.',
+    },
+    {
+      id: 'TC-UI-D32c', name: 'Teks post panjang menampilkan tombol "Show more" untuk memperluas', category: 'Positive', priority: 'Medium',
+      method: 'View', endpoint: '/monitoring/dashboard/posts', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Halaman posts memuat row post',
+      expectedStatus: 'Sukses — teks dapat diperluas', expectedResponse: 'Teks post tidak menempel tanggal (pola bug lama); jika ada tombol "Show more", klik → berubah jadi "Show less"',
+      specTitle: 'teks post yang panjang menampilkan tombol "Show more" untuk memperluas',
+      assertions: 'text tidak match pola tanggal menempel; Show more (jika ada) → Show less',
       source: 'posts-page.spec.ts', notes: '—',
     },
     {
@@ -919,8 +948,9 @@ function buildDashboardCases() {
 }
 
 function buildKeywordCases() {
-  // UI saat ini (2026-08) hanya punya tab On Demand — tab Scheduled,
-  // Move-to-scheduled, dan Edit-scheduled sudah dihapus dari aplikasi.
+  // UI deploy 2026-09 menghidupkan kembali fitur scheduled: tab On Demand
+  // (default) & tab Scheduled dengan aksi Add/Edit/Move. Modal Add On Demand
+  // memakai checkbox platform; dialog jadwal memakai start/end + frequency.
   // specTitle HARUS persis sama dengan judul test di spec agar status
   // PASS/FAIL ter-map dari test-results/results.json.
   return [
@@ -967,10 +997,10 @@ function buildKeywordCases() {
       id: 'TC-UI-K05', name: 'Modal Add keyword (On Demand) terbuka dengan field & nilai default', category: 'Positive', priority: 'High',
       method: 'Modal', endpoint: '/monitoring/keyword', headers: '—', params: '—', requestBody: '—',
       precondition: 'Mock API On Demand aktif',
-      expectedStatus: 'Sukses — modal tampil', expectedResponse: 'Heading "Add keyword"; field keyword & platform; tombol Start process',
+      expectedStatus: 'Sukses — modal tampil', expectedResponse: 'Heading "Add keyword"; combobox keyword; SEMUA checkbox platform checked; tombol Start process',
       specTitle: 'modal Add keyword terbuka dengan field & nilai default',
-      assertions: 'createModal visible; unscKeywordInput visible; startProcessButton visible',
-      source: 'Hardcoded di spec', notes: '—',
+      assertions: 'createModal visible; unscKeywordInput visible; expectUnscPlatformsAllSelected (checkbox); startProcessButton visible',
+      source: 'Hardcoded di spec', notes: 'Deploy 2026-09: platform kini checkbox group (bukan listbox); selector period dihapus dari modal On Demand.',
     },
     {
       id: 'TC-UI-K06', name: 'Validasi keyword kosong tidak mengirim request (modal tetap terbuka)', category: 'Negative', priority: 'High',
@@ -999,14 +1029,97 @@ function buildKeywordCases() {
       assertions: 'submit → createModal still visible',
       source: 'Hardcoded di spec', notes: '—',
     },
+
+    // ── Fitur scheduled kembali (deploy 2026-09) ─────────────────────────
     {
-      id: 'TC-UI-K24', name: '[REGRESI R2] Periode Custom tanggal terbalik harus DITOLAK', category: 'Regression', priority: 'High',
-      method: 'Modal', endpoint: '/monitoring/keyword?tab=unscheduled', headers: '—', params: 'period=custom; dateFrom=2026-08-10; dateTo=2026-08-01 (TERBALIK)', requestBody: '{ keyword: "Tes Tanggal Terbalik", period: "custom", dateFrom: "2026-08-10", dateTo: "2026-08-01" }',
-      precondition: 'Modal Add keyword (On Demand) terbuka; periode Custom; tanggal terbalik diisi',
-      expectedStatus: 'Validasi menolak submit (TC-UI-005 / P-03)', expectedResponse: 'Submit tidak terkirim; modal tetap terbuka; tidak ada toast sukses',
-      specTitle: 'REGRESI R2: periode Custom dengan tanggal terbalik harus DITOLAK (tanpa request)',
-      assertions: 'expectCreateModalOpen(true); poll POST count 0; toast sukses count 0',
-      source: 'Hardcoded di spec', notes: 'Bug B3: tanggal terbalik saat ini diterima & diproses. Test FAIL sampai validasi urutan tanggal ditambahkan.',
+      id: 'TC-UI-K09', name: 'Tab Scheduled menampilkan daftar lengkap dengan tabel & aksi baris', category: 'Positive', priority: 'High',
+      method: 'View', endpoint: '/monitoring/keyword (tab Scheduled)', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Mock scheduler aktif; user membuka tab Scheduled',
+      expectedStatus: 'Sukses — daftar & aksi tampil', expectedResponse: 'Heading "Scheduled Keywords"; data mock (RUU Digital) & pagination tampil; aksi Toggle status, Edit, Move to on-demand',
+      specTitle: 'tab Scheduled menampilkan daftar lengkap dengan tabel & aksi baris',
+      assertions: 'heading Scheduled Keywords visible; row RUU Digital; toggle/edit/moveToOnDemand visible',
+      source: 'Hardcoded di spec', notes: 'Tab Scheduled kembali aktif deploy 2026-09.',
+    },
+    {
+      id: 'TC-UI-K10', name: 'Pencarian keyword memfilter daftar Scheduled', category: 'Positive', priority: 'Medium',
+      method: 'Filter', endpoint: '/monitoring/keyword (tab Scheduled)', headers: '—', params: 'keyword=RUU', requestBody: '—',
+      precondition: 'Mock scheduler aktif; user di tab Scheduled',
+      expectedStatus: 'Sukses — pencarian bekerja', expectedResponse: 'Hanya keyword yang cocok "RUU" yang tampil',
+      specTitle: 'pencarian keyword memfilter daftar Scheduled',
+      assertions: 'RUU Digital visible; BPJS Kesehatan tidak tampil',
+      source: 'Hardcoded di spec', notes: '—',
+    },
+    {
+      id: 'TC-UI-K11', name: 'Modal Add scheduled terbuka dengan keyword, platform, jadwal & frequency', category: 'Positive', priority: 'High',
+      method: 'Modal', endpoint: '/monitoring/keyword (tab Scheduled)', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Mock scheduler aktif; tab Scheduled terbuka',
+      expectedStatus: 'Sukses — dialog tampil', expectedResponse: 'Dialog "Add scheduled keyword": combobox keyword, checkbox platform checked, start/end datetime, frequency value & unit, tombol Save keyword',
+      specTitle: 'modal Add scheduled terbuka dengan keyword, platform, jadwal & frequency',
+      assertions: 'schedDialog visible; #keyword visible; checkbox platform semua checked; start/end & frequency visible; saveKeywordButton visible',
+      source: 'Hardcoded di spec', notes: '—',
+    },
+    {
+      id: 'TC-UI-K12', name: 'Submit Add scheduled valid mengirim POST schedule_enabled=true', category: 'Positive', priority: 'High',
+      method: 'POST', endpoint: '/v1/scrape/keyword-management', headers: 'Content-Type: application/json', params: 'frequency=2 Hour(s); start/end diisi', requestBody: '{ keyword, platforms[], schedule_enabled: true, schedule: { start_at, end_at, frequency: { value, unit } } }',
+      precondition: 'Mock create scheduler 201 aktif; dialog Add scheduled terbuka',
+      expectedStatus: 'Sukses — request terkirim', expectedResponse: 'POST /keyword-management dengan schedule_enabled=true & schedule (start_at, end_at, frequency.unit=HOUR, value=2)',
+      specTitle: 'submit Add scheduled valid mengirim POST schedule_enabled=true ke BE',
+      assertions: 'poll POST body.length > 0; body.schedule_enabled true; sched.frequency.unit HOUR & value 2',
+      source: 'Hardcoded di spec', notes: '—',
+    },
+    {
+      id: 'TC-UI-K13', name: 'Move to scheduled mengirim PUT ke BE dengan jadwal', category: 'Positive', priority: 'High',
+      method: 'PUT', endpoint: '/v1/scrape/keyword-management/:id', headers: 'Content-Type: application/json', params: 'baris RUU Digital (On Demand)', requestBody: '{ keyword, platforms[], schedule_enabled: true, schedule: { start_at, end_at, frequency } }',
+      precondition: 'Mock unscheduled + update 200 aktif; baris On Demand tersedia',
+      expectedStatus: 'Sukses — request terkirim', expectedResponse: 'PUT /keyword-management/:id dengan keyword RUU Digital, schedule_enabled=true, frequency DAY/3',
+      specTitle: 'Move to scheduled mengirim PUT ke BE dengan jadwal (schedule_enabled=true)',
+      assertions: 'click Move; isi start/end & frequency; poll PUT body.length > 0; body.keyword RUU Digital & schedule.frequency.unit DAY',
+      source: 'Hardcoded di spec', notes: 'Fitur Move-to-scheduled kembali aktif (dulu sempat dihapus).',
+    },
+    {
+      id: 'TC-UI-K14', name: 'Cancel dialog Move to scheduled menutup tanpa submit', category: 'Positive', priority: 'Medium',
+      method: 'Modal', endpoint: '/monitoring/keyword (tab On Demand)', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Mock unscheduled aktif; dialog Move terbuka',
+      expectedStatus: 'Sukses — dialog tertutup', expectedResponse: 'Klik Cancel → dialog Move to scheduled tertutup tanpa request',
+      specTitle: 'tombol Move to scheduled tidak menutup dialog tanpa submit (Cancel)',
+      assertions: 'dlg visible → click Cancel → toHaveCount 0',
+      source: 'Hardcoded di spec', notes: '—',
+    },
+    {
+      id: 'TC-UI-K16', name: 'Toggle status On Demand mengirim PATCH activate/deactivate ke BE', category: 'Positive', priority: 'Medium',
+      method: 'PATCH', endpoint: '/v1/scrape/keyword-management/:id/activate|deactivate', headers: '—', params: 'baris RUU Digital (ON) & BPJS Kesehatan (OFF)', requestBody: 'PATCH tanpa body',
+      precondition: 'Mock unscheduled + toggle 200 aktif; tab On Demand terbuka',
+      expectedStatus: 'Sukses — request terkirim & switch berubah', expectedResponse: 'Toggle RUU Digital → PATCH /un-1/deactivate; toggle BPJS Kesehatan → PATCH /un-3/activate; setelah refetch switch mengikuti state baru',
+      specTitle: 'toggle status baris On Demand mengirim PATCH activate/deactivate ke BE',
+      assertions: 'poll PATCH URL mengandung .../un-1/deactivate lalu .../un-3/activate; toggleStatus toBeChecked/not.toBeChecked',
+      source: 'Hardcoded di spec', notes: 'Kontrak diverifikasi probe 2026-09-02: PATCH tanpa body, UI refetch.',
+    },
+    {
+      id: 'TC-UI-K17', name: 'Toggle status Scheduled mengirim PATCH activate/deactivate & switch berubah', category: 'Positive', priority: 'Medium',
+      method: 'PATCH', endpoint: '/v1/scrape/keyword-management/:id/activate|deactivate', headers: '—', params: 'baris RUU Digital (active) & Ketenagakerjaan (hold)', requestBody: 'PATCH tanpa body',
+      precondition: 'Mock scheduler + toggle 200 aktif; tab Scheduled terbuka',
+      expectedStatus: 'Sukses — request terkirim & switch berubah', expectedResponse: 'Toggle RUU Digital → PATCH /sch-1/deactivate & switch OFF; toggle Ketenagakerjaan → PATCH /sch-3/activate & switch ON',
+      specTitle: 'toggle status baris Scheduled mengirim PATCH activate/deactivate & switch ikut berubah',
+      assertions: 'poll PATCH /sch-1/deactivate & /sch-3/activate; toggleStatus toBeChecked/not.toBeChecked',
+      source: 'Hardcoded di spec', notes: '—',
+    },
+    {
+      id: 'TC-UI-K15', name: 'Edit scheduled membuka dialog ter-prefill & mengirim PUT perubahan', category: 'Positive', priority: 'High',
+      method: 'PUT', endpoint: '/v1/scrape/keyword-management/:id', headers: 'Content-Type: application/json', params: 'baris RUU Digital (tab Scheduled); frequency → 5 Hour(s)', requestBody: '{ keyword, platforms[], schedule_enabled: true, schedule: { frequency: { value: 5, unit: HOUR } } }',
+      precondition: 'Mock scheduler + update 200 aktif; tab Scheduled terbuka',
+      expectedStatus: 'Sukses — request terkirim', expectedResponse: 'Dialog Edit ter-prefill keyword RUU Digital; PUT dengan frequency value 5 unit HOUR',
+      specTitle: 'Edit scheduled membuka dialog ter-prefill & mengirim PUT perubahan',
+      assertions: 'editKeywordInput value RUU Digital; simpan → poll PUT body.length > 0; frequency.value 5 & unit HOUR',
+      source: 'Hardcoded di spec', notes: 'Fitur Edit scheduled kembali aktif.',
+    },
+    {
+      id: 'TC-UI-K24', name: '[REGRESI R2] Jadwal dengan tanggal terbalik (start > end) harus DITOLAK', category: 'Regression', priority: 'High',
+      method: 'Modal', endpoint: '/monitoring/keyword (tab Scheduled)', headers: '—', params: 'add-schedule-start-at=2026-09-10T09:00; add-schedule-end-at=2026-09-01T09:00 (TERBALIK)', requestBody: '{ keyword: "Tes Tanggal Terbalik", schedule: { start_at, end_at } }',
+      precondition: 'Dialog Add scheduled terbuka (tab Scheduled → + Add keyword); keyword & frequency terisi; tanggal terbalik',
+      expectedStatus: 'Validasi menolak submit (TC-UI-005 / P-03)', expectedResponse: 'TIDAK ada request POST; modal tetap terbuka',
+      specTitle: 'REGRESI R2: jadwal dengan tanggal terbalik (start > end) harus DITOLAK (tanpa request)',
+      assertions: 'poll POST /keyword-management count 0; dialog tetap terbuka',
+      source: 'Hardcoded di spec', notes: 'FIXED deploy 2026-09: modal On Demand tidak punya selector period lagi; validasi start>end kini hidup di dialog jadwal & bekerja — test now PASS.',
     },
     {
       id: 'TC-UI-K37', name: '[REGRESI R9] Escape key harus menutup modal Add keyword (a11y)', category: 'Regression', priority: 'High',
@@ -3189,6 +3302,233 @@ function buildScrapeCases() {
   ];
 }
 
+// ---------- daftar test case Scraper Service API (tests/be/scraper/) ----------
+// Service TERPISAH dari api-gateway (BASE_URL_SCRAPER, default
+// http://10.200.101.13:8090) — Tanpa prefix /scrape/ pada path & tanpa
+// autentikasi. Kontrak endpoint identik dengan gateway 8080 (data sama).
+// Ditemukan & di-cover 2026-09-02 (audit service ganda).
+
+function buildScraperCases() {
+  return [
+    {
+      id: 'TC-BE-SR01', name: 'GET /health/live → 200 status live', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/health/live', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: `Scraper Service berjalan di ${BASE_URL_SCRAPER} (env BASE_URL_SCRAPER)`,
+      expectedStatus: '200 OK', expectedResponse: '{ "status": "live" }',
+      specTitle: 'GET /health/live → 200 dengan status live',
+      assertions: 'status=200; body.status = "live"',
+      source: 'scraper/health.spec.ts', notes: 'Service ganda (Scraper Service API v0.1.0) — tidak pakai prefix /scrape/.',
+    },
+    {
+      id: 'TC-BE-SR02', name: 'GET /health/ready → 200 status ready', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/health/ready', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: `Scraper Service berjalan di ${BASE_URL_SCRAPER}`,
+      expectedStatus: '200 OK', expectedResponse: '{ "status": "ready" }',
+      specTitle: 'GET /health/ready → 200 dengan status ready',
+      assertions: 'status=200; body.status = "ready"',
+      source: 'scraper/health.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR03', name: 'GET /v1/platform → 200 minimal instagram/tiktok/twitter_x + label', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/platform', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ platform, platform_name }...], meta } — slug ini nilai filter platform endpoint lain',
+      specTitle: '→ 200 dengan minimal Instagram/TikTok/Twitter-X & nama labelnya',
+      assertions: 'slugs contain instagram/tiktok/twitter_x; tiap item platform_name non-kosong',
+      source: 'scraper/platform.spec.ts', notes: 'Tanpa prefix /scrape/ (beda dengan gateway 8080).',
+    },
+    {
+      id: 'TC-BE-SR04', name: 'GET /v1/keyword → 200 daftar string & meta.latest terisi', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/keyword', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: string[], meta: { latest, total } }',
+      specTitle: '→ 200 dengan daftar string & meta.latest terisi',
+      assertions: 'data array of string; meta.latest non-kosong; meta.total = data.length',
+      source: 'scraper/keyword.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR05', name: 'GET keyword-management tanpa filter → kontrak meta & item lengkap', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/keyword-management?page=1&size=10', headers: 'Accept: application/json', params: 'page,size', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ id, keyword, platforms[slug], status ACTIVE|INACTIVE, schedule_enabled }], meta { page,size,total,total_pages,generated_at } }',
+      specTitle: 'tanpa filter → 200 dengan kontrak meta pagination & item lengkap',
+      assertions: 'meta.page/size/total/total_pages; platforms ⊆ slug resmi; status ∈ ACTIVE|INACTIVE',
+      source: 'scraper/keyword-management.spec.ts', notes: 'Endpoint sama dengan gateway 8080, beda path prefix.',
+    },
+    {
+      id: 'TC-BE-SR06', name: 'Filter schedule_enabled=true hanya mengembalikan keyword scheduled', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/keyword-management?schedule_enabled=true', headers: 'Accept: application/json', params: 'schedule_enabled', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua item schedule_enabled=true',
+      specTitle: 'schedule_enabled=true hanya mengembalikan keyword scheduled',
+      assertions: 'setiap item.schedule_enabled = true',
+      source: 'scraper/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR07', name: 'Filter schedule_enabled=false hanya mengembalikan keyword on-demand', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/keyword-management?schedule_enabled=false', headers: 'Accept: application/json', params: 'schedule_enabled', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua item schedule_enabled=false',
+      specTitle: 'schedule_enabled=false hanya mengembalikan keyword on-demand',
+      assertions: 'setiap item.schedule_enabled = false',
+      source: 'scraper/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR08', name: 'Filter platform=tiktok pada keyword-management konsisten', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/keyword-management?platform=tiktok', headers: 'Accept: application/json', params: 'platform', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua item mengandung platform tiktok',
+      specTitle: 'filter platform=tiktok → semua item punya platform tiktok',
+      assertions: 'setiap item.platforms contains tiktok',
+      source: 'scraper/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR09', name: 'Search substring pada keyword-management', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/keyword-management?search=ruu', headers: 'Accept: application/json', params: 'search', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua keyword mengandung substring pencarian',
+      specTitle: 'filter search memfilter berdasarkan substring keyword',
+      assertions: 'setiap item.keyword mengandung query search',
+      source: 'scraper/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR10', name: 'Pagination keyword-management size=1&page=2 diikuti meta', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/keyword-management?page=2&size=1', headers: 'Accept: application/json', params: 'page,size', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'data.length <= 1; meta.page=2; meta.size=1',
+      specTitle: 'pagination size=1&page=2 → meta mengikuti & data maksimal 1 item',
+      assertions: 'data.length <= 1; meta.page = 2; meta.size = 1',
+      source: 'scraper/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR11', name: 'GET keyword-management/summary → kontrak ringkasan statistik', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/keyword-management/summary', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: { total_keywords, active_keywords, scheduled_keywords, ... }, meta }',
+      specTitle: 'GET /v1/keyword-management/summary → kontrak ringkasan statistik',
+      assertions: 'angka total/active/scheduled konsisten (>= 0) dan total = jumlah item list',
+      source: 'scraper/keyword-management.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR12', name: 'GET keyword-management/scheduled-holds → 200 & kontrak daftar hold', category: 'Positive', priority: 'Low',
+      method: 'GET', endpoint: '/v1/keyword-management/scheduled-holds', headers: 'Accept: application/json', params: '—', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: [...], meta } — data bisa kosong (belum ada hold)',
+      specTitle: 'GET /v1/keyword-management/scheduled-holds → 200 & kontrak daftar hold',
+      assertions: 'status=200; data array; meta ada (total = data.length)',
+      source: 'scraper/keyword-management.spec.ts', notes: 'Saat ini kosong — assertion kontrak meta (bukan isi).',
+    },
+    {
+      id: 'TC-BE-SR13', name: 'POST keyword-management body kosong → 400 validation_failed', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: '/v1/keyword-management', headers: 'Content-Type: application/json', params: '—', requestBody: '{}',
+      precondition: 'Scraper Service berjalan (aman: tidak membuat data)',
+      expectedStatus: '400 Bad Request', expectedResponse: '{ error: { code: "validation_failed", message: "invalid keyword request" } }',
+      specTitle: 'POST body kosong → 400 validation_failed (tanpa membuat data)',
+      assertions: 'status=400; error.code=validation_failed; message contains "invalid keyword request"',
+      source: 'scraper/keyword-management.spec.ts', notes: 'Alur sukses create tidak diuji langsung (tanpa DELETE → tak bisa bersih-bersih).',
+    },
+    {
+      id: 'TC-BE-SR14', name: 'GET credential tanpa filter → kontrak item lengkap (snake_case)', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: '/v1/credential?page=1&size=10', headers: 'Accept: application/json', params: 'page,size', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: '{ data: [{ id, platform, name, enabled, secret_configured, priority, req_per_second, req_per_month, req_usage_percent }] }',
+      specTitle: 'tanpa filter → 200 dengan kontrak item lengkap & meta pagination',
+      assertions: 'platform ⊆ slug resmi; enabled/secret_configured boolean; angka >= 0',
+      source: 'scraper/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR15', name: 'Filter credential platform=tiktok', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/credential?platform=tiktok', headers: 'Accept: application/json', params: 'platform', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua item platform = tiktok',
+      specTitle: 'filter platform=tiktok → semua item platform tiktok',
+      assertions: 'setiap item.platform = tiktok',
+      source: 'scraper/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR16', name: 'Filter credential enabled=true/false sesuai state', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/credential?enabled=true|false', headers: 'Accept: application/json', params: 'enabled', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua item sesuai state filter',
+      specTitle: 'filter enabled=true/false → semua item sesuai state',
+      assertions: 'setiap item.enabled sesuai filter (kedua varian)',
+      source: 'scraper/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR17', name: 'Filter credential keyword substring nama', category: 'Positive', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/credential?keyword=dev', headers: 'Accept: application/json', params: 'keyword', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '200 OK', expectedResponse: 'Semua item nama mengandung substring',
+      specTitle: 'filter keyword memfilter berdasarkan substring nama',
+      assertions: 'setiap item.name mengandung query keyword',
+      source: 'scraper/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR18', name: 'POST credential body kosong → 400 validation_failed', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: '/v1/credential', headers: 'Content-Type: application/json', params: '—', requestBody: '{}',
+      precondition: 'Scraper Service berjalan (aman: tidak membuat data)',
+      expectedStatus: '400 Bad Request', expectedResponse: '{ error: { code: "validation_failed", message: "invalid credential request" } }',
+      specTitle: 'POST body kosong → 400 validation_failed (tanpa membuat data)',
+      assertions: 'status=400; error.code=validation_failed',
+      source: 'scraper/credential.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR19', name: 'POST /v1/scrape body kosong → 400 (platform & keyword wajib)', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: '/v1/scrape', headers: 'Content-Type: application/json', params: '—', requestBody: '{}',
+      precondition: 'Scraper Service berjalan (aman: job tidak dijalankan)',
+      expectedStatus: '400 Bad Request', expectedResponse: '{ error: { code: "validation_failed", message: "platform and keyword are required" } }',
+      specTitle: 'POST body kosong → 400 validation_failed (platform & keyword wajib)',
+      assertions: 'status=400; message contains required',
+      source: 'scraper/on-demand.spec.ts', notes: 'Payload VALID sengaja tidak dikirim → akan menjalankan job scraping nyata.',
+    },
+    {
+      id: 'TC-BE-SR20', name: 'GET /v1/scrape/{id} dengan UUID tidak dikenal → 404', category: 'Negative', priority: 'Medium',
+      method: 'GET', endpoint: '/v1/scrape/{unknown-uuid}', headers: 'Accept: application/json', params: 'id=UUID acak', requestBody: '—',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '404 Not Found', expectedResponse: 'Status 404 (bukan 200/500) untuk job yang tidak ada',
+      specTitle: 'GET /v1/scrape/{id} dengan UUID tidak dikenal → 404 (bukan 200/500)',
+      assertions: 'status=404',
+      source: 'scraper/on-demand.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR21', name: 'PUT keyword-management id tak dikenal → 404 keyword_not_found', category: 'Negative', priority: 'Medium',
+      method: 'PUT', endpoint: '/v1/keyword-management/{unknown-uuid}', headers: 'Content-Type: application/json', params: 'id=UUID nol', requestBody: '{ keyword, platforms }',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '404 Not Found', expectedResponse: '{ error: { code: "keyword_not_found" } }',
+      specTitle: 'PUT keyword-management id tak dikenal → 404 keyword_not_found',
+      assertions: 'status=404; error.code=keyword_not_found',
+      source: 'scraper/write-lifecycle.spec.ts', notes: 'Audit write 2026-09-02 — tanpa efek samping.',
+    },
+    {
+      id: 'TC-BE-SR22', name: 'PUT credential id tak dikenal → 404 credential_not_found', category: 'Negative', priority: 'Medium',
+      method: 'PUT', endpoint: '/v1/credential/{unknown-uuid}', headers: 'Content-Type: application/json', params: 'id=UUID nol', requestBody: '{ name, platform, mode, priority, req_per_second, req_per_month, enabled }',
+      precondition: 'Scraper Service berjalan',
+      expectedStatus: '404 Not Found', expectedResponse: '{ error: { code: "credential_not_found" } }',
+      specTitle: 'PUT credential id tak dikenal → 404 credential_not_found',
+      assertions: 'status=404; error.code=credential_not_found',
+      source: 'scraper/write-lifecycle.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-BE-SR23', name: 'PUT keyword-management round-trip: modifikasi period lalu restore persis', category: 'Positive', priority: 'Medium',
+      method: 'PUT', endpoint: '/v1/keyword-management/{id}', headers: 'Content-Type: application/json', params: 'id keyword on-demand pertama (schedule_enabled=false)', requestBody: '{ keyword, platforms, period (ALL↔7d), schedule_enabled, schedule }',
+      precondition: 'Minimal 1 keyword on-demand ada; state akhir HARUS = state awal (finally block)',
+      expectedStatus: '200 OK — modifikasi lalu restore', expectedResponse: 'PUT 200; period berubah sesuai payload; field lain tetap; PUT kedua mengembalikan period persis seperti awal',
+      specTitle: 'PUT keyword-management round-trip: modifikasi period lalu restore persis',
+      assertions: 'PUT 200; after.period = mutate; keyword/schedule_enabled/platforms tidak berubah; finally restore → period = original',
+      source: 'scraper/write-lifecycle.spec.ts', notes: 'Satu-satunya mutasi keyword yang aman di staging (reversibel).',
+    },
+    {
+      id: 'TC-BE-SR24', name: 'PATCH keyword activate/deactivate round-trip: state berubah lalu dikembalikan', category: 'Positive', priority: 'Medium',
+      method: 'PATCH', endpoint: '/v1/keyword-management/{id}/activate|deactivate', headers: '—', params: 'id keyword on-demand pertama; arah = kebalikan status awal', requestBody: 'PATCH tanpa body',
+      precondition: 'Minimal 1 keyword on-demand ada; state akhir HARUS = state awal (finally block)',
+      expectedStatus: '200 OK — toggle lalu restore', expectedResponse: 'PATCH flip → status berubah; PATCH kedua (finally) → status kembali persis seperti awal',
+      specTitle: 'PATCH keyword activate/deactivate round-trip: state berubah lalu dikembalikan',
+      assertions: 'flip 200; status ≠ original; finally restore 200; status = original',
+      source: 'scraper/write-lifecycle.spec.ts', notes: 'Pola sama dengan toggle credential TC-BE-SR11.',
+    },
+  ];
+}
+
 // ---------- daftar test case platform AI (tests/ai/) ----------
 // Sumber: spec OpenAPI SIP AI Service di {BASE_URL_AI}/docs
 // (spec JSON: {BASE_URL_AI}/openapi.json). Auth: header X-Service-Token
@@ -3410,6 +3750,83 @@ function buildAiGenerateCases() {
   ];
 }
 
+// ---------- daftar test case Intelligence AI Service (tests/ai/intelligence/) ----------
+// Service TERPISAH dari SIP AI Service (BASE_URL_AI_INTELLIGENCE, default
+// http://10.200.102.2:8000) — header auth X-AI-Service-Token (BUKAN
+// X-Service-Token). Endpoint: GET /health, POST /v1/topic-intelligence
+// (status completed|insufficient_evidence|failed), POST
+// /v1/actor-intelligence. Saat Gemini quota circuit terbuka, request valid
+// dibalas 429 provider_rate_limited — itu kondisi service, bukan kegagalan
+// kontrak (test menerima union 200|429). Ditemukan & di-cover 2026-09-02.
+
+function buildAiIntelligenceCases() {
+  return [
+    {
+      id: 'TC-AI-I01', name: 'GET /health tanpa token → 200 dengan status ok & medan health lengkap', category: 'Positive', priority: 'High',
+      method: 'GET', endpoint: `${BASE_URL_AI_INTELLIGENCE}/health`, headers: '—', params: '—', requestBody: '—',
+      precondition: `Intelligence AI Service berjalan di ${BASE_URL_AI_INTELLIGENCE} (env BASE_URL_AI_INTELLIGENCE)`,
+      expectedStatus: '200 OK', expectedResponse: '{ status: "ok", service/capability, provider_state, ... } — tanpa token (endpoint publik)',
+      specTitle: '→ 200 dengan status ok & medan health lengkap (tanpa token)',
+      assertions: 'status=200; body.status = "ok"; medan health (mis. provider_state) ada',
+      source: 'intelligence/health.spec.ts', notes: 'Auth pakai X-AI-Service-Token (beda dari SIP AI Service).',
+    },
+    {
+      id: 'TC-AI-I02', name: 'POST /v1/topic-intelligence tanpa token → 401', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: `${BASE_URL_AI_INTELLIGENCE}/v1/topic-intelligence`, headers: '—', params: '—', requestBody: '{}',
+      precondition: `Intelligence AI Service berjalan di ${BASE_URL_AI_INTELLIGENCE}`,
+      expectedStatus: '401 Unauthorized', expectedResponse: 'Token tidak valid / tidak dikirim',
+      specTitle: 'tanpa token → 401 Unauthorized',
+      assertions: 'res.status() = 401',
+      source: 'intelligence/topic-intelligence.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-AI-I03', name: 'POST /v1/topic-intelligence body kosong → 400 validation_error', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: `${BASE_URL_AI_INTELLIGENCE}/v1/topic-intelligence`, headers: 'X-AI-Service-Token: <token> · Content-Type: application/json', params: '—', requestBody: '{}',
+      precondition: `Intelligence AI Service berjalan; token valid`,
+      expectedStatus: '400 Bad Request', expectedResponse: '{ status: "failed", error_code: "validation_error", message }',
+      specTitle: 'body tidak valid ({} kosong) → 400 validation_error',
+      assertions: 'status=400; body.status=failed; error_code=validation_error; message string',
+      source: 'intelligence/topic-intelligence.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-AI-I04', name: 'POST /v1/topic-intelligence request valid → 200 atau 429 (provider_rate_limited)', category: 'Positive', priority: 'High',
+      method: 'POST', endpoint: `${BASE_URL_AI_INTELLIGENCE}/v1/topic-intelligence`, headers: 'X-AI-Service-Token: <token> · Content-Type: application/json', params: '—', requestBody: '{ request_id, keyword, period{from,to}, topic{name}, posts[] }',
+      precondition: 'Intelligence AI Service berjalan; token valid',
+      expectedStatus: '200 OK | 429 Too Many Requests', expectedResponse: '200: status ∈ completed|insufficient_evidence|failed + computed_facts (post_count, sentiment); 429: { status: failed, error_code: provider_rate_limited, message }',
+      specTitle: 'request valid → 200 (completed/insufficient_evidence/failed) atau 429 provider_rate_limited',
+      assertions: 'res.status() ∈ [200,429]; request_id digaungkan; computed_facts.post_count.total = 2; 200 failed → error_code enum dikenal',
+      source: 'intelligence/topic-intelligence.spec.ts', notes: '429 = circuit breaker Gemini terbuka (kondisi service, bukan kegagalan kontrak).',
+    },
+    {
+      id: 'TC-AI-I05', name: 'POST /v1/actor-intelligence tanpa token → 401', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: `${BASE_URL_AI_INTELLIGENCE}/v1/actor-intelligence`, headers: '—', params: '—', requestBody: '{}',
+      precondition: `Intelligence AI Service berjalan di ${BASE_URL_AI_INTELLIGENCE}`,
+      expectedStatus: '401 Unauthorized', expectedResponse: 'Token tidak valid / tidak dikirim',
+      specTitle: 'tanpa token → 401 Unauthorized',
+      assertions: 'res.status() = 401',
+      source: 'intelligence/actor-intelligence.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-AI-I06', name: 'POST /v1/actor-intelligence body kosong → 400 validation_error', category: 'Negative', priority: 'High',
+      method: 'POST', endpoint: `${BASE_URL_AI_INTELLIGENCE}/v1/actor-intelligence`, headers: 'X-AI-Service-Token: <token> · Content-Type: application/json', params: '—', requestBody: '{}',
+      precondition: `Intelligence AI Service berjalan; token valid`,
+      expectedStatus: '400 Bad Request', expectedResponse: '{ status: "failed", error_code: "validation_error", message }',
+      specTitle: 'body tidak valid ({} kosong) → 400 validation_error',
+      assertions: 'status=400; body.status=failed; error_code=validation_error',
+      source: 'intelligence/actor-intelligence.spec.ts', notes: '—',
+    },
+    {
+      id: 'TC-AI-I07', name: 'POST /v1/actor-intelligence request valid → 200 (kontrak actor) atau 429', category: 'Positive', priority: 'High',
+      method: 'POST', endpoint: `${BASE_URL_AI_INTELLIGENCE}/v1/actor-intelligence`, headers: 'X-AI-Service-Token: <token> · Content-Type: application/json', params: '—', requestBody: '{ request_id, keyword, period{from,to}, actor{username}, posts[] }',
+      precondition: 'Intelligence AI Service berjalan; token valid',
+      expectedStatus: '200 OK | 429 Too Many Requests', expectedResponse: '200: status ∈ completed|insufficient_evidence|failed; completed → result TANPA recommended_action; 429: { error_code: provider_rate_limited }',
+      specTitle: 'request valid → 200 (kontrak actor) atau 429 provider_rate_limited',
+      assertions: 'res.status() ∈ [200,429]; completed → result.recommended_action undefined; 429 → error_code provider_rate_limited',
+      source: 'intelligence/actor-intelligence.spec.ts', notes: '—',
+    },
+  ];
+}
+
 // ---------- definisi platform (FE / BE / AI) ----------
 // Setiap platform: folder test, config Playwright, file report JSON, file
 // Excel output, daftar modul (sheet), legend & catatan sheet Ringkasan.
@@ -3478,6 +3895,7 @@ const PLATFORM_BE = {
       { sheet: 'Health', project: 'be', accent: 'FF166534', cases: buildBeHealthCases() },
       { sheet: 'Dashboard', project: 'be', accent: 'FF0284C7', cases: buildBeDashboardCases() },
       { sheet: 'Scrape', project: 'be', accent: 'FFB45309', cases: buildScrapeCases() },
+      { sheet: 'Scraper', project: 'be', accent: 'FF7C2D12', cases: buildScraperCases() },
     ];
   },
   coverage: null,
@@ -3521,6 +3939,7 @@ const PLATFORM_AI = {
       { sheet: 'Analyze Jobs', project: 'ai', accent: 'FF0E7490', cases: buildAiJobsCases() },
       { sheet: 'Analyze Sync', project: 'ai', accent: 'FF7C3AED', cases: buildAiSyncCases() },
       { sheet: 'Generate', project: 'ai', accent: 'FF9D174D', cases: buildAiGenerateCases() },
+      { sheet: 'Intelligence', project: 'ai', accent: 'FF065F46', cases: buildAiIntelligenceCases() },
     ];
   },
   coverage: null,
