@@ -1,4 +1,4 @@
-import { test as base, expect, APIRequestContext } from '@playwright/test';
+import { test as base, expect, APIRequestContext, APIResponse } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Env } from '../../src/config/env';
@@ -47,6 +47,30 @@ export function beApiUrl(apiPath: string): string {
 /** Bangun URL absolut AI Service: `${BASE_URL_AI}${path}` */
 export function aiApiUrl(apiPath: string): string {
   return `${Env.aiBaseUrl}${apiPath}`;
+}
+
+/** Bangun URL absolut Intelligence AI Service: `${BASE_URL_AI_INTELLIGENCE}${path}` */
+export function intelApiUrl(apiPath: string): string {
+  return `${Env.aiIntelligenceBaseUrl}${apiPath}`;
+}
+
+/**
+ * Header auth Intelligence AI Service: `X-AI-Service-Token: <token>`
+ * (BEDA dari SIP AI Service yang memakai X-Service-Token — lihat aiAuth).
+ */
+export function intelHeaders(): Record<string, string> {
+  return { 'X-AI-Service-Token': Env.aiIntelligenceToken };
+}
+
+/** Opsi request siap pakai ke Intelligence AI Service (token + optional body). */
+export function intelAuth(data?: unknown): { headers: Record<string, string>; data?: unknown } {
+  const opts: { headers: Record<string, string>; data?: unknown } = {
+    headers: intelHeaders(),
+  };
+  if (data !== undefined) {
+    opts.data = data;
+  }
+  return opts;
 }
 
 /** Header auth untuk AI Service: `X-Service-Token: <token>` */
