@@ -25,3 +25,9 @@ tools/
 # Lainnya
 *.log
 .DS_Store
+
+# Script one-off lokal (recon/record/verify — jangan commit)
+scripts/tmp-*
+scripts/record-*
+scripts/verify-*
+scripts/print-pdfs.mjs
