@@ -133,7 +133,13 @@ export class KeywordPage extends BasePage {
   readonly reprocessKeywordInput = this.reprocessDialog.getByRole('combobox', { name: 'Keyword' });
   readonly startReprocessingButton = this.reprocessDialog.getByRole('button', { name: 'Start reprocessing' });
 
-  /** Link "View detail" menuju halaman detail unscheduled. */
+  /**
+   * Link "View detail" menuju halaman detail unscheduled.
+   * ⚠️ Catatan probe 2026-09-04: UI live saat ini TIDAK merender link ini di
+   * baris On Demand (aksi baris hanya Toggle/Reprocess/Move-to-scheduled),
+   * dan halaman detail /monitoring/keyword/unscheduled/:id tidak dapat
+   * diakses dari daftar. Helper dipertahankan untuk saat fitur kembali.
+   */
   viewDetailLink(keyword: string) {
     return this.rowOf(keyword).getByRole('link', { name: `View detail for ${keyword}` });
   }

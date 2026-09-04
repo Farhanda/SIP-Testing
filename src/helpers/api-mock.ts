@@ -1347,3 +1347,32 @@ export function mockResetUserPassword(
     });
   });
 }
+
+/**
+ * Mock DELETE /api/admin/user/:id (hapus user).
+ * Daftarkan SETELAH `mockUserList` supaya menang untuk method DELETE.
+ */
+export function mockDeleteUser(
+  page: Page,
+  { succeed = true }: { succeed?: boolean } = {},
+) {
+  return page.route(/\/api\/admin\/user\/[^/?]+$/, async (route) => {
+    if (route.request().method() !== 'DELETE') {
+      await route.fallback();
+      return;
+    }
+    if (!succeed) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Failed to delete user.' }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'User was deleted successfully.' }),
+    });
+  });
+}

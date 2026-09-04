@@ -14,6 +14,11 @@ import {
  * frequency). Modal Add On Demand = POST ke /v1/scrape/keyword-management
  * (schedule_enabled=false); modal Add scheduled = POST schedule_enabled=true.
  * Endpoint di-mock agar deterministik (aplikasi punya random failure).
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000) — mekanika tutup
+ *   modal yang berfungsi: outside-click menutup modal Add keyword On Demand.
+ *   (🔴 Bug ESCAPE tidak menutup modal ter-encode sebagai regresi R9/R11 di
+ *   regression-bugs.spec.ts; versi Add user ada di regresi R5 administration.)
  */
 test.describe('Monitoring Keyword — Modal', () => {
   test.describe('Modal Add keyword (On Demand)', () => {
@@ -168,6 +173,22 @@ test.describe('Monitoring Keyword — Modal', () => {
       expect((sched.frequency as Record<string, unknown>).unit).toBe('HOUR');
       expect((sched.frequency as Record<string, unknown>).value).toBe(2);
     });
+  });
+
+  // ── Eksplorasi live 2026-09: mekanika tutup modal yang berfungsi ──────
+
+  test('outside-click menutup modal Add keyword (On Demand) — perilaku benar (live)', async ({ keywordPage }) => {
+    await mockKeywordOptions(keywordPage.page);
+    await mockUnscheduledList(keywordPage.page);
+    await keywordPage.gotoOnDemandTab();
+
+    await keywordPage.openCreateModal();
+    await expect(keywordPage.createModal).toBeVisible();
+
+    // Klik di luar dialog (kiri layar, di area overlay)
+    await keywordPage.page.mouse.click(30, 400);
+
+    await expect(keywordPage.page.getByRole('dialog')).toHaveCount(0);
   });
 });
 

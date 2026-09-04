@@ -61,10 +61,12 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     const mgmtBtn = page.locator('header').getByRole('button', { name: 'Management' });
     await expect(mgmtBtn).toBeVisible();
     await mgmtBtn.click();
-    // Dropdown harus menampilkan minimal satu link
-    const hasLinks = await page.getByRole('link', { name: /Keyword|User|Profile/ })
+    // Dropdown harus menampilkan minimal satu item. UI 2026-09 merender
+    // item dropdown sebagai menuitem (dengan teks deskripsi), bukan link:
+    // mis. "Keywords Keywords & monitoring schedule".
+    const hasItems = await page.getByRole('menuitem', { name: /Keyword|User|Provider|Profile/ })
       .first().isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasLinks).toBeTruthy();
+    expect(hasItems).toBeTruthy();
   });
 
   test('navigasi dari Management dropdown ke Keyword Management', async ({ page }) => {
@@ -73,11 +75,11 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
     const mgmtBtn = page.locator('header').getByRole('button', { name: 'Management' });
     await expect(mgmtBtn).toBeVisible();
     await mgmtBtn.click();
-    // Link dropdown bernama "Keywords" (plural) — exact agar tidak bentrok
-    // dengan link post TikTok di tabel Top posts yang memuat kata "keyword".
-    const keywordLink = page.getByRole('link', { name: 'Keywords', exact: true });
-    await expect(keywordLink).toBeVisible();
-    await keywordLink.click();
+    // UI 2026-09: item dropdown = menuitem "Keywords ..." (role menuitem,
+    // nama memuat deskripsi) — klik menavigasi ke /monitoring/keyword.
+    const keywordItem = page.getByRole('menuitem', { name: /Keywords/ }).first();
+    await expect(keywordItem).toBeVisible();
+    await keywordItem.click();
     await expectUrlPath(page, '/monitoring/keyword');
   });
 

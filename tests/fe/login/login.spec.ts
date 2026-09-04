@@ -7,6 +7,14 @@ import { Env } from '../../../src/config/env';
  * - Kredensial valid → redirect ke /monitoring/dashboard.
  * - Kredensial salah → pesan "Invalid username or password", tetap di /login.
  * Kredensial valid diambil dari .env (UI_TEST_USERNAME / UI_TEST_PASSWORD).
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000) — alur sesi
+ *   (lihat describe "Sesi — Logout & redirect param" di bawah):
+ *   - Logout dari halaman dalam → kembali ke /login.
+ *   - Buka halaman protected setelah logout → /login?redirect=%2F...%2F...
+ *   - Login ulang → user dikembalikan ke path di param redirect (BUKAN
+ *     selalu dashboard). Perilaku bagus & layak dijaga regresinya.
+ *   - Notifications menampilkan empty state "No notifications yet."
  */
 test.describe('Login', () => {
   test('form login menampilkan field username, password, dan tombol Log in', async ({ loginPage }) => {
@@ -63,5 +71,53 @@ test.describe('Login', () => {
     await expect(loginPage.rememberMeCheckbox).not.toBeChecked();
     await loginPage.rememberMeCheckbox.check();
     await expect(loginPage.rememberMeCheckbox).toBeChecked();
+  });
+
+  // ── Eksplorasi live 2026-09: alur sesi (logout & redirect param) ──────
+
+  test.describe('Sesi — Logout & redirect param (Eksplorasi 2026-09)', () => {
+    // Jalankan tanpa storageState: kita butuh sesi segar lalu logout di
+    // dalam test. test.use di scope describe ini agar tidak memengaruhi
+    // test login lain di file ini.
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test('login → logout → login ulang menghormati param redirect (live)', async ({ page }) => {
+      // 1) Login awal
+      await page.goto('/login');
+      await page.getByLabel('Username').fill(Env.testUsername);
+      await page.getByLabel('Password').fill(Env.testPassword);
+      await page.getByRole('button', { name: 'Log in' }).click();
+      await expect(page).toHaveURL(/\/monitoring\/dashboard/, { timeout: 20_000 });
+
+      // 2) Buka halaman dalam lalu logout via menu user
+      await page.goto('/monitoring/keyword');
+      await page.getByRole('button', { name: /admin/i }).last().click();
+      await page.getByRole('button', { name: 'Logout' }).click();
+      await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+
+      // 3) Coba buka halaman protected → /login?redirect=/monitoring/keyword
+      await page.goto('/monitoring/keyword');
+      await expect(page).toHaveURL(/\/login\?redirect=%2Fmonitoring%2Fkeyword/, {
+        timeout: 15_000,
+      });
+
+      // 4) Login ulang → dikembalikan ke path redirect (bukan dashboard)
+      await page.getByLabel('Username').fill(Env.testUsername);
+      await page.getByLabel('Password').fill(Env.testPassword);
+      await page.getByRole('button', { name: 'Log in' }).click();
+      await expect(page).toHaveURL(/\/monitoring\/keyword$/, { timeout: 20_000 });
+    });
+
+    test('Notifications menampilkan empty state "No notifications yet." (live)', async ({ page }) => {
+      // Login sendiri (sesi segar) supaya test mandiri
+      await page.goto('/login');
+      await page.getByLabel('Username').fill(Env.testUsername);
+      await page.getByLabel('Password').fill(Env.testPassword);
+      await page.getByRole('button', { name: 'Log in' }).click();
+      await expect(page).toHaveURL(/\/monitoring\/dashboard/, { timeout: 20_000 });
+
+      await page.getByRole('button', { name: 'Notifications' }).click();
+      await expect(page.getByText('No notifications yet.')).toBeVisible();
+    });
   });
 });

@@ -3,9 +3,14 @@ import { test } from '../fixtures';
 import { mockUserList } from '../../../src/helpers/api-mock';
 
 /**
- * R4 (Bug B5): user management saat ini TIDAK punya proteksi delete —
- * akun Super Admin terakhir / akun sendiri bisa dihapus tanpa guard apa pun
- * (tidak ada cek "last admin" di store maupun di API route).
+ * - R4 (Bug B5): user management saat ini TIDAK punya proteksi delete —
+ *   akun Super Admin terakhir / akun sendiri bisa dihapus tanpa guard apa pun
+ *   (tidak ada cek "last admin" di store maupun di API route).
+ *
+ * - R5 (2026-09-04, probe live 10.200.101.13:3000, masih buka): Escape key
+ *   TIDAK menutup modal Add user — modal hanya bisa ditutup via × (aria-label
+ *   Close) / Cancel. Pola bug a11y yang sama dengan R9/R11 di modul keyword
+ *   (tests/fe/keyword/regression-bugs.spec.ts).
  *
  * Test meng-encode perilaku yang BENAR: menghapus Super Admin (satu-satunya
  * admin di data mock) harus diblokir. Guard bisa berupa:
@@ -60,5 +65,22 @@ test.describe('Regresi Bug — Delete User', () => {
 
     await expect.poll(() => deleteRequests.length).toBe(0);
     await userPage.expectUserNameVisible('Super Admin', true);
+  });
+
+  test('REGRESI R5: Escape key harus menutup modal Add user (a11y)', async ({ userPage }) => {
+    // 🔴 BUG R5 (probe 2026-09-04): modal Add user hanya bisa ditutup via
+    // tombol × (aria-label Close) / Cancel — Escape diabaikan. Pola yang sama
+    // dengan R9 (Add keyword) & R11 (Add scheduled) di modul keyword.
+    await mockUserList(userPage.page);
+    await userPage.goto();
+
+    await userPage.openAddUserModal();
+    await expect(userPage.modalUsername).toBeVisible();
+
+    // Escape harus menutup modal (standar UX & a11y — parity dengan × & Cancel)
+    await userPage.page.keyboard.press('Escape');
+
+    // 🔴 BUG: modal masih terbuka → FAIL. Perilaku benar → toHaveCount(0).
+    await expect(userPage.page.getByRole('dialog')).toHaveCount(0);
   });
 });

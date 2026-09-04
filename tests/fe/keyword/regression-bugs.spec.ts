@@ -25,6 +25,11 @@ import {
  * - R10 (2026-08-31, masih buka): Error codes teknis (PROVIDER_PERMANENT_ERROR,
  *   PREPARATION_RETRY_EXHAUSTED) ter-expose ke user di keyword list.
  *
+ * - R11 (2026-09-04, probe live 10.200.101.13:3000, masih buka): Escape key
+ *   juga TIDAK menutup modal Add scheduled — pola bug yang sama dengan R9,
+ *   di dialog jadwal. Terkait: versi Add user ada di regresi R5
+ *   (tests/fe/administration/regression-bugs.spec.ts).
+ *
  * Terkait UI deploy 2026-09: R1 (Add scheduled) & B4 (Move to scheduled) kini
  * DIKEMBALIKAN ke aplikasi — coverage positifnya ada di keyword-modals.spec.ts
  * (Add scheduled POST) & keyword-actions.spec.ts (Move/Edit PUT).
@@ -73,6 +78,24 @@ test.describe('Regresi Bug — Monitoring Keyword', () => {
     // 🔴 BUG R9: saat ini Escape TIDAK menutup modal → modal masih terbuka → FAIL.
     // Perilaku benar: Escape menutup modal → toHaveCount(0) PASS.
     await expect(keywordPage.createModal).toHaveCount(0);
+  });
+
+  test('REGRESI R11: Escape key harus menutup modal Add scheduled (a11y)', async ({ keywordPage }) => {
+    // 🔴 BUG R11 (probe 2026-09-04): modal Add scheduled hanya bisa ditutup
+    // via tombol × (aria-label Close) / Cancel — Escape diabaikan. Pola yang
+    // sama dengan R9 pada modal Add keyword (On Demand).
+    await mockKeywordOptions(keywordPage.page);
+    await mockSchedulerList(keywordPage.page);
+    await keywordPage.gotoScheduledTab();
+
+    await keywordPage.openAddScheduledModal();
+    await expect(keywordPage.page.locator('#keyword')).toBeVisible();
+
+    // Escape harus menutup modal (standar UX & a11y — parity dengan × & Cancel)
+    await keywordPage.page.keyboard.press('Escape');
+
+    // 🔴 BUG: modal masih terbuka → FAIL. Perilaku benar → toHaveCount(0).
+    await expect(keywordPage.page.getByRole('dialog')).toHaveCount(0);
   });
 
   test('REGRESI R10: error codes harus tidak ter-expose ke user (harusnya user-friendly)', async ({ keywordPage }) => {

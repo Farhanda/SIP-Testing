@@ -17,6 +17,14 @@ import {
  * Edit scheduled aktif lagi. Aksi baris On Demand: Toggle status,
  * Reprocess (dialog), Move-to-scheduled. Aksi baris Scheduled: Toggle,
  * Edit, Move-to-on-demand.
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000):
+ *   - Modal "Edit scheduled keyword" TERISI data baris (keyword, start
+ *     date, frequency); Save changes tanpa perubahan sukses & menutup modal.
+ *   - Dialog "Move to on-demand keyword" (dari baris Scheduled) punya copy
+ *     penjelasan transisi + tombol "Move keyword"; Cancel aman.
+ *   - Validasi tanggal terbalik JUGA hidup di dialog Move to scheduled.
+ *   - Empty state On Demand "No keywords match your search/filter."
  */
 test.describe('Monitoring Keyword — Aksi', () => {
   test.describe('Tab On Demand', () => {
@@ -230,6 +238,122 @@ test.describe('Monitoring Keyword — Aksi', () => {
       await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Failed to load keyword detail.')).toBeVisible();
+    });
+  });
+
+  // ── Eksplorasi live 2026-09: dialog scheduled & state list ────────────
+
+  test.describe('Eksplorasi 2026-09 — dialog scheduled & state list', () => {
+    test('modal Edit scheduled terbuka dengan form terisi data baris (live)', async ({ keywordPage }) => {
+      await mockKeywordOptions(keywordPage.page, ['RUU Digital', 'BPJS Kesehatan']);
+      await mockUnscheduledList(keywordPage.page);
+      await keywordPage.gotoScheduledTab();
+
+      // Tombol edit live: aria-label "Edit <keyword>" (ikon tanpa teks)
+      const editBtn = keywordPage.page
+        .locator('button[aria-label^="Edit "], button[title^="Edit "]')
+        .first();
+      await expect(editBtn).toBeVisible();
+      await editBtn.click();
+
+      const dialog = keywordPage.page.getByRole('dialog', { name: 'Edit scheduled keyword' });
+      await expect(dialog).toBeVisible();
+
+      // Form TERISI data baris (prefill)
+      await expect(keywordPage.page.locator('#edit-keyword')).not.toHaveValue('');
+      // Field jadwal edit ada: start/end datetime + frequency
+      await expect(keywordPage.editScheduleStartInput).toBeVisible();
+      await expect(keywordPage.editScheduleEndInput).toBeVisible();
+      await expect(keywordPage.frequencyValueInput).toBeVisible();
+      await expect(keywordPage.frequencyUnitSelect).toBeVisible();
+
+      // Tombol aksi: Cancel & Save changes
+      await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Save changes' })).toBeVisible();
+    });
+
+    test('Save changes tanpa perubahan menyimpan & menutup modal (live)', async ({ keywordPage }) => {
+      await mockKeywordOptions(keywordPage.page, ['RUU Digital', 'BPJS Kesehatan']);
+      await mockUnscheduledList(keywordPage.page);
+      await keywordPage.gotoScheduledTab();
+
+      await keywordPage.page
+        .locator('button[aria-label^="Edit "], button[title^="Edit "]')
+        .first()
+        .click();
+      const dialog = keywordPage.page.getByRole('dialog', { name: 'Edit scheduled keyword' });
+      await expect(dialog).toBeVisible();
+
+      // Simpan tanpa mengubah apa pun → sukses (modal tertutup, tidak ada error)
+      await dialog.getByRole('button', { name: 'Save changes' }).click();
+
+      await expect(keywordPage.page.getByRole('dialog')).toHaveCount(0);
+      await expect(
+        keywordPage.page.getByText(/cannot be earlier|is required/i),
+      ).toHaveCount(0);
+    });
+
+    test('dialog "Move to on-demand keyword" menampilkan konfirmasi & tombol Move keyword (live)', async ({ keywordPage }) => {
+      await mockKeywordOptions(keywordPage.page, ['RUU Digital', 'BPJS Kesehatan']);
+      await mockUnscheduledList(keywordPage.page);
+      await keywordPage.gotoScheduledTab();
+
+      const moveBtn = keywordPage.page
+        .locator('button[aria-label*="to on-demand"], button[title*="on-demand"]')
+        .first();
+      await expect(moveBtn).toBeVisible();
+      await moveBtn.click();
+
+      const dialog = keywordPage.page.getByRole('dialog', { name: 'Move to on-demand keyword' });
+      await expect(dialog).toBeVisible();
+      // Copy penjelasan transisi tampil
+      await expect(
+        dialog.getByText(/stop running on the automatic schedule/i),
+      ).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Move keyword' })).toBeVisible();
+
+      // Cancel — tidak ada perubahan
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(keywordPage.page.getByRole('dialog')).toHaveCount(0);
+    });
+
+    test('validasi tanggal terbalik juga hidup di dialog Move to scheduled (live)', async ({ keywordPage }) => {
+      await mockKeywordOptions(keywordPage.page, ['RUU Digital', 'BPJS Kesehatan']);
+      await mockUnscheduledList(keywordPage.page);
+      await keywordPage.gotoOnDemandTab();
+
+      const moveBtn = keywordPage.moveToScheduledButton('RUU Digital').first();
+      await expect(moveBtn).toBeVisible();
+      await moveBtn.click();
+
+      const dialog = keywordPage.page.getByRole('dialog', { name: 'Move to scheduled keyword' });
+      await expect(dialog).toBeVisible();
+
+      // Isi tanggal terbalik lalu Move keyword → validasi menolak tanpa request
+      await keywordPage.moveScheduleStartInput.fill('2026-09-10T09:00');
+      await keywordPage.moveScheduleEndInput.fill('2026-09-01T09:00');
+      await keywordPage.frequencyValueInput.fill('1');
+      await keywordPage.frequencyUnitSelect.selectOption({ label: 'Hour(s)' });
+      await keywordPage.moveKeywordButton.click();
+
+      await expect(
+        keywordPage.page.getByText('End date cannot be earlier than start date.'),
+      ).toBeVisible();
+      await expect(dialog).toBeVisible();
+
+      // Tutup tanpa memindahkan
+      await dialog.locator('button[aria-label="Close"]').click();
+      await expect(keywordPage.page.getByRole('dialog')).toHaveCount(0);
+    });
+
+    test('pencarian On Demand tanpa hasil menampilkan empty state (live)', async ({ keywordPage }) => {
+      await mockKeywordOptions(keywordPage.page, ['RUU Digital', 'BPJS Kesehatan']);
+      await mockUnscheduledList(keywordPage.page);
+      await keywordPage.gotoOnDemandTab();
+
+      await keywordPage.searchKeyword('zzz-tidak-ada-xyz');
+
+      await expect(keywordPage.emptyState).toBeVisible();
     });
   });
 });

@@ -11,6 +11,13 @@ import {
  * mengonsumsi BE langsung (GET /v1/scrape/credential):
  * daftar provider, filter keyword/platform/enabled, reset filter,
  * modal "+ Add provider" (validasi + submit), dan toggle enable/disable.
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000):
+ *   - Modal "Edit provider" TERISI data baris; field SECRET berlabel
+ *     "SECRET (OPTIONAL)" dan TIDAK menampilkan secret lama (kosong —
+ *     keamanan: hanya dikirim bila diganti).
+ *   - Tabel menampilkan status secret sebagai "Configured" (nilai asli
+ *     tidak pernah dirender ke DOM).
  */
 test.describe('Provider Management', () => {
   test('halaman provider management menampilkan daftar provider dari API BE', async ({ providerPage }) => {
@@ -212,5 +219,33 @@ test.describe('Provider Management', () => {
     await expect.poll(() => patches.length).toBeGreaterThan(0);
     expect(patches[patches.length - 1]).toContain('/prv-002/enable');
     await expect(tiktokToggle).toHaveAttribute('aria-checked', 'true');
+  });
+
+  // ── Eksplorasi live 2026-09: secret tidak bocor di modal Edit ─────────
+
+  test('modal Edit provider terisi data baris & secret tidak bocor (live, keamanan)', async ({ providerPage }) => {
+    await mockProviderList(providerPage.page);
+    await providerPage.goto();
+
+    const editBtn = providerPage.page
+      .locator('button[aria-label^="Edit provider"], button[title^="Edit provider"]')
+      .first();
+    await expect(editBtn).toBeVisible();
+    await editBtn.click();
+
+    const dialog = providerPage.page.getByRole('dialog', { name: 'Edit provider' });
+    await expect(dialog).toBeVisible();
+
+    // Form terisi data baris: name & platform & priority
+    await expect(providerPage.page.locator('#name')).not.toHaveValue('');
+    await expect(providerPage.page.locator('#priority')).not.toHaveValue('');
+
+    // 🔐 Keamanan: field secret TIDAK berisi secret lama (opsional, kosong)
+    const secretLabel = dialog.getByText(/SECRET/i).first();
+    await expect(secretLabel).toContainText(/OPTIONAL/i);
+    await expect(providerPage.page.locator('#secret')).toHaveValue('');
+
+    await dialog.locator('button[aria-label="Close"]').click();
+    await expect(providerPage.page.getByRole('dialog')).toHaveCount(0);
   });
 });

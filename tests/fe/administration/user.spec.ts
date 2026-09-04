@@ -13,6 +13,11 @@ import {
  * Test User Management (FR-12, FR-13, FR-14, FR-20):
  * daftar user di-mock (deterministik) — filter diuji end-to-end UI → API,
  * modal form diverifikasi terbuka, dan empty state saat pencarian kosong.
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000) — mekanika tutup
+ *   modal Add user yang berfungsi: tombol Cancel & tombol × (aria-label
+ *   "Close") menutup modal. (🔴 Bug ESCAPE tidak menutup modal Add user
+ *   ter-encode sebagai regresi R5 di regression-bugs.spec.ts.)
  */
 test.describe('User Management', () => {
   test('halaman user management menampilkan daftar, filter, dan info pagination', async ({ userPage }) => {
@@ -323,5 +328,34 @@ test.describe('User Management', () => {
     // ...dan lompat ke halaman 2 lewat nomor halaman
     await userPage.pageNumberButton(2).click();
     await expect(userPage.showingText).toHaveText('Showing 11-12 of 12 users');
+  });
+
+  // ── Eksplorasi live 2026-09: mekanika tutup modal Add user ────────────
+
+  test('tombol Cancel menutup modal Add user — perilaku benar (live)', async ({ userPage }) => {
+    await mockUserList(userPage.page);
+    await userPage.goto();
+
+    await userPage.openAddUserModal();
+    await userPage.page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Cancel' })
+      .click();
+
+    await expect(userPage.page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('tombol × (aria-label Close) menutup modal Add user — perilaku benar (live)', async ({ userPage }) => {
+    await mockUserList(userPage.page);
+    await userPage.goto();
+
+    await userPage.openAddUserModal();
+    await userPage.page
+      .getByRole('dialog')
+      .first()
+      .locator('button[aria-label="Close"]')
+      .click();
+
+    await expect(userPage.page.getByRole('dialog')).toHaveCount(0);
   });
 });

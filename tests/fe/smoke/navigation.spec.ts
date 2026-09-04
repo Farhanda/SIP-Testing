@@ -7,6 +7,10 @@ import { expectUrlPath } from '../../../src/helpers/ui-assert';
  * Berjalan dengan API simulasi ASLI (tanpa mock) — assertion dibatasi pada
  * elemen yang stabil (heading, navbar, struktur) sehingga tidak flaky
  * walaupun API punya random failure.
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000): dropdown navbar
+ *   "Display Wall" berisi 2 link ke /display/* (Conversation Overview &
+ *   Top Engagement).
  */
 test.describe('Navigasi & Smoke', () => {
   test('root / redirect ke halaman dashboard', async ({ page }) => {
@@ -84,5 +88,18 @@ test.describe('Navigasi & Smoke', () => {
     await expect(page.getByRole('heading', { name: 'User Management' })).toBeVisible();
     await expect(page.getByRole('button', { name: '+ Add user' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'User list' })).toBeVisible();
+  });
+
+  // ── Eksplorasi live 2026-09: dropdown navbar Display Wall ─────────────
+
+  test('dropdown Display Wall berisi link Conversation Overview & Top Engagement (live)', async ({ page }) => {
+    await page.goto('/monitoring/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+
+    await page.locator('header').getByRole('button', { name: 'Display Wall' }).click();
+
+    const menu = page.getByRole('menu').last();
+    await expect(menu.locator('a[href="/display/conversation-overview"]')).toBeVisible();
+    await expect(menu.locator('a[href="/display/top-engagement"]')).toBeVisible();
   });
 });

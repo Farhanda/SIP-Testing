@@ -11,6 +11,17 @@ import { mockDashboardApis, mockKeywordOptions } from '../../../src/helpers/api-
  *
  * URL pattern:
  *   /monitoring/dashboard/posts?keyword=<keyword>&sort_by=<view|engagement>
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000) — filter baru
+ *   & kontrak request (API ASLI, assertion struktural):
+ *   - 6 select filter: Topic, Emotion, Sentiment, Sort by (Views/Engagement/
+ *     Published at), Sort order (Desc/Asc), Page size (10/20/50).
+ *   - Kontrak request ke /v1/dashboard/top-posts-list:
+ *     ?page=&size=&sort_by=&sort_order=[&keyword=...&topic=...]
+ *   - Pagination tombol angka memicu request page berikutnya.
+ *   - Empty state "No posts found" saat filter tanpa hasil.
+ *   - Halaman tanpa parameter → request default page=1&size=10&sort_by=view
+ *     &sort_order=desc.
  */
 test.describe('Posts Page — /monitoring/dashboard/posts', () => {
   test.beforeEach(async ({ postsPage }) => {
@@ -225,5 +236,179 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
         await expect(postCell.getByRole('button', { name: 'Show less' })).toBeVisible();
       }
     }
+  });
+
+  // ── Eksplorasi live 2026-09: filter baru & kontrak request (API asli) ─
+  // Dijalankan TANPA beforeEach mock (lihat describe di bawah) supaya
+  // request /top-posts-list benar-benar menuju BE, bukan terintersepsi mock.
+  // Karena describe ini ada di dalam describe utama yang punya beforeEach,
+  // kita clear route mock di beforeEach lokal ini.
+  test.describe('Posts Page — Eksplorasi 2026-09 (filter & kontrak request, API asli)', () => {
+    test.beforeEach(async ({ postsPage }) => {
+      await postsPage.page.unrouteAll({ behavior: 'ignoreErrors' });
+    });
+
+    /** Track URL request top-posts-list sejak dipasang. */
+    function trackListRequests(page: import('@playwright/test').Page): string[] {
+      const reqUrls: string[] = [];
+      page.on('request', (req) => {
+        if (req.url().includes('/top-posts-list')) reqUrls.push(req.url());
+      });
+      return reqUrls;
+    }
+
+    test('halaman tanpa parameter memuat dengan request default sort view desc (live)', async ({ postsPage }) => {
+      await postsPage.page.goto('/monitoring/dashboard/posts');
+      await postsPage.page.waitForLoadState('domcontentloaded');
+
+      const reqUrls = trackListRequests(postsPage.page);
+      await expect
+        .poll(() => reqUrls[0] ?? '', { timeout: 15_000 })
+        .toContain('page=1&size=10&sort_by=view&sort_order=desc');
+      await expect(
+        postsPage.page.getByRole('heading', { level: 1, name: 'All top posts' }),
+      ).toBeVisible();
+    });
+
+  test('select filter lengkap: Sort by punya Views/Engagement/Published at (live)', async ({ postsPage }) => {
+    await postsPage.page.goto('/monitoring/dashboard/posts');
+    await postsPage.page.waitForLoadState('domcontentloaded');
+
+    const selects = postsPage.page.locator('select');
+    // Select filter dirender bersama data (live: bisa >2s setelah DOM ready)
+    await expect
+      .poll(async () => selects.count(), { timeout: 15_000 })
+      .toBeGreaterThanOrEqual(5);
+
+    // Sort by (live 2026-09 punya 3 opsi termasuk Published at)
+    const sortSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: 'Published at' }) })
+      .first();
+    await expect(sortSelect).toBeVisible();
+    expect(await sortSelect.locator('option').allInnerTexts()).toEqual([
+      'Views',
+      'Engagement',
+      'Published at',
+    ]);
+
+    // Sort order Desc/Asc
+    const orderSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: 'Asc' }) })
+      .first();
+    await expect(orderSelect).toBeVisible();
+
+    // Page size 10/20/50
+    const sizeSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: '50' }) })
+      .first();
+    await expect(sizeSelect).toBeVisible();
+
+    // Topic & Emotion & Sentiment select ada
+    const topicSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: 'All topics' }) })
+      .first();
+    await expect(topicSelect).toBeVisible();
+    const emotionSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: 'All emotions' }) })
+      .first();
+    await expect(emotionSelect).toBeVisible();
+    const sentimentSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: 'All sentiments' }) })
+      .first();
+    await expect(sentimentSelect).toBeVisible();
+  });
+
+  test('mengubah page size mengirim size baru ke API (live)', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+    const reqUrls = trackListRequests(postsPage.page);
+
+    const sizeSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: '50' }) })
+      .first();
+    await sizeSelect.selectOption('50');
+    await postsPage.applyFilterButton.click();
+
+    await expect
+      .poll(() => reqUrls[reqUrls.length - 1] ?? '')
+      .toContain('size=50');
+  });
+
+  test('mengubah sort order ke Asc mengirim sort_order=asc (live)', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+    const reqUrls = trackListRequests(postsPage.page);
+
+    const orderSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: 'Asc' }) })
+      .first();
+    await orderSelect.selectOption({ label: 'Asc' });
+    await postsPage.applyFilterButton.click();
+
+    await expect
+      .poll(() => reqUrls[reqUrls.length - 1] ?? '')
+      .toContain('sort_order=asc');
+  });
+
+  test('mengubah Sort by ke Published at mengirim sort_by=published_at (live)', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+    const reqUrls = trackListRequests(postsPage.page);
+
+    const sortSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: 'Published at' }) })
+      .first();
+    await sortSelect.selectOption({ label: 'Published at' });
+    await postsPage.applyFilterButton.click();
+
+    // Kontrak param persis diverifikasi live 2026-09: sort_by=published_at
+    await expect
+      .poll(() => reqUrls[reqUrls.length - 1] ?? '')
+      .toMatch(/sort_by=published_at/i);
+  });
+
+  test('klik nomor halaman 2 memicu request page=2 (live)', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+    const reqUrls = trackListRequests(postsPage.page);
+
+    const page2 = postsPage.page
+      .getByRole('button', { name: '2', exact: true })
+      .first();
+    await expect(page2).toBeVisible();
+    await page2.click();
+
+    await expect
+      .poll(() => reqUrls[reqUrls.length - 1] ?? '')
+      .toContain('page=2');
+    // Tabel tetap ter-render setelah pindah halaman
+    await expect(postsPage.postRows.first()).toBeVisible();
+  });
+
+  test('pencarian tanpa hasil menampilkan empty state "No posts found" (live)', async ({ postsPage }) => {
+    await postsPage.gotoWithSort('view', 'RUU Digital');
+
+    await postsPage.searchInput.fill('zzz-tidak-ada-xyz');
+    await postsPage.applyFilterButton.click();
+
+    await expect(postsPage.page.getByText('No posts found')).toBeVisible();
+  });
+
+  test('link Dashboard breadcrumb kembali ke halaman dashboard utama (live)', async ({ postsPage }) => {
+    await postsPage.page.goto('/monitoring/dashboard/posts');
+    await postsPage.page.waitForLoadState('domcontentloaded');
+
+    const breadcrumb = postsPage.page
+      .getByRole('main')
+      .getByRole('link', { name: 'Dashboard' });
+    await expect(breadcrumb).toBeVisible();
+    await breadcrumb.click();
+    await expect(postsPage.page).toHaveURL(/\/monitoring\/dashboard\/?$/);
+  });
   });
 });

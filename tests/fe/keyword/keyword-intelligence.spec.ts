@@ -11,6 +11,19 @@ import { test } from '../fixtures';
  *
  * Assertion sifatnya STRUKTURAL (elemen & section), bukan isi data —
  * halaman mengonsumsi data live sehingga nilai spesifik berubah-ubah.
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000):
+ *   ⚠️ TEMUAN T2: endpoint /api/keyword-intelligence/actor-intelligence &
+ *   decision-summary MENGEMBALIKAN 500 secara INTERMITEN (probe berulang:
+ *   500 → 200 → 200 → 500 pada URL identik, ~30% dari percobaan). Konsisten
+ *   dengan desain aplikasi yang mensimulasikan kegagalan acak (failRate
+ *   5–15%, lihat src/helpers/api-mock.ts) — BUKAN bug deterministik.
+ *   Yang dijaga regresi dari temuan ini:
+ *     1) Kegagalan TRANSIEN — endpoint berhasil (200) bila di-retry (T2a/T2b).
+ *     2) Kontrak UI: saat gagal → pesan ramah tampil & halaman tetap sehat;
+ *        saat sukses → tidak ada pesan error (T2c). Live menampilkan
+ *        "Failed to load actor intelligence." karena kegagalan intermiten ini.
+ *   ✅ Juga terkonfirmasi sehat: dialog Glossary terbuka dari tombol Glossary.
  */
 test.describe('Keyword Intelligence — /monitoring/keyword-intelligence', () => {
   test.beforeEach(async ({ page }) => {
@@ -71,5 +84,92 @@ test.describe('Keyword Intelligence — /monitoring/keyword-intelligence', () =>
       const href = await topicLink.getAttribute('href');
       expect(href).toMatch(/\/monitoring\/keyword-intelligence\/topic\/[^/]+$/);
     }
+  });
+
+  // ── Eksplorasi live 2026-09: dialog Glossary & ketahanan endpoint ─────
+
+  test('✅ tombol Glossary membuka dialog Metric glossary (live)', async ({ page }) => {
+    await page.getByRole('button', { name: 'Glossary' }).click();
+
+    const glossaryDialog = page.getByRole('dialog').first();
+    await expect(glossaryDialog).toBeVisible();
+    await expect(glossaryDialog.getByText(/Metric glossary/i)).toBeVisible();
+    await expect(
+      glossaryDialog.getByText(/Risk score composition/i),
+    ).toBeVisible();
+
+    // Tutup via tombol × (aria-label Close)
+    await glossaryDialog.locator('button[aria-label="Close"]').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('🔴 TEMUAN T2a: actor-intelligence sukses saat di-retry (kegagalan transien, bukan outage)', async ({ request }) => {
+    // Endpoint ini membalas 500 intermiten (by design failRate). Kontrak yang
+    // dijaga: kegagalan itu TRANSIEN — salah satu dari N retry harus 200.
+    // Bila test ini FAIL, endpoint mengalami outage permanen (regresi BE).
+    let lastStatus = 0;
+    let lastBody = '';
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const res = await request.get(
+        '/api/keyword-intelligence/actor-intelligence?keyword=demo&period=1M',
+      );
+      lastStatus = res.status();
+      if (lastStatus < 400) break;
+      lastBody = await res.text().catch(() => lastBody);
+    }
+    if (lastStatus >= 400) {
+      console.error(`actor-intelligence gagal 6x, terakhir ${lastStatus}:`, lastBody.slice(0, 300));
+    }
+    expect(lastStatus, 'actor-intelligence harus berhasil dalam 6 retry').toBeLessThan(400);
+  });
+
+  test('🔴 TEMUAN T2b: decision-summary sukses saat di-retry (kegagalan transien, bukan outage)', async ({ request }) => {
+    let lastStatus = 0;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const res = await request.get(
+        '/api/keyword-intelligence/decision-summary?keyword=demo&period=1M',
+      );
+      lastStatus = res.status();
+      if (lastStatus < 400) break;
+    }
+    expect(lastStatus, 'decision-summary harus berhasil dalam 6 retry').toBeLessThan(400);
+  });
+
+  test('🔴 TEMUAN T2c: UI actor intelligence — data saat 2xx, error ramah saat gagal', async ({ page }) => {
+    // Kontrak UI (bebas race terhadap failRate acak): tunggu respons
+    // actor-intelligence pertama lalu
+    //  - 2xx → TIDAK boleh ada pesan error (data harus tampil)
+    //  - >=400 → pesan error user-friendly tampil (UI graceful, no crash)
+    // Live 2026-09: keduanya teramati karena failRate intermiten —
+    // UI menangani keduanya dengan benar.
+    // beforeEach sudah menunggu networkidle (respons pertama lewat), jadi
+    // arm listener dulu baru reload untuk memicu request baru.
+    const actorRespPromise = page.waitForResponse((r) =>
+      r.url().includes('/api/keyword-intelligence/actor-intelligence'),
+    );
+    await page.reload();
+    const resp = await actorRespPromise;
+
+    const errorMsg = page.getByText('Failed to load actor intelligence.');
+    if (resp.status() < 400) {
+      await expect(errorMsg).toHaveCount(0);
+    } else {
+      // Endpoint gagal (intermiten) — UI harus menampilkan pesan ramah, bukan crash
+      await expect(errorMsg).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: 'Actor intelligence' }),
+      ).toBeVisible();
+    }
+  });
+
+  test('✅ UI tetap sehat saat endpoint intelligence gagal (error handling, live)', async ({ page }) => {
+    // Sisi positif yang layak dijaga: meski ada endpoint 500, halaman tidak
+    // crash — heading utama & section lain tetap tampil.
+    for (const section of ['Sentiment & emotion', 'Topic intelligence', 'Actor intelligence']) {
+      await expect(page.getByRole('heading', { name: section })).toBeVisible();
+    }
+    await expect(
+      page.getByRole('heading', { name: 'Keyword Intelligence', exact: true }),
+    ).toBeVisible();
   });
 });

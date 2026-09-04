@@ -16,6 +16,17 @@ import { mockTopKeywords } from '../../../src/helpers/api-mock';
  * /api/control/selected-keywords — sumber keyword langsung dari
  * GET /v1/dashboard/top-keywords?limit=5 (di-mock oleh mockTopKeywords),
  * lalu tiap keyword memanggil endpoint chart dengan period=1M.
+ *
+ * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000):
+ *   - Trigger interval adalah LISTBOX dengan 6 opsi: 10/20/30 seconds,
+ *     1/2/5 minutes — pilihan tersimpan (teks trigger berubah).
+ *   - View admin /monitoring/conversation-overview punya struktur sama
+ *     dengan wall publik /display/conversation-overview.
+ *   - Wall full-screen TANPA navbar; chart dirender (canvas/svg ada).
+ *   ⚠️ CATATAN UX (bukan bug): trigger "20 seconds" adalah PICKER INTERVAL
+ *   (listbox), bukan tombol "refresh sekarang" — klik manual TIDAK langsung
+ *   merotasi keyword; rotasi hanya terjadi per interval. Label di user guide
+ *   ("label tombol 20 seconds") bisa menyesatkan — layak diperjelas di docs.
  */
 test.describe('Display Wall — Conversation Overview', () => {
   test.beforeEach(async ({ page }) => {
@@ -175,5 +186,62 @@ test.describe('Display Wall — Conversation Overview', () => {
 
     // Heading berganti mengikuti keyword yang aktif
     await displayWallPage.expectKeywordVisible('BPJS Kesehatan');
+  });
+
+  // ── Eksplorasi live 2026-09: interval picker & view admin ─────────────
+
+  test('interval picker (listbox) menampilkan 6 opsi & pilihan tersimpan (live)', async ({ page }) => {
+    await page.goto('/display/conversation-overview');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
+
+    // Trigger interval = button[aria-haspopup="listbox"] (teks "20 seconds")
+    const trigger = page.locator('button[aria-haspopup="listbox"]').first();
+    await expect(trigger).toBeVisible();
+
+    await trigger.click();
+    const options = page.getByRole('option');
+    await expect(options.first()).toBeVisible();
+    const texts = await options.allInnerTexts();
+    expect(texts).toEqual([
+      '10 seconds',
+      '20 seconds',
+      '30 seconds',
+      '1 minute',
+      '2 minutes',
+      '5 minutes',
+    ]);
+
+    // Pilih interval berbeda → teks trigger ikut berubah (tersimpan)
+    await page.getByRole('option', { name: '30 seconds' }).click();
+    await expect(trigger).toHaveText('30 seconds');
+
+    // Kembalikan ke default
+    await trigger.click();
+    await page.getByRole('option', { name: '20 seconds' }).click();
+    await expect(trigger).toHaveText('20 seconds');
+  });
+
+  test('wall conversation-overview: full-screen tanpa navbar (header count 0) & canvas ter-render (live)', async ({ page }) => {
+    await page.goto('/display/conversation-overview');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2500);
+
+    // Heading keyword (h1) tampil
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // Full-screen: navbar utama TIDAK ada
+    await expect(page.locator('header')).toHaveCount(0);
+    // Chart ter-render (canvas dan/atau svg)
+    expect(await page.locator('canvas').count()).toBeGreaterThan(0);
+  });
+
+  test('admin monitoring view conversation-overview punya struktur sama dengan wall publik (live)', async ({ page }) => {
+    await page.goto('/monitoring/conversation-overview');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2500);
+
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.locator('header')).toHaveCount(0);
+    expect(await page.locator('canvas').count()).toBeGreaterThan(0);
   });
 });
