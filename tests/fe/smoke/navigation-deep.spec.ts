@@ -58,28 +58,34 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
   test('navbar "Management" button membuka dropdown menu', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
 
-    const mgmtBtn = page.locator('header').getByRole('button', { name: 'Management' });
+    const nav = page.locator('header');
+    const mgmtBtn = nav.getByRole('button', { name: 'Management' });
     await expect(mgmtBtn).toBeVisible();
     await mgmtBtn.click();
-    // Dropdown harus menampilkan minimal satu item. UI 2026-09 merender
-    // item dropdown sebagai menuitem (dengan teks deskripsi), bukan link:
-    // mis. "Keywords Keywords & monitoring schedule".
-    const hasItems = await page.getByRole('menuitem', { name: /Keyword|User|Provider|Profile/ })
-      .first().isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasItems).toBeTruthy();
+    await expect(mgmtBtn).toHaveAttribute('aria-expanded', 'true');
+    // Bentuk DOM beda antar environment: dev merender item dropdown sebagai
+    // menuitem (mis. "Keywords Keywords & monitoring schedule"), staging/prod
+    // sebagai link biasa di dalam <nav>. Selector menerima keduanya.
+    const item = nav
+      .getByRole('menuitem', { name: /Keyword|User|Provider|Profile/ })
+      .or(nav.getByRole('link', { name: /Keyword|Provider|User/ }));
+    await expect(item.first()).toBeVisible();
   });
 
   test('navigasi dari Management dropdown ke Keyword Management', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
 
-    const mgmtBtn = page.locator('header').getByRole('button', { name: 'Management' });
+    const nav = page.locator('header');
+    const mgmtBtn = nav.getByRole('button', { name: 'Management' });
     await expect(mgmtBtn).toBeVisible();
     await mgmtBtn.click();
-    // UI 2026-09: item dropdown = menuitem "Keywords ..." (role menuitem,
-    // nama memuat deskripsi) — klik menavigasi ke /monitoring/keyword.
-    const keywordItem = page.getByRole('menuitem', { name: /Keywords/ }).first();
-    await expect(keywordItem).toBeVisible();
-    await keywordItem.click();
+    // dev: menuitem "Keywords ..."; staging/prod: link "Keywords" di <nav> —
+    // klik keduanya menavigasi ke /monitoring/keyword.
+    const keywordItem = nav
+      .getByRole('menuitem', { name: /Keywords/ })
+      .or(nav.getByRole('link', { name: /Keywords/ }));
+    await expect(keywordItem.first()).toBeVisible();
+    await keywordItem.first().click();
     await expectUrlPath(page, '/monitoring/keyword');
   });
 

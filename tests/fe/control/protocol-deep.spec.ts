@@ -34,22 +34,36 @@ test.describe('Display Wall — Coverage Mendalam', () => {
   test('dropdown Display Wall memuat Conversation Overview & Top Engagement (tanpa protocol walls)', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
 
-    const displayWallBtn = page.locator('header').getByRole('button', { name: 'Display Wall' });
+    const nav = page.locator('header');
+    const displayWallBtn = nav.getByRole('button', { name: 'Display Wall' });
     await expect(displayWallBtn).toBeVisible();
     await displayWallBtn.click();
 
     // Dropdown kini hanya memuat 2 wall; protocol walls TIDAK lagi ditautkan
     // di navbar (halamannya masih ada & dites via URL langsung di atas).
-    // UI 2026-09: item dropdown dirender sebagai menuitem dgn deskripsi;
-    // tujuan navigasi diverifikasi lewat elemen <a href> di dalam menu.
-    const menu = page.getByRole('menu').last();
-    await expect(page.getByRole('menuitem', { name: /Conversation Overview/ })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Top Engagement/ })).toBeVisible();
-    await expect(menu.locator('a[href="/display/conversation-overview"]')).toBeVisible();
-    await expect(menu.locator('a[href="/display/top-engagement"]')).toBeVisible();
+    // Bentuk DOM beda antar environment: dev merender item dropdown sebagai
+    // menuitem (dengan deskripsi), staging/prod sebagai link biasa di <nav> —
+    // selector menerima keduanya; tujuan navigasi diverifikasi lewat <a href>.
+    const menuScope = page.getByRole('menu').last().or(nav);
+    const convItem = page
+      .getByRole('menuitem', { name: /Conversation Overview/ })
+      .or(nav.getByRole('link', { name: /Conversation Overview/ }));
+    const topItem = page
+      .getByRole('menuitem', { name: /Top Engagement/ })
+      .or(nav.getByRole('link', { name: /Top Engagement/ }));
+    await expect(convItem.first()).toBeVisible();
+    await expect(topItem.first()).toBeVisible();
+    await expect(
+      menuScope.locator('a[href="/display/conversation-overview"]'),
+    ).toBeVisible();
+    await expect(
+      menuScope.locator('a[href="/display/top-engagement"]'),
+    ).toBeVisible();
 
     // Tidak ada wall protocol yang ditautkan di dropdown
-    await expect(page.getByRole('menuitem', { name: /Alert|Danger|Green/i }).filter({ hasText: /protocol/i })).toHaveCount(0);
+    await expect(
+      page.getByRole('menuitem', { name: /Alert|Danger|Green/i }).filter({ hasText: /protocol/i }),
+    ).toHaveCount(0);
   });
 
   // ── Wall Alert (deep) ────────────────────────────────────────────────

@@ -96,10 +96,19 @@ test.describe('Navigasi & Smoke', () => {
     await page.goto('/monitoring/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    await page.locator('header').getByRole('button', { name: 'Display Wall' }).click();
+    const nav = page.locator('header');
+    const displayWallBtn = nav.getByRole('button', { name: 'Display Wall' });
+    await displayWallBtn.click();
 
-    const menu = page.getByRole('menu').last();
-    await expect(menu.locator('a[href="/display/conversation-overview"]')).toBeVisible();
-    await expect(menu.locator('a[href="/display/top-engagement"]')).toBeVisible();
+    // dev: link berada di dalam wadah role="menu"; staging/prod: link langsung
+    // di <nav> (tanpa wadah menu). Selector menerima keduanya, lalu cek keduanya
+    // — tegas sesuai judul test (bukan optional-check).
+    const menuScope = page.getByRole('menu').last().or(nav);
+    await expect(
+      menuScope.locator('a[href="/display/conversation-overview"]'),
+    ).toBeVisible();
+    await expect(
+      menuScope.locator('a[href="/display/top-engagement"]'),
+    ).toBeVisible();
   });
 });
