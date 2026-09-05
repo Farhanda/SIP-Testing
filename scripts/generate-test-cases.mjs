@@ -60,13 +60,29 @@ const BASE_URL_AI = process.env.BASE_URL_AI || 'http://10.200.102.2:8100';
 const BASE_URL_AI_INTELLIGENCE = process.env.BASE_URL_AI_INTELLIGENCE || 'http://10.200.102.2:8000';
 
 // Environment kolom eksekusi (bisa di-override lewat env; default dari base URL)
+// Peta URL FE → nama environment (sama dengan UI_ENV_URLS di src/config/env.ts):
+//   http://10.200.101.13:3000 → Dev      (wifi kantor)
+//   http://10.200.101.6:3000  → Staging  (wifi kantor)
+//   https://sip.c2signals.com → Production
+const UI_ENV_URLS = {
+  dev: 'http://10.200.101.13:3000',
+  staging: 'http://10.200.101.6:3000',
+  prod: 'https://sip.c2signals.com',
+};
+const UI_ENV_LABELS = { dev: 'Dev', staging: 'Staging', prod: 'Production' };
+
 function environmentFor(baseUrl) {
-  return (
-    process.env.TEST_ENV ||
-    (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
-      ? 'Local'
-      : 'Staging')
-  );
+  // Override eksplisit selalu menang.
+  if (process.env.TEST_ENV) return process.env.TEST_ENV;
+
+  const url = (baseUrl || '').trim();
+
+  // URL FE yang dikenal → nama environment-nya.
+  const hit = Object.entries(UI_ENV_URLS).find(([, known]) => known === url);
+  if (hit) return UI_ENV_LABELS[hit[0]];
+
+  // localhost → Local; selain itu default Staging (perilaku lama).
+  return url.includes('localhost') || url.includes('127.0.0.1') ? 'Local' : 'Staging';
 }
 
 // ---------- helpers baca test-data ----------
