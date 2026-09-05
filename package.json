@@ -21,6 +21,7 @@
     "report:be": "playwright show-report playwright-report-be",
     "report:ai": "playwright show-report playwright-report-ai",
     "report": "node scripts/open-reports.mjs",
+    "report:weekly": "node scripts/weekly-report/fill-weekly-report.mjs",
     "typecheck": "tsc --noEmit",
     "test-cases": "node scripts/generate-test-cases.mjs",
     "test-cases:fe": "node scripts/generate-test-cases.mjs --platform=fe",
