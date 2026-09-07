@@ -38,7 +38,8 @@ test.describe('Regresi Bug — Delete User', () => {
       name: 'Delete user Super Admin',
     });
 
-    // Guard level 1: tombol delete admin disabled atau tidak tersedia.
+    // Guard level 1: tombol delete admin disabled atau tidak tersedia
+    // → guard sudah ada di UI → PASS.
     if (!(await deleteAdminButton.isVisible().catch(() => false))) {
       return;
     }
@@ -46,18 +47,9 @@ test.describe('Regresi Bug — Delete User', () => {
       return;
     }
 
-    // Guard level 2: Jika user Super Admin, kita TIDAK mengirim request DELETE
-    // (ini adalah guard politik — Super Admin terakhir tidak boleh dihapus melalui UI).
-    const isSuperAdmin = await deleteAdminButton.evaluate(
-      (btn) => btn.getAttribute('title')?.includes('Super Admin') || true,
-    );
-    // Jika tombol Super Admin, return tanpa kirim request (PASS)
-    if (isSuperAdmin) {
-      return;
-    }
-
-    // Guard level 3: kalau tombol aktif (bukan Super Admin), klik + konfirmasi
-    // TIDAK boleh mengirim request DELETE (jika sudah ada guard di BE).
+    // Tombol delete Super Admin aktif → guard (jika ada) harus ada di balik
+    // klik + konfirmasi: TIDAK boleh mengirim request DELETE. Bila request
+    // terkirim → BUG (Super Admin terakhir bisa dihapus) → FAIL di poll.
     await deleteAdminButton.click();
     const dialog = userPage.page.getByRole('dialog', { name: 'Delete user' });
     await expect(dialog).toBeVisible();

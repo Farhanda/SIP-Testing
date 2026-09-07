@@ -18,7 +18,8 @@ Automation **Web UI (E2E) + API** testing dengan **Playwright + TypeScript** unt
 - ✅ **Ekspor test case ke Excel** — lengkap dengan status PASS/FAIL (`npm run test-cases`)
 - ✅ **Test regresi bug** — `tests/fe/*/regression-bugs.spec.ts` meng-encode perilaku yang **benar** (kategori `Regression`): sengaja FAIL selama bug belum diperbaiki. Status saat ini:
   - ✅ **PASS — bug fixed**: R2 tanggal terbalik ditolak (validasi di dialog Add scheduled, deploy 2026-09), L05/A1 login redirect (auth asli sudah aktif)
-  - 🔴 **Masih merah (bug terbuka)**: R9 Escape tidak menutup modal Add keyword, R10 raw error codes ter-expose di keyword list, C7/P04 change password tanpa verifikasi current password (R4/U06: test kini PASS — delete Super Admin diguard di UI dengan tidak mengirim request)
+  - 🔴 **Masih merah (bug terbuka, re-verify 2026-09-07)**: R9/R11/R5 Escape tidak menutup modal (Add keyword / Add scheduled / Add user — a11y), R10 raw error codes ter-expose di keyword list, R4 delete Super Admin masih mengirim request DELETE (guard UI dihapus lagi — test diperbaiki dari false-pass `|| true`), C7/P04 change password tanpa verifikasi current password
+  - ✅ **FIXED (re-verify 2026-09-07)**: trending-topic-multi-period bukan placeholder lagi (label beda per keyword)
   - 🗑️ **Dihapus**: D29 protocol status badge (elemen sudah dihapus dari UI)
   - ♻️ **Dikembalikan (deploy 2026-09)**: A2/D10 Export report (kini unduh `posts-report.xlsx` via event download — verifikasi di `dashboard-features.spec.ts`), R1 (Add scheduled) & B4 (Move to scheduled) — tab Scheduled & aksi Move/Edit kembali aktif; coverage positifnya ada di `keyword-modals.spec.ts` (Add scheduled POST) & `keyword-actions.spec.ts` (Move/Edit PUT)
 - ✅ **Auth asli + storageState (2026-08)** — aplikasi kini memakai login sungguhan. Project setup `auth` login via UI sekali (kredensial `UI_TEST_USERNAME` / `UI_TEST_PASSWORD` di `.env`) dan menyimpan storageState di `.auth/fe-state.json` yang dipakai semua project modul **kecuali `login`** (halaman `/login` di-redirect ke dashboard bila sudah terautentikasi). Route `/display/*` memang tanpa login (by design — wall publik).
@@ -327,15 +328,16 @@ Kolom **Environment** di Excel test case mengikuti URL otomatis
   - Display wall mengambil keyword dari `top-keywords?limit=5` dan berotasi tiap ~20 detik (label "20 seconds" = label interval statis).
   - Halaman **Keyword Intelligence** (`/monitoring/keyword-intelligence`) & **Control Protocol walls** (`/control/*`) ada di aplikasi tapi DI LUAR LINGKUP testing (fitur belum digunakan, tanpa tombol navigasi — keputusan 2026-09-07).
   - Tombol Export report **masih ada** di dashboard (diverifikasi 2026-08-31).
-- **Bug aplikasi yang diketahui (hasil bug-hunt BE 2026-08)** — dipantau test regresi / belum ada guard-nya:
+- **Bug aplikasi yang diketahui (hasil bug-hunt BE 2026-08, re-verify 2026-09-07)** — dipantau test regresi / belum ada guard-nya:
   - Endpoint scrape **tidak memiliki autentikasi** — mutasi (PATCH provider, POST keyword) bisa dipanggil tanpa token (perlu konfirmasi: internal-only atau bug).
-  - `GET /v1/scrape/openapi.json` → **500 internal_error**.
-  - `trending-topic-multi-period` masih **placeholder** — label topik statis untuk keyword apa pun.
-  - Filter `top-keywords?keyword=` hanya **exact-match penuh** (inkonsisten dengan semantik contains di endpoint lain).
-  - Pagination scrape service: `page` overflow → rows kosong (dashboard-service clamp); `size=0/negatif` mengembalikan semua baris.
+  - `GET /v1/scrape/openapi.json` (api-gateway :8080) → **500 internal_error** (masih).
+  - ~~`trending-topic-multi-period` masih placeholder~~ → **FIXED** (2026-09-07): label topik kini berbeda per keyword.
+  - Filter `top-keywords?keyword=` hanya **exact-match penuh** (masih — `keyword=em` → 0 hasil).
+  - Pagination scrape service: `page` overflow → rows kosong; `size=0/negatif` mengembalikan semua baris (masih — validasi input absen).
+  - **Terverifikasi NORMAL (2026-09-07)**: `top-posts-list?sort_by=published_at` (nilai yang dikirim UI untuk opsi "Published at") mengurutkan tanggal desc dengan benar. Catatan: nilai `sort_by` tak dikenal (mis. `published`) diabaikan BE → hasil default `view` tanpa error (tidak ada validasi enum — minor).
   - POST create keyword on-demand kadang **menggantung tanpa respons** (intermiten) — alasan test FE tidak men-assert penutupan modal.
-  - Menu user navbar: item "Profile2" (typo label) & Logout **disabled by design** (konfirmasi owner) — dikunci assertion (REGRESI R8).
-  - **REGRESI R9** (2026-08-31): Escape key **tidak menutup** modal Add keyword — hanya Close/Cancel yang berfungsi (a11y issue).
+  - ~~Menu user navbar: item "Profile2" (typo label) & Logout disabled~~ → **berubah (re-verify 2026-09-07)**: dropdown user kini hanya berisi **Logout aktif** (tanpa item Profile/Profile2); REGRESI R8 sudah tidak relevan & dihapus.
+  - **REGRESI R9** (2026-08-31): Escape key **tidak menutup** modal Add keyword — hanya Close/Cancel yang berfungsi (a11y issue; pola sama R11 Add scheduled & R5 Add user).
   - **REGRESI R10** (2026-08-31): Raw error codes (PROVIDER_PERMANENT_ERROR, dll) **ter-expose** ke user di keyword list — harusnya user-friendly.
 - **AI Service = 2 service**:
   - **SIP AI Service** (`BASE_URL_AI`, default `:8100`) — 5 endpoint di `{BASE_URL_AI}` (health, meta, analyze batch/jobs/sync), semua wajib header `X-Service-Token`. Taxonomy di `/v1/meta` jangan di-hardcode (label bisa berubah).
