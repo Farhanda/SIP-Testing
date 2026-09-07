@@ -1,7 +1,5 @@
 import { expect } from './fixtures';
 import { test } from './fixtures';
-import { Env } from '../../../src/config/env';
-import { mockTopKeywords } from '../../../src/helpers/api-mock';
 
 /**
  * Test Display Wall untuk client role.
@@ -17,9 +15,9 @@ test.describe('Client — Display Wall', () => {
   // ── Top Engagement ──────────────────────────────────────────────────
 
   test.describe('Top Engagement', () => {
-    test.beforeEach(async ({ page }) => {
-      await mockTopKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
-    });
+    // TANPA mock top-keywords: FE deployed memanggil API prod (di-bake saat
+    // build) yang tidak punya data untuk keyword mock — wall jadi kosong.
+    // Heading juga struktural (label keyword live dari BE).
 
     test('halaman Top Engagement dapat diakses client', async ({ page }) => {
       await page.goto('/display/top-engagement');
@@ -33,8 +31,10 @@ test.describe('Client — Display Wall', () => {
       await displayWallPage.goto('/display/top-engagement');
       await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
-      // H1 harus menampilkan nama keyword
-      await displayWallPage.expectKeywordVisible('RUU Digital');
+      // Struktural: h1 terisi teks keyword (label dinamis dari BE)
+      await expect(displayWallPage.keywordHeading).toBeVisible();
+      const heading = (await displayWallPage.keywordHeading.innerText()).trim();
+      expect(heading.length).toBeGreaterThan(0);
     });
 
     test('Top Engagement menampilkan auto-refresh countdown', async ({ displayWallPage }) => {
@@ -62,6 +62,9 @@ test.describe('Client — Display Wall', () => {
       await displayWallPage.goto('/display/top-engagement');
       await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
+      // Assert penuh: minimal 1 link post ke source platform. BE asli (yang
+      // dipakai FE deployed) memiliki data top-posts untuk keyword populer,
+      // jadi link kosong = regresi render, bukan kondisi wajar.
       const postLinkCount = await displayWallPage.postLinks.count();
       expect(postLinkCount).toBeGreaterThan(0);
     });
@@ -91,8 +94,10 @@ test.describe('Client — Display Wall', () => {
       await displayWallPage.goto('/display/conversation-overview');
       await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
-      // Heading harus menampilkan nama keyword
-      await displayWallPage.expectKeywordVisible('demo');
+      // Struktural (BE asli — label keyword dinamis): h1 terisi teks keyword
+      await expect(displayWallPage.keywordHeading).toBeVisible();
+      const heading = (await displayWallPage.keywordHeading.innerText()).trim();
+      expect(heading.length).toBeGreaterThan(0);
     });
 
     test('Conversation Overview menampilkan auto-refresh countdown', async ({ displayWallPage }) => {

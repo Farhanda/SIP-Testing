@@ -111,12 +111,22 @@ test.describe('Dashboard — Widget dari API BE (conversation-trend · top-accou
   test('ganti keyword tanpa data → request BE keyword baru & empty state Top accounts/Top hashtags', async ({
     page,
   }) => {
+    // Tangkap 4 request BE untuk keyword baru. Daftar keyword di dropdown
+    // LIVE dari scrape service GET /v1/scrape/keyword (format string array,
+    // beda antar environment & berubah tiap hari) — pilih yang berbeda dari
+    // keyword terpilih sekarang. Path di-anchor (endsWith) agar tidak ikut
+    // menangkap /v1/scrape/keyword-management.
+    const kwListPromise = waitBeResponse(page, '/v1/scrape/keyword', (u) =>
+      u.pathname.endsWith('/v1/scrape/keyword'),
+    );
     await page.goto('/monitoring/dashboard');
     await expect(page.locator('article').filter({ hasText: 'Total post' }).first()).toBeVisible();
 
-    // Tangkap 4 request BE untuk keyword baru. Pilih keyword yang ada di
-    // dropdown tapi kemungkinan punya data lebih sedikit dari keyword awal.
-    const NEXT_KW = 'Ketenagakerjaan';
+    const kwData = ((await kwListPromise).body?.data ?? []) as string[];
+    const currentKw = await page.getByRole('combobox', { name: 'Keyword' }).inputValue().catch(() => '');
+    const NEXT_KW =
+      kwData.find((n) => typeof n === 'string' && n && n.toLowerCase() !== currentKw.toLowerCase()) ?? 'MBG';
+
     const nextResponses = Promise.all([
       waitBeResponse(page, '/v1/dashboard/summary', (u) => u.searchParams.get('keyword') === NEXT_KW),
       waitBeResponse(page, '/v1/dashboard/conversation-trend', (u) => u.searchParams.get('keyword') === NEXT_KW),
@@ -124,9 +134,12 @@ test.describe('Dashboard — Widget dari API BE (conversation-trend · top-accou
       waitBeResponse(page, '/v1/dashboard/top-hashtags', (u) => u.searchParams.get('keyword') === NEXT_KW),
     ]);
 
-    await page.getByRole('combobox', { name: 'Keyword' }).click();
-    await page.getByRole('combobox', { name: 'Keyword' }).fill(NEXT_KW);
-    await page.getByRole('option', { name: NEXT_KW, exact: true }).click();
+    // Pola combobox UI 2026-09: klik lalu KETIK untuk memfilter — opsi
+    // (role=option) baru muncul setelah fill, bukan saat klik.
+    const kwBox = page.getByRole('combobox', { name: 'Keyword' });
+    await kwBox.click();
+    await kwBox.fill(NEXT_KW);
+    await page.getByRole('option', { name: NEXT_KW, exact: true }).first().click();
     await page.getByRole('button', { name: 'Apply filter' }).click();
 
     const [summary, trend, accounts, hashtags] = await nextResponses;

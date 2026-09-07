@@ -14,14 +14,13 @@ import { mockDashboardApis, mockKeywordOptions } from '../../../src/helpers/api-
  *
  * + Eksplorasi live 2026-09-04 (http://10.200.101.13:3000) — filter baru
  *   & kontrak request (API ASLI, assertion struktural):
- *   - 6 select filter: Topic, Emotion, Sentiment, Sort by (Views/Engagement/
- *     Published at), Sort order (Desc/Asc), Page size (10/20/50).
+ *   - Select filter: Topic, Emotion, Sentiment, Sort by (Views/Engagement),
+ *     dan Page size (10/20/50). Platform memakai button dropdown.
  *   - Kontrak request ke /v1/dashboard/top-posts-list:
- *     ?page=&size=&sort_by=&sort_order=[&keyword=...&topic=...]
+ *     ?page=&size=&sort_by=[&keyword=...&topic=...]
  *   - Pagination tombol angka memicu request page berikutnya.
  *   - Empty state "No posts found" saat filter tanpa hasil.
- *   - Halaman tanpa parameter → request default page=1&size=10&sort_by=view
- *     &sort_order=desc.
+ *   - Halaman tanpa parameter → request default page=1&size=10&sort_by=view.
  */
 test.describe('Posts Page — /monitoring/dashboard/posts', () => {
   test.beforeEach(async ({ postsPage }) => {
@@ -257,49 +256,43 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
       return reqUrls;
     }
 
-    test('halaman tanpa parameter memuat dengan request default sort view desc (live)', async ({ postsPage }) => {
+    test('halaman tanpa parameter memuat dengan request default sort view (live)', async ({ postsPage }) => {
       await postsPage.page.goto('/monitoring/dashboard/posts');
       await postsPage.page.waitForLoadState('domcontentloaded');
 
       const reqUrls = trackListRequests(postsPage.page);
       await expect
         .poll(() => reqUrls[0] ?? '', { timeout: 15_000 })
-        .toContain('page=1&size=10&sort_by=view&sort_order=desc');
+        .toContain('page=1&size=10&sort_by=view');
       await expect(
         postsPage.page.getByRole('heading', { level: 1, name: 'All top posts' }),
       ).toBeVisible();
     });
 
-  test('select filter lengkap: Sort by punya Views/Engagement/Published at (live)', async ({ postsPage }) => {
+  test('select filter lengkap: Topic/Emotion/Sentiment + Sort by Views/Engagement + Rows per page (live)', async ({ postsPage }) => {
     await postsPage.page.goto('/monitoring/dashboard/posts');
     await postsPage.page.waitForLoadState('domcontentloaded');
 
+    // UI 2026-09 (dev): select Topic/Emotion/Sentiment + Sort by (Views/
+    // Engagement) + Rows per page (10/20/50). Platform pindah ke button
+    // dropdown, kontrol Sort order (Desc/Asc) & opsi "Published at" dihapus.
     const selects = postsPage.page.locator('select');
-    // Select filter dirender bersama data (live: bisa >2s setelah DOM ready)
     await expect
       .poll(async () => selects.count(), { timeout: 15_000 })
-      .toBeGreaterThanOrEqual(5);
+      .toBeGreaterThanOrEqual(4);
 
-    // Sort by (live 2026-09 punya 3 opsi termasuk Published at)
+    // Sort by kini hanya Views/Engagement
     const sortSelect = postsPage.page
       .locator('select')
-      .filter({ has: postsPage.page.locator('option', { hasText: 'Published at' }) })
+      .filter({ has: postsPage.page.locator('option', { hasText: 'Engagement' }) })
       .first();
     await expect(sortSelect).toBeVisible();
     expect(await sortSelect.locator('option').allInnerTexts()).toEqual([
       'Views',
       'Engagement',
-      'Published at',
     ]);
 
-    // Sort order Desc/Asc
-    const orderSelect = postsPage.page
-      .locator('select')
-      .filter({ has: postsPage.page.locator('option', { hasText: 'Asc' }) })
-      .first();
-    await expect(orderSelect).toBeVisible();
-
-    // Page size 10/20/50
+    // Rows per page 10/20/50 — pindah ke bawah tabel (dekat pagination)
     const sizeSelect = postsPage.page
       .locator('select')
       .filter({ has: postsPage.page.locator('option', { hasText: '50' }) })
@@ -325,62 +318,37 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
   });
 
   test('mengubah page size mengirim size baru ke API (live)', async ({ postsPage }) => {
-    await postsPage.gotoWithSort('view', 'RUU Digital');
+    await postsPage.page.goto('/monitoring/dashboard/posts');
+    await postsPage.page.waitForLoadState('domcontentloaded');
     const reqUrls = trackListRequests(postsPage.page);
 
-    const sizeSelect = postsPage.page
-      .locator('select')
-      .filter({ has: postsPage.page.locator('option', { hasText: '50' }) })
-      .first();
-    await sizeSelect.selectOption('50');
-    await postsPage.applyFilterButton.click();
+    // UI 2026-09: "Rows per page" ada di bawah tabel (dekat pagination)
+    const sizeSelect = postsPage.page.getByRole('combobox', { name: /rows per page/i }).first();
+    await expect(sizeSelect).toBeVisible({ timeout: 15_000 });
+    await sizeSelect.selectOption('20');
 
     await expect
       .poll(() => reqUrls[reqUrls.length - 1] ?? '')
-      .toContain('size=50');
+      .toContain('size=20');
   });
 
-  test('mengubah sort order ke Asc mengirim sort_order=asc (live)', async ({ postsPage }) => {
-    await postsPage.gotoWithSort('view', 'RUU Digital');
-    const reqUrls = trackListRequests(postsPage.page);
-
-    const orderSelect = postsPage.page
-      .locator('select')
-      .filter({ has: postsPage.page.locator('option', { hasText: 'Asc' }) })
-      .first();
-    await orderSelect.selectOption({ label: 'Asc' });
-    await postsPage.applyFilterButton.click();
-
-    await expect
-      .poll(() => reqUrls[reqUrls.length - 1] ?? '')
-      .toContain('sort_order=asc');
-  });
-
-  test('mengubah Sort by ke Published at mengirim sort_by=published_at (live)', async ({ postsPage }) => {
-    await postsPage.gotoWithSort('view', 'RUU Digital');
-    const reqUrls = trackListRequests(postsPage.page);
-
-    const sortSelect = postsPage.page
-      .locator('select')
-      .filter({ has: postsPage.page.locator('option', { hasText: 'Published at' }) })
-      .first();
-    await sortSelect.selectOption({ label: 'Published at' });
-    await postsPage.applyFilterButton.click();
-
-    // Kontrak param persis diverifikasi live 2026-09: sort_by=published_at
-    await expect
-      .poll(() => reqUrls[reqUrls.length - 1] ?? '')
-      .toMatch(/sort_by=published_at/i);
-  });
+  // NOTE UI 2026-09 (dev): kontrol "Sort order" (Desc/Asc) & opsi sort
+  // "Published at" DIHAPUS dari halaman posts — 2 test kontrak parameter
+  // tersebut dipindah ke arsip git (hapus, bukan skip).
 
   test('klik nomor halaman 2 memicu request page=2 (live)', async ({ postsPage }) => {
-    await postsPage.gotoWithSort('view', 'RUU Digital');
+    // Tanpa param keyword — data real BE selalu ada (60k+ posts) sehingga
+    // pagination pasti ter-render; gotoWithSort dgn keyword mock tidak
+    // berguna karena FE deployed memakai API yang di-bake saat build.
+    await postsPage.page.goto('/monitoring/dashboard/posts');
+    await postsPage.page.waitForLoadState('domcontentloaded');
     const reqUrls = trackListRequests(postsPage.page);
 
+    // Pagination ter-render bersama data (bisa >2s setelah DOM ready)
     const page2 = postsPage.page
       .getByRole('button', { name: '2', exact: true })
       .first();
-    await expect(page2).toBeVisible();
+    await expect(page2).toBeVisible({ timeout: 15_000 });
     await page2.click();
 
     await expect

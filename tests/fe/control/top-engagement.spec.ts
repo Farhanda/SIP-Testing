@@ -14,22 +14,24 @@ import { mockTopKeywords } from '../../../src/helpers/api-mock';
  * - SIP Insight branding
  *
  * API yang dipanggil:
- *   GET /v1/dashboard/top-keywords?limit=5 (sumber keyword, di-mock)
+ *   GET /v1/dashboard/top-keywords?limit=5 (BE asli — FE deployed memanggil
+ *     API prod yang di-bake saat build, jadi keyword mock seperti
+ *     "RUU Digital" tidak punya data di sana)
  *   GET /v1/dashboard/top-posts?keyword=...&period=1M&sort_by=view
  *   GET /v1/dashboard/top-accounts?keyword=...&period=1M
  *   GET /v1/dashboard/top-hashtags?keyword=...&period=1M
  */
 test.describe('Display Wall — Top Engagement', () => {
-  test.beforeEach(async ({ page }) => {
-    // Hanya daftar keyword yang di-mock � chart endpoints memakai BE asli.
-    await mockTopKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
-  });
+  // TANPA mock top-keywords global: FE deployed memanggil API prod (di-bake
+  // saat build) sehingga keyword mock tidak punya data di sana. Mock hanya
+  // dipasang di test yang butuh keyword deterministik (heading).
 
   test('halaman menampilkan heading keyword', async ({ displayWallPage }) => {
+    await mockTopKeywords(displayWallPage.page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
     await displayWallPage.goto('/display/top-engagement');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // H1 harus menampilkan nama keyword
+    // H1 harus menampilkan nama keyword (keyword pertama dari sumber keyword)
     await displayWallPage.expectKeywordVisible('RUU Digital');
   });
 
@@ -83,7 +85,7 @@ test.describe('Display Wall — Top Engagement', () => {
     await displayWallPage.goto('/display/top-engagement');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // Top posts dari mock: minimal 2 post dengan link
+    // Top posts dari BE asli: minimal 2 post dengan link
     const postLinkCount = await displayWallPage.postLinks.count();
     expect(postLinkCount).toBeGreaterThanOrEqual(2);
   });
@@ -92,15 +94,14 @@ test.describe('Display Wall — Top Engagement', () => {
     await displayWallPage.goto('/display/top-engagement');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // Struktural: section "Top Hashtag" tampil & minimal satu teks '#'
-    // (data real BE — tag spesifik tidak di-hardcode)
+    // Struktural (data real BE — tag spesifik tidak di-hardcode): section
+    // "Top hashtag" tampil & minimal satu tag dengan prefix '#' terrender
+    // (API top-hashtags memang mengembalikan tag berprefix '#', verifikasi
+    // curl 2026-09-05).
     await expect(
       displayWallPage.page.getByText(/top hashtags?/i).first()
     ).toBeVisible();
-    const hashTexts = await displayWallPage.page
-      .getByText(/#/)
-      .count();
-    expect(hashTexts).toBeGreaterThan(0);
+    await expect(displayWallPage.page.getByText(/#/).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('display wall tidak memiliki navbar utama (full-screen mode)', async ({ displayWallPage }) => {

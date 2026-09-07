@@ -29,17 +29,16 @@ import { mockTopKeywords } from '../../../src/helpers/api-mock';
  *   ("label tombol 20 seconds") bisa menyesatkan — layak diperjelas di docs.
  */
 test.describe('Display Wall — Conversation Overview', () => {
-  test.beforeEach(async ({ page }) => {
-    // Hanya daftar keyword yang di-mock � chart endpoints memakai BE asli
-    // (shape respons wall baru tidak kompatibel dgn mock dashboard lama).
-    await mockTopKeywords(page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
-  });
+  // TANPA mock top-keywords global: FE deployed memanggil API prod (di-bake
+  // saat build) sehingga keyword mock tidak punya data di sana. Mock hanya
+  // dipasang di test yang butuh keyword deterministik (heading & rotasi).
 
   test('halaman menampilkan heading keyword', async ({ displayWallPage }) => {
+    await mockTopKeywords(displayWallPage.page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // H1 harus menampilkan nama keyword (auto-select dari selected-keywords)
+    // H1 harus menampilkan nama keyword (auto-select dari sumber keyword)
     await displayWallPage.expectKeywordVisible('RUU Digital');
   });
 
@@ -110,13 +109,16 @@ test.describe('Display Wall — Conversation Overview', () => {
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
 
-    // Trending topics struktural: heading section + item dgn jumlah posts
-    // (label topik dinamis dari data BE — jangan hardcode nama topik)
+    // Struktural (data real BE — label topik & jumlah dinamis): heading
+    // "Trending topic" + minimal satu kartu topik dgn angka "N posts".
+    // UI 2026-09: kartu topik = teks label topik + "N posts" + delta 24H/7D,
+    // jadi cek teks "posts" saja bisa false-match dgn teks deskriptif lain —
+    // pakai heading + jumlah post (\d+ posts) dalam satu area yang sama.
     await expect(
       displayWallPage.page.getByText(/Trending topic/i).first()
     ).toBeVisible({ timeout: 25_000 });
     await expect(
-      displayWallPage.page.getByText(/\d+\s*posts/i).first()
+      displayWallPage.page.getByText(/^\d+\s*posts?$/i).first()
     ).toBeVisible({ timeout: 25_000 });
   });
 
@@ -165,7 +167,8 @@ test.describe('Display Wall — Conversation Overview', () => {
   test('auto-refresh memutar keyword berikutnya & memuat ulang data tiap interval', async ({ displayWallPage }) => {
     test.setTimeout(90_000); // menunggu minimal satu siklus interval (20s)
 
-    // Sumber keyword = mock top-keywords (3 item, lihat beforeEach).
+    // Sumber keyword dibuat deterministik karena test memverifikasi urutan rotasi.
+    await mockTopKeywords(displayWallPage.page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
     await displayWallPage.goto('/display/conversation-overview');
     await displayWallPage.page.waitForLoadState('networkidle');
     await displayWallPage.expectKeywordVisible('RUU Digital');
