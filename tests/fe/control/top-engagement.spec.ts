@@ -29,7 +29,6 @@ test.describe('Display Wall — Top Engagement', () => {
   test('halaman menampilkan heading keyword', async ({ displayWallPage }) => {
     await mockTopKeywords(displayWallPage.page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // H1 harus menampilkan nama keyword (keyword pertama dari sumber keyword)
     await displayWallPage.expectKeywordVisible('RUU Digital');
@@ -37,28 +36,24 @@ test.describe('Display Wall — Top Engagement', () => {
 
   test('page title mengandung "Top Engagement"', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectPageTitle('Top Engagement');
   });
 
   test('auto-refresh countdown button terlihat', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectRefreshButtonVisible();
   });
 
   test('SIP Insight branding terlihat', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectSipInsightBranding();
   });
 
   test('SIP Insight branding terlihat di header wall', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectSipInsightBranding();
     // UI baru: branding bisa berupa link (logo) atau teks statis —
@@ -67,32 +62,30 @@ test.describe('Display Wall — Top Engagement', () => {
 
   test('minimal 6 chart SVG terrender (posts + accounts + hashtags + charts)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectChartsVisible(6);
   });
 
   test('top posts terrender dengan link ke source platform', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
-    // Harus ada link ke TikTok/Instagram
+    // Harus ada link ke TikTok/Instagram — tunggu link pertama ter-render
+    await expect(displayWallPage.postLinks.first()).toBeVisible({ timeout: 15_000 });
     const postLinkCount = await displayWallPage.postLinks.count();
     expect(postLinkCount).toBeGreaterThan(0);
   });
 
   test('top posts memiliki minimal 3 post cards', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // Top posts dari BE asli: minimal 2 post dengan link
-    const postLinkCount = await displayWallPage.postLinks.count();
-    expect(postLinkCount).toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(() => displayWallPage.postLinks.count(), { timeout: 15_000 })
+      .toBeGreaterThanOrEqual(2);
   });
 
   test('top hashtags terrender', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // Struktural (data real BE — tag spesifik tidak di-hardcode): section
     // "Top hashtag" tampil & minimal satu tag dengan prefix '#' terrender
@@ -106,12 +99,12 @@ test.describe('Display Wall — Top Engagement', () => {
 
   test('display wall tidak memiliki navbar utama (full-screen mode)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
+    // Tunggu wall benar-benar ter-render dulu agar tidak false-pass sebelum render
+    await displayWallPage.expectRefreshButtonVisible();
     // Navbar utama tidak boleh tampil
     const navLinks = displayWallPage.page.getByRole('navigation').getByRole('link', { name: 'Dashboard' });
-    const hasNav = await navLinks.isVisible().catch(() => false);
-    expect(hasNav).toBeFalsy();
+    await expect(navLinks).toHaveCount(0);
   });
 
   test('display wall menggunakan period=1M sebagai default', async ({ displayWallPage }) => {
@@ -123,7 +116,6 @@ test.describe('Display Wall — Top Engagement', () => {
     });
 
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
     // Tunggu hingga chart request benar-benar dikirim (max 10s)
     await expect
       .poll(() => requests.filter(r => r.includes('period=')).length, { timeout: 10_000 })
@@ -138,19 +130,18 @@ test.describe('Display Wall — Top Engagement', () => {
 
   test('top posts link membuka di tab baru (target=_blank)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // Cek post links punya target=_blank
     const firstLink = displayWallPage.postLinks.first();
-    const target = await firstLink.getAttribute('target');
-    expect(target).toBe('_blank');
+    await expect(firstLink).toBeVisible({ timeout: 15_000 });
+    await expect(firstLink).toHaveAttribute('target', '_blank');
   });
 
   test('top posts link memiliki rel=noopener (security)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/top-engagement');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     const firstLink = displayWallPage.postLinks.first();
+    await expect(firstLink).toBeVisible({ timeout: 15_000 });
     const rel = await firstLink.getAttribute('rel');
     expect(rel).toContain('noopener');
   });

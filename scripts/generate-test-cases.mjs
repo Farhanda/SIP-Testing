@@ -2329,19 +2329,19 @@ function buildProfileCases() {
     },
     {
       id: 'TC-UI-P05', name: 'Change password dengan current password BENAR → toast sukses & modal tertutup (API asli)', category: 'Positive', priority: 'High',
-      method: 'Form', endpoint: '/profile', headers: '—', params: 'currentPassword=password123 (BENAR); newPassword=abcdef', requestBody: '{ currentPassword: "password123", newPassword: "abcdef" }',
+      method: 'Form', endpoint: '/profile', headers: '—', params: 'currentPassword=<admin-current-password> (BENAR); newPassword=abcdef', requestBody: '{ currentPassword: <UI_ADMIN_CURRENT_PASSWORD>, newPassword: "abcdef" }',
       precondition: 'User di halaman /profile; modal Change password terbuka; API asli (tanpa mock)',
       expectedStatus: 'Sukses — 200', expectedResponse: 'Request diterima (200) → toast "Password changed successfully." & modal tertutup',
       specTitle: 'change password dengan current password BENAR → toast sukses & modal tertutup',
       assertions: 'verifikasi server 3x status 200; UI: response 200; toast sukses visible; modal count 0',
-      source: 'Hardcoded di spec', notes: 'Pasangan C7: setelah fix memverifikasi current password, password benar (password123, seed admin) harus tetap diterima. Retry UI flow maks 3x untuk failRate 10%.',
+      source: 'Hardcoded di spec', notes: 'Pasangan C7: setelah fix memverifikasi current password, password benar (dari .env UI_ADMIN_CURRENT_PASSWORD, seed admin) harus tetap diterima. Retry UI flow maks 3x untuk failRate 10%.',
     },
   ];
 }
 
 // ---------- daftar test case client role (tests/fe/client/) ----------
 // Client role: akses terbatas — hanya home (/monitoring/home) & display wall.
-// Kredensial: client / signalsclient (UI_CLIENT_USERNAME / UI_CLIENT_PASSWORD)
+// Kredensial client dari .env (UI_CLIENT_USERNAME / UI_CLIENT_PASSWORD)
 
 function buildClientCases() {
   return [
@@ -2349,7 +2349,7 @@ function buildClientCases() {
     {
       id: 'TC-UI-CL01', name: 'Login client → redirect ke /monitoring/home', category: 'Positive', priority: 'High',
       method: 'Form', endpoint: '/login', headers: '—', params: '—',
-      requestBody: '{ username: "client", password: "signalsclient" }',
+      requestBody: '{ username: <UI_CLIENT_USERNAME>, password: <UI_CLIENT_PASSWORD> }',
       precondition: 'User membuka halaman /login',
       expectedStatus: 'Sukses — redirect', expectedResponse: 'URL berubah ke /monitoring/home; heading "Select a monitoring view" tampil',
       specTitle: 'login dengan kredensial client → redirect ke /monitoring/home',

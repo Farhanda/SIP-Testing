@@ -131,7 +131,7 @@ test.describe('Dashboard — GET /v1/dashboard/top-hashtags', () => {
 
   test('top-hashtags diurutkan count desc & maks 5', async ({ api }) => {
     const res = await api.get(apiUrl(TOP_HASHTAGS_PATH));
-    if (res.status() !== 200) return; // skip jika BE bug
+    expect(res.status()).toBe(200);
 
     const body = (await res.json()) as TopHashtagsResponse;
     expect(body.data.length).toBeLessThanOrEqual(5);

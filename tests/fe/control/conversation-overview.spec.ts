@@ -36,7 +36,6 @@ test.describe('Display Wall — Conversation Overview', () => {
   test('halaman menampilkan heading keyword', async ({ displayWallPage }) => {
     await mockTopKeywords(displayWallPage.page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // H1 harus menampilkan nama keyword (auto-select dari sumber keyword)
     await displayWallPage.expectKeywordVisible('RUU Digital');
@@ -44,14 +43,12 @@ test.describe('Display Wall — Conversation Overview', () => {
 
   test('page title mengandung "Conversation Overview"', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectPageTitle('Conversation Overview');
   });
 
   test('auto-refresh countdown button terlihat', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectRefreshButtonVisible();
 
@@ -62,14 +59,12 @@ test.describe('Display Wall — Conversation Overview', () => {
 
   test('SIP Insight branding terlihat', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectSipInsightBranding();
   });
 
   test('SIP Insight branding terlihat di header wall', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectSipInsightBranding();
     // UI baru: branding bisa berupa link (logo) atau teks statis —
@@ -78,14 +73,12 @@ test.describe('Display Wall — Conversation Overview', () => {
 
   test('minimal 4 chart SVG terrender (conversation trend + emotion + sentiment + trending)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     await displayWallPage.expectChartsVisible(4);
   });
 
   test('conversation trend chart terrender', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // Conversation trend adalah chart pertama
     const firstChart = displayWallPage.charts.first();
@@ -98,16 +91,15 @@ test.describe('Display Wall — Conversation Overview', () => {
 
   test('emotion map chart terrender', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // Emotion map biasanya pie/donut chart — cari SVG yang punya path lingkaran
-    const svgCount = await displayWallPage.charts.count();
-    expect(svgCount).toBeGreaterThanOrEqual(3); // trend + emotion + sentiment
+    await expect
+      .poll(() => displayWallPage.charts.count(), { timeout: 15_000 })
+      .toBeGreaterThanOrEqual(3); // trend + emotion + sentiment
   });
 
   test('trending topics section terrender', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // Struktural (data real BE — label topik & jumlah dinamis): heading
     // "Trending topic" + minimal satu kartu topik dgn angka "N posts".
@@ -124,7 +116,6 @@ test.describe('Display Wall — Conversation Overview', () => {
 
   test('trending topics menampilkan delta per periode (24h, 7d, 1mo)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
     // Cek ada delta labels — polling utk stabilitas
     await expect(
@@ -134,12 +125,12 @@ test.describe('Display Wall — Conversation Overview', () => {
 
   test('display wall tidak memiliki navbar utama (full-screen mode)', async ({ displayWallPage }) => {
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
 
+    // Tunggu wall benar-benar ter-render dulu agar tidak false-pass sebelum render
+    await displayWallPage.expectRefreshButtonVisible();
     // Navbar utama (Dashboard/Display Wall/Management) tidak boleh tampil
     const navLinks = displayWallPage.page.getByRole('navigation').getByRole('link', { name: 'Dashboard' });
-    const hasNav = await navLinks.isVisible().catch(() => false);
-    expect(hasNav).toBeFalsy();
+    await expect(navLinks).toHaveCount(0);
   });
 
   test('display wall menggunakan period=1M sebagai default', async ({ displayWallPage }) => {
@@ -151,7 +142,6 @@ test.describe('Display Wall — Conversation Overview', () => {
     });
 
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
     // Tunggu hingga chart request benar-benar dikirim (max 10s)
     await expect
       .poll(() => requests.filter(r => r.includes('period=')).length, { timeout: 10_000 })
@@ -170,7 +160,6 @@ test.describe('Display Wall — Conversation Overview', () => {
     // Sumber keyword dibuat deterministik karena test memverifikasi urutan rotasi.
     await mockTopKeywords(displayWallPage.page, ['RUU Digital', 'BPJS Kesehatan', 'Ketenagakerjaan']);
     await displayWallPage.goto('/display/conversation-overview');
-    await displayWallPage.page.waitForLoadState('networkidle');
     await displayWallPage.expectKeywordVisible('RUU Digital');
 
     // Gelombang refresh = request chart untuk keyword SELAIN yang pertama
@@ -196,7 +185,6 @@ test.describe('Display Wall — Conversation Overview', () => {
   test('interval picker (listbox) menampilkan 6 opsi & pilihan tersimpan (live)', async ({ page }) => {
     await page.goto('/display/conversation-overview');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
 
     // Trigger interval = button[aria-haspopup="listbox"] (teks "20 seconds")
     const trigger = page.locator('button[aria-haspopup="listbox"]').first();
@@ -228,23 +216,23 @@ test.describe('Display Wall — Conversation Overview', () => {
   test('wall conversation-overview: full-screen tanpa navbar (header count 0) & canvas ter-render (live)', async ({ page }) => {
     await page.goto('/display/conversation-overview');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2500);
 
     // Heading keyword (h1) tampil
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     // Full-screen: navbar utama TIDAK ada
     await expect(page.locator('header')).toHaveCount(0);
     // Chart ter-render (canvas dan/atau svg)
+    await expect(page.locator('canvas').first()).toBeVisible();
     expect(await page.locator('canvas').count()).toBeGreaterThan(0);
   });
 
   test('admin monitoring view conversation-overview punya struktur sama dengan wall publik (live)', async ({ page }) => {
     await page.goto('/monitoring/conversation-overview');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2500);
 
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.locator('header')).toHaveCount(0);
+    await expect(page.locator('canvas').first()).toBeVisible();
     expect(await page.locator('canvas').count()).toBeGreaterThan(0);
   });
 });

@@ -61,8 +61,11 @@ export class DisplayWallPage extends BasePage {
   }
 
   async expectChartsVisible(minCount: number = 1) {
-    const count = await this.charts.count();
-    expect(count).toBeGreaterThanOrEqual(minCount);
+    // Polling: chart dirender async setelah data BE tiba — count() tanpa
+    // tunggu bisa membaca 0 sebelum render selesai.
+    await expect
+      .poll(() => this.charts.count(), { timeout: 15_000 })
+      .toBeGreaterThanOrEqual(minCount);
   }
 
   async expectPageTitle(titlePart: string) {

@@ -3,7 +3,7 @@ import { loginAsClient, CLIENT_AUTH_STATE_PATH } from '../../../src/helpers/clie
 
 /**
  * Setup auth platform FE untuk client role — login sebagai client
- * (kredensial: client / signalsclient) lalu simpan storageState.
+ * (kredensial dari .env UI_CLIENT_USERNAME / UI_CLIENT_PASSWORD) lalu simpan storageState.
  *
  * Client role memiliki akses terbatas:
  * - /monitoring/home (home page)

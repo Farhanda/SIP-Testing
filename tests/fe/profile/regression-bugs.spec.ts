@@ -1,5 +1,6 @@
 import { expect } from '../fixtures';
 import { test } from '../fixtures';
+import { Env } from '../../../src/config/env';
 
 /**
  * C7 (Bug, terkonfirmasi probe 2026-08-12): API /api/profile/change-password
@@ -62,7 +63,8 @@ test.describe('Regresi Bug — Change Password', () => {
  * successfully.", modal tertutup. Memakai API asli (tanpa mock) supaya setelah
  * fix C7 memverifikasi current password, alur sukses tetap terbukti bekerja.
  *
- * "Current password benar" = password123 (seed akun admin di adminUserStore.ts).
+ * "Current password benar" = Env.adminCurrentPassword (dari .env
+ * UI_ADMIN_CURRENT_PASSWORD — seed akun admin; jangan hardcode di spec).
  * ⚠️ failRate 10% API asli bisa membalas 500 secara acak → tiap percobaan
  * (verifikasi server + UI flow) di-retry maks 3x; probabilitas gagal palsu
  * turun ke 0.1³ = ~0.1%.
@@ -72,7 +74,7 @@ test.describe('Change Password — API asli (pasangan C7)', () => {
     for (let attempt = 0; attempt < 3; attempt++) {
       // 1) Verifikasi SERVER langsung: password benar harus 200.
       const res = await profilePage.page.request.post('/api/profile/change-password', {
-        data: { currentPassword: 'password123', newPassword: 'abcdef' },
+        data: { currentPassword: Env.adminCurrentPassword, newPassword: 'abcdef' },
       });
       if (res.status() === 500) continue; // failRate acak — ulangi percobaan
       expect(res.status()).toBe(200); // non-500 non-200 → regresi fix, gagal jelas di sini
@@ -81,7 +83,7 @@ test.describe('Change Password — API asli (pasangan C7)', () => {
       await profilePage.goto();
       await profilePage.openChangePasswordModal();
 
-      await profilePage.modalCurrentPassword.fill('password123');
+      await profilePage.modalCurrentPassword.fill(Env.adminCurrentPassword);
       await profilePage.modalNewPassword.fill('abcdef');
       await profilePage.modalConfirmNewPassword.fill('abcdef');
 

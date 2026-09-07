@@ -10,6 +10,9 @@ import { test } from './fixtures';
  *
  * Display wall berjalan full-screen tanpa navbar utama.
  * Menggunakan API asli (tanpa mock) untuk data display wall.
+ *
+ * Penantian berbasis elemen/assertion auto-wait (bukan networkidle —
+ * tidak stabil pada halaman auto-refresh).
  */
 test.describe('Client — Display Wall', () => {
   // ── Top Engagement ──────────────────────────────────────────────────
@@ -21,7 +24,6 @@ test.describe('Client — Display Wall', () => {
 
     test('halaman Top Engagement dapat diakses client', async ({ page }) => {
       await page.goto('/display/top-engagement');
-      await page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       // Page title mengandung "Top Engagement"
       await expect(page).toHaveTitle(/Top Engagement/);
@@ -29,7 +31,6 @@ test.describe('Client — Display Wall', () => {
 
     test('Top Engagement menampilkan heading keyword', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/top-engagement');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       // Struktural: h1 terisi teks keyword (label dinamis dari BE)
       await expect(displayWallPage.keywordHeading).toBeVisible();
@@ -39,43 +40,40 @@ test.describe('Client — Display Wall', () => {
 
     test('Top Engagement menampilkan auto-refresh countdown', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/top-engagement');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       await displayWallPage.expectRefreshButtonVisible();
     });
 
     test('Top Engagement menampilkan SIP Insight branding', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/top-engagement');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       await displayWallPage.expectSipInsightBranding();
     });
 
     test('Top Engagement minimal 6 chart SVG terrender', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/top-engagement');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       await displayWallPage.expectChartsVisible(6);
     });
 
     test('Top Engagement menampilkan top posts dengan link', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/top-engagement');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       // Assert penuh: minimal 1 link post ke source platform. BE asli (yang
       // dipakai FE deployed) memiliki data top-posts untuk keyword populer,
       // jadi link kosong = regresi render, bukan kondisi wajar.
+      await expect(displayWallPage.postLinks.first()).toBeVisible();
       const postLinkCount = await displayWallPage.postLinks.count();
       expect(postLinkCount).toBeGreaterThan(0);
     });
 
     test('Top Engagement tidak memiliki navbar utama (full-screen mode)', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/top-engagement');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
+      // Tunggu wall ter-render dulu agar tidak false-pass sebelum render
+      await displayWallPage.expectRefreshButtonVisible();
       const navLinks = displayWallPage.page.getByRole('navigation').getByRole('link', { name: 'Dashboard' });
-      const hasNav = await navLinks.isVisible().catch(() => false);
-      expect(hasNav).toBeFalsy();
+      await expect(navLinks).toHaveCount(0);
     });
   });
 
@@ -84,7 +82,6 @@ test.describe('Client — Display Wall', () => {
   test.describe('Conversation Overview', () => {
     test('halaman Conversation Overview dapat diakses client', async ({ page }) => {
       await page.goto('/display/conversation-overview');
-      await page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       // Page title mengandung "Conversation Overview"
       await expect(page).toHaveTitle(/Conversation Overview/);
@@ -92,7 +89,6 @@ test.describe('Client — Display Wall', () => {
 
     test('Conversation Overview menampilkan heading keyword', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/conversation-overview');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       // Struktural (BE asli — label keyword dinamis): h1 terisi teks keyword
       await expect(displayWallPage.keywordHeading).toBeVisible();
@@ -102,25 +98,23 @@ test.describe('Client — Display Wall', () => {
 
     test('Conversation Overview menampilkan auto-refresh countdown', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/conversation-overview');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       await displayWallPage.expectRefreshButtonVisible();
     });
 
     test('Conversation Overview menampilkan SIP Insight branding', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/conversation-overview');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
       await displayWallPage.expectSipInsightBranding();
     });
 
     test('Conversation Overview tidak memiliki navbar utama (full-screen mode)', async ({ displayWallPage }) => {
       await displayWallPage.goto('/display/conversation-overview');
-      await displayWallPage.page.waitForLoadState('networkidle', { timeout: 15_000 });
 
+      // Tunggu wall ter-render dulu agar tidak false-pass sebelum render
+      await displayWallPage.expectRefreshButtonVisible();
       const navLinks = displayWallPage.page.getByRole('navigation').getByRole('link', { name: 'Dashboard' });
-      const hasNav = await navLinks.isVisible().catch(() => false);
-      expect(hasNav).toBeFalsy();
+      await expect(navLinks).toHaveCount(0);
     });
   });
 });

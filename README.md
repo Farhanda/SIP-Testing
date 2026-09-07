@@ -305,9 +305,10 @@ Kolom **Environment** di Excel test case mengikuti URL otomatis
 | `TEST_ENV` | `Local`/`Staging` | Environment di kolom Excel test case |
 | `TEST_EXECUTED_BY` | `—` | Nama eksekutor di kolom Excel test case |
 | `UI_TEST_USERNAME` | `admin` | Username user test untuk login UI (setup auth & test case login) |
-| `UI_TEST_PASSWORD` | `12tiga` | Password user test untuk login UI (setup auth & test case login) |
+| `UI_TEST_PASSWORD` | *(dari env)* | Password user test untuk login UI (setup auth & test case login) |
 | `UI_CLIENT_USERNAME` | `client` | Username role client (suite `tests/fe/client/`, auth state terpisah) |
-| `UI_CLIENT_PASSWORD` | `signalsclient` | Password role client (suite `tests/fe/client/`) |
+| `UI_CLIENT_PASSWORD` | *(dari env)* | Password role client (suite `tests/fe/client/`) |
+| `UI_ADMIN_CURRENT_PASSWORD` | *(dari env)* | Password admin saat ini — regression change-password P05 (`tests/fe/profile/regression-bugs.spec.ts`) |
 | `BASE_URL_SCRAPER` | `http://10.200.101.13:8090` | Base URL **scraper service langsung** (tanpa prefix `/scrape/`; Swagger `/swagger/`) — folder `tests/be/scraper/` |
 | `BASE_URL_AI_INTELLIGENCE` | `http://10.200.102.2:8000` | Base URL **Intelligence AI Service** (docs: `/docs`) — folder `tests/ai/intelligence/` |
 | `AI_INTELLIGENCE_TOKEN` | *(dari env)* | Token header `X-AI-Service-Token` (Intelligence AI Service — **beda** dari `AI_SERVICE_TOKEN`) |

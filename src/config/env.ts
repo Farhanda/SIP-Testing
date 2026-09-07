@@ -84,6 +84,20 @@ function resolveBaseUrlUi(): Resolved {
 const resolved = resolveBaseUrlUi();
 
 /**
+ * Baca variabel wajib (kredensial) — tanpa default nyata di kode supaya
+ * secret tidak pernah ter-commit. Error jelas bila .env belum diisi.
+ */
+function requiredEnv(name: string): string {
+  const value = (process.env[name] ?? '').trim();
+  if (value === '') {
+    throw new Error(
+      `Environment variable ${name} wajib diisi di .env (lihat .env.example) — kredensial tidak boleh punya default di kode.`,
+    );
+  }
+  return value;
+}
+
+/**
  * Konfigurasi terpusat yang dibaca dari .env.
  * Semua nilai punya default agar project tetap bisa jalan tanpa .env
  * (pola sama dengan src/config/env.ts di project API testing).
@@ -113,13 +127,19 @@ export const Env = {
   defaultTimeout: Number(process.env.UI_TIMEOUT ?? 15000),
 
   // ----- Kredensial user test (login UI, auth asli) -----
-  // Dipakai setup auth (storageState) & test case login. JANGAN hardcode di spec.
-  testUsername: process.env.UI_TEST_USERNAME ?? 'admin',
-  testPassword: process.env.UI_TEST_PASSWORD ?? '12tiga',
+  // Dipakai setup auth (storageState) & test case login. WAJIB dari .env —
+  // tidak ada default di kode agar secret tidak ter-commit.
+  testUsername: requiredEnv('UI_TEST_USERNAME'),
+  testPassword: requiredEnv('UI_TEST_PASSWORD'),
 
   // ----- Kredensial client (role terbatas: hanya home & display wall) -----
-  clientUsername: process.env.UI_CLIENT_USERNAME ?? 'client',
-  clientPassword: process.env.UI_CLIENT_PASSWORD ?? 'signalsclient',
+  clientUsername: requiredEnv('UI_CLIENT_USERNAME'),
+  clientPassword: requiredEnv('UI_CLIENT_PASSWORD'),
+
+  // ----- Password akun admin saat ini (regression change-password) -----
+  // Dipakai tests/fe/profile/regression-bugs.spec.ts (P05) sebagai
+  // "current password benar" — jangan hardcode di spec.
+  adminCurrentPassword: requiredEnv('UI_ADMIN_CURRENT_PASSWORD'),
 
   // ----- Backend API (testing platform BE & AI) -----
   // Base URL API backend target (deployed)

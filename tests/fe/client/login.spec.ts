@@ -6,7 +6,7 @@ import { Env } from '../../../src/config/env';
  * Test Login untuk client role.
  *
  * Client login harus redirect ke /monitoring/home (bukan /monitoring/dashboard).
- * Kredensial client: client / signalsclient (dari .env UI_CLIENT_USERNAME / UI_CLIENT_PASSWORD).
+ * Kredensial client dari .env (UI_CLIENT_USERNAME / UI_CLIENT_PASSWORD).
  */
 test.describe('Client — Login', () => {
   test('form login menampilkan field username, password, dan tombol Log in', async ({ loginPage }) => {
