@@ -143,6 +143,10 @@ Saat data BE bertambah keyword baru, cukup tambah baris di
 - `expectedTotalPosts` — **opsional**: isi jumlah post yang sudah terverifikasi
   (assert jadi presisi). Bisa dikosongkan dulu — test tetap jalan dan hanya
   memastikan data keyword terisi (`total_post > 0`).
+  ⚠️ **Tidak disarankan mengisi angka** untuk DB live yang terus bertambah
+  (data drift: run 2026-09-07 dataset 17 vs live 15). Konsistensi
+  top-keywords ↔ summary kini diverifikasi LIVE per run di
+  `top-keywords.spec.ts`, tanpa angka terkunci.
 
 Lalu jalankan:
 

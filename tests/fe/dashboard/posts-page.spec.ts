@@ -274,14 +274,15 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
     await postsPage.page.waitForLoadState('domcontentloaded');
 
     // UI 2026-09 (dev): select Topic/Emotion/Sentiment + Sort by (Views/
-    // Engagement) + Rows per page (10/20/50). Platform pindah ke button
-    // dropdown, kontrol Sort order (Desc/Asc) & opsi "Published at" dihapus.
+    // Engagement/Published at — opsi "Published at" MUNCUL KEMBALI, terverifikasi
+    // run live 2026-09-07) + Rows per page (10/20/50). Platform pindah ke
+    // button dropdown; kontrol Sort order (Desc/Asc) tetap dihapus.
     const selects = postsPage.page.locator('select');
     await expect
       .poll(async () => selects.count(), { timeout: 15_000 })
       .toBeGreaterThanOrEqual(4);
 
-    // Sort by kini hanya Views/Engagement
+    // Sort by: Views/Engagement/Published at (run live 2026-09-07)
     const sortSelect = postsPage.page
       .locator('select')
       .filter({ has: postsPage.page.locator('option', { hasText: 'Engagement' }) })
@@ -290,6 +291,7 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
     expect(await sortSelect.locator('option').allInnerTexts()).toEqual([
       'Views',
       'Engagement',
+      'Published at',
     ]);
 
     // Rows per page 10/20/50 — pindah ke bawah tabel (dekat pagination)
@@ -332,9 +334,11 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
       .toContain('size=20');
   });
 
-  // NOTE UI 2026-09 (dev): kontrol "Sort order" (Desc/Asc) & opsi sort
-  // "Published at" DIHAPUS dari halaman posts — 2 test kontrak parameter
-  // tersebut dipindah ke arsip git (hapus, bukan skip).
+  // NOTE UI 2026-09 (dev): kontrol "Sort order" (Desc/Asc) DIHAPUS dari
+  // halaman posts — test kontrak parameternya dipindah ke arsip git (hapus,
+  // bukan skip). Opsi sort "Published at" sempat dihapus lalu MUNCUL KEMBALI
+  // (run live 2026-09-07) — test kontrak sort_by=published masih di arsip,
+  // bisa dipulihkan bila dibutuhkan.
 
   test('klik nomor halaman 2 memicu request page=2 (live)', async ({ postsPage }) => {
     // Tanpa param keyword — data real BE selalu ada (60k+ posts) sehingga

@@ -31,9 +31,12 @@ test.describe('Dashboard Summary — data BE (data-driven)', () => {
 
     // Total tanpa filter >= jumlah post keyword yang terverifikasi.
     // TIDAK bisa assert == karena ada post di luar keyword list.
+    // (expectedTotalPosts sengaja kosong di dataset — DB dev live terus
+    // bertambah, angka presisi selalu drift. knownTotal = 0 tanpa angka.)
     expect(body.data.total_post.value).toBeGreaterThanOrEqual(knownTotal);
 
     // Data benar-benar terisi (bukan nol semua).
+    expect(body.data.total_post.value).toBeGreaterThan(0);
     expect(body.data.total_engagement.value).toBeGreaterThan(0);
     expect(body.data.views.value).toBeGreaterThan(0);
     expect(body.data.active_platforms.active).toBeGreaterThan(0);

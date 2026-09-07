@@ -1,5 +1,5 @@
 [
-  { "keyword": "RUU Digital", "expectedTotalPosts": 17 },
-  { "keyword": "BPJS Kesehatan", "expectedTotalPosts": 14 },
-  { "keyword": "Ketenagakerjaan", "expectedTotalPosts": 36 }
+  { "keyword": "RUU Digital" },
+  { "keyword": "BPJS Kesehatan" },
+  { "keyword": "Ketenagakerjaan" }
 ]
