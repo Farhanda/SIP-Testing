@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { Env } from '../config/env';
 
 /**
  * Base class untuk semua Page Object Model (POM).
@@ -10,6 +11,10 @@ export abstract class BasePage {
 
   // ---- Elemen navbar global (ada di semua halaman ber-navbar) ----
   // Pakai getter supaya this.page sudah ter-assign saat locator dibuat.
+  // Live 2026-09-07 (dev): navbar = link Dashboard + dropdown "Display Wall"
+  // & "Management" + Notifications + dark-mode toggle + user menu (label
+  // mengikuti nama user aktif, mis. "A admin"). Dropdown user hanya berisi
+  // Logout (item Profile/Profile2 sudah tidak ada — akses /profile via URL).
 
   /** Tombol lonceng Notifications di navbar. */
   get notificationsButton() {
@@ -21,14 +26,12 @@ export abstract class BasePage {
     return this.page.getByText('No notifications yet.');
   }
 
-  /** Tombol user menu (avatar + nama user) di navbar. */
+  /** Tombol user menu — label memuat nama user aktif (dari .env). */
   get userMenuButton() {
-    return this.page.getByRole('button', { name: /Admin SIP/ });
-  }
-
-  // Label "Profile2" sesuai teks aktual aplikasi (kemungkinan bug penamaan).
-  get profileMenuItem() {
-    return this.page.getByRole('button', { name: 'Profile2' });
+    return this.page
+      .locator('header')
+      .getByRole('button', { name: new RegExp(Env.testUsername, 'i') })
+      .last();
   }
 
   get logoutMenuItem() {

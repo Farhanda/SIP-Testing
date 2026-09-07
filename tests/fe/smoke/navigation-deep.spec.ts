@@ -30,27 +30,32 @@ test.describe('Navigasi Mendalam — Navbar & Provider', () => {
   test('navigasi dari Display Wall dropdown ke Conversation Overview', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
 
-    const displayWallBtn = page.locator('header').getByRole('button', { name: 'Display Wall' });
+    const nav = page.locator('header');
+    const displayWallBtn = nav.getByRole('button', { name: 'Display Wall' });
     await displayWallBtn.click();
 
-    const link = page.getByRole('link', { name: /Conversation Overview/ });
-    if (await link.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await link.click();
-      await expectUrlPath(page, '/display/conversation-overview');
-    }
+    // Bentuk DOM beda antar environment: dev merender link di role="menu",
+    // staging/prod sebagai link di <nav>. Scope menerima keduanya, lalu klik
+    // & verifikasi navigasi TEGAS (bukan if-visible yang lolos diam-diam).
+    const menuScope = page.getByRole('menu').last().or(nav);
+    const link = menuScope.locator('a[href="/display/conversation-overview"]');
+    await expect(link).toBeVisible();
+    await link.click();
+    await expectUrlPath(page, '/display/conversation-overview');
   });
 
   test('navigasi dari Display Wall dropdown ke Top Engagement', async ({ page }) => {
     await page.goto('/monitoring/dashboard');
 
-    const displayWallBtn = page.locator('header').getByRole('button', { name: 'Display Wall' });
+    const nav = page.locator('header');
+    const displayWallBtn = nav.getByRole('button', { name: 'Display Wall' });
     await displayWallBtn.click();
 
-    const link = page.getByRole('link', { name: /Top Engagement/ });
-    if (await link.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await link.click();
-      await expectUrlPath(page, '/display/top-engagement');
-    }
+    const menuScope = page.getByRole('menu').last().or(nav);
+    const link = menuScope.locator('a[href="/display/top-engagement"]');
+    await expect(link).toBeVisible();
+    await link.click();
+    await expectUrlPath(page, '/display/top-engagement');
   });
 
   // ── Management dropdown ──────────────────────────────────────────────

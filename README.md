@@ -22,12 +22,13 @@ Automation **Web UI (E2E) + API** testing dengan **Playwright + TypeScript** unt
   - 🗑️ **Dihapus**: D29 protocol status badge (elemen sudah dihapus dari UI)
   - ♻️ **Dikembalikan (deploy 2026-09)**: A2/D10 Export report (kini unduh `posts-report.xlsx` via event download — verifikasi di `dashboard-features.spec.ts`), R1 (Add scheduled) & B4 (Move to scheduled) — tab Scheduled & aksi Move/Edit kembali aktif; coverage positifnya ada di `keyword-modals.spec.ts` (Add scheduled POST) & `keyword-actions.spec.ts` (Move/Edit PUT)
 - ✅ **Auth asli + storageState (2026-08)** — aplikasi kini memakai login sungguhan. Project setup `auth` login via UI sekali (kredensial `UI_TEST_USERNAME` / `UI_TEST_PASSWORD` di `.env`) dan menyimpan storageState di `.auth/fe-state.json` yang dipakai semua project modul **kecuali `login`** (halaman `/login` di-redirect ke dashboard bila sudah terautentikasi). Route `/display/*` memang tanpa login (by design — wall publik).
-- ✅ **Coverage modul baru** — Provider Management (`/administration/provider`, konsumsi BE langsung `/v1/scrape/credential`) & halaman Keyword Intelligence (`/monitoring/keyword-intelligence`)
+- ✅ **Coverage modul baru** — Provider Management (`/administration/provider`, konsumsi BE langsung `/v1/scrape/credential`)
+- 📌 **Di luar lingkup (2026-09-07)** — halaman Keyword Intelligence (`/monitoring/keyword-intelligence`) & Control Protocol walls (`/control/*`) TIDAK dites: fitur belum digunakan produk & tidak ada tombol/link navigasinya di UI (test lama tersedia di arsip git)
 - ✅ **Perbaikan UI deploy 2026-09** — halaman Posts kini **8 kolom** (`Platform, Published, Post, Emotion, Sentiment, Topic, Views, Engagement`), teks post jadi link ke sumber asli (`source_url`, tab baru, tombol Show more), dan **Top accounts clickable** — klik akun membuka halaman posts dengan filter `platform` + `actor` terisi otomatis (di `posts-page.spec.ts` & `dashboard.spec.ts`)
 - ✅ **BE scrape service** — modul `tests/be/scrape/`: health api-gateway, platform, keyword-management (filter/pagination), credential (+ toggle round-trip aman), validasi create on-demand
 - ✅ **BE scraper service langsung** — modul `tests/be/scraper/` (`BASE_URL_SCRAPER`, :8090, tanpa prefix `/scrape/`): kontrak, keyword-management summary & scheduled-holds, on-demand, write lifecycle audit (PUT/PATCH round-trip reversibel — create sengaja tidak diuji)
 - ✅ **AI Intelligence Service** — modul `tests/ai/intelligence/` (`BASE_URL_AI_INTELLIGENCE`, :8000, header `X-AI-Service-Token`): health publik, topic & actor intelligence (401/400/200|429 saat kuota provider habis)
-- ✅ **Role client (RBAC)** — suite `tests/fe/client/` (+49 TC): login client, home page, display wall, access control (10 halaman admin redirect ke `/monitoring/home`), logout; auth state terpisah di `.auth/fe-client-state.json` (kredensial `UI_CLIENT_USERNAME`/`UI_CLIENT_PASSWORD`)
+- ✅ **Role client (RBAC)** — suite `tests/fe/client/`: login client, home page, display wall, access control (halaman admin redirect ke `/monitoring/home`), logout; auth state terpisah di `.auth/fe-client-state.json` (kredensial `UI_CLIENT_USERNAME`/`UI_CLIENT_PASSWORD`)
 - ✅ **Dokumentasi user guide** — Admin & Client User Guide di `docs/` (html/pdf/docx/rtf) + video guide
 - ✅ **Test validasi form** — P03 Change Password (3 skenario invalid + 1 valid) di `tests/fe/profile/profile.spec.ts`
 - ✅ **Test positif API asli** — P05 Change password dengan current password BENAR → toast sukses & modal tertutup (pasangan C7)
@@ -54,7 +55,6 @@ Automation **Web UI (E2E) + API** testing dengan **Playwright + TypeScript** unt
 │       ├── DashboardPage.ts
 │       ├── KeywordPage.ts
 │       ├── UnscheduledDetailPage.ts
-│       ├── ProtocolPage.ts
 │       ├── DisplayWallPage.ts      #   Display wall (conversation overview & top engagement)
 │       ├── PostsPage.ts            #   Top posts list (/monitoring/dashboard/posts)
 │       ├── TopicDetailPage.ts
@@ -68,8 +68,8 @@ Automation **Web UI (E2E) + API** testing dengan **Playwright + TypeScript** unt
 │   │   ├── smoke/                  #   Navigasi, dropdown navbar, dark mode, responsif
 │   │   ├── login/
 │   │   ├── dashboard/              #   Dashboard + posts page + topic detail + integrasi BE
-│   │   ├── keyword/                #   Monitoring Keyword (+ Keyword Intelligence)
-│   │   ├── control/                #   Display wall: conversation-overview, top-engagement, 3 protocol wall
+│   │   ├── keyword/                #   Monitoring Keyword
+│   │   ├── control/                #   Display wall: conversation-overview, top-engagement
 │   │   ├── administration/         #   User Management + Provider Management
 │   │   ├── profile/
 │   │   └── client/                 #   Role client (RBAC): login, home, display-wall, access-control, logout
@@ -135,7 +135,7 @@ npm run test:smoke         # FE: Navigasi & smoke
 npm run test:login         # FE: Hanya Login
 npm run test:dashboard     # FE: Hanya Dashboard
 npm run test:keyword       # FE: Hanya Monitoring Keyword
-npm run test:control       # FE: Hanya Control Protocol
+npm run test:control       # FE: Hanya Display Wall (conversation overview & top engagement)
 npm run test:user          # FE: Hanya User Management
 npm run test:profile       # FE: Hanya Profile
 npm run test:client        # FE: Suite role client (login/home/display/access/logout)
@@ -325,7 +325,7 @@ Kolom **Environment** di Excel test case mengikuti URL otomatis
   - **Tab Scheduled kembali aktif (deploy 2026-09)**: aksi **Add scheduled** (`+ Add keyword`, POST `schedule_enabled=true`), **Edit** & **Move to scheduled / to on-demand** (PUT `/keyword-management/:id`) — ketiganya memakai dialog jadwal berisi keyword + checkbox platform + start/end datetime-local + frequency value/unit.
   - Modal Add On Demand kini memakai **checkbox platform** (bukan dropdown) dan **selector period dihapus** dari modal; validasi urutan tanggal (start ≤ end) hidup di dialog jadwal → regression R2 kini PASS.
   - Display wall mengambil keyword dari `top-keywords?limit=5` dan berotasi tiap ~20 detik (label "20 seconds" = label interval statis).
-  - Halaman baru **Keyword Intelligence** (`/monitoring/keyword-intelligence`) dengan Export report/brief.
+  - Halaman **Keyword Intelligence** (`/monitoring/keyword-intelligence`) & **Control Protocol walls** (`/control/*`) ada di aplikasi tapi DI LUAR LINGKUP testing (fitur belum digunakan, tanpa tombol navigasi — keputusan 2026-09-07).
   - Tombol Export report **masih ada** di dashboard (diverifikasi 2026-08-31).
 - **Bug aplikasi yang diketahui (hasil bug-hunt BE 2026-08)** — dipantau test regresi / belum ada guard-nya:
   - Endpoint scrape **tidak memiliki autentikasi** — mutasi (PATCH provider, POST keyword) bisa dipanggil tanpa token (perlu konfirmasi: internal-only atau bug).

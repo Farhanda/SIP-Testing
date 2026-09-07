@@ -36,15 +36,6 @@ test.describe('Navigasi & Smoke', () => {
     await expect(navbar.getByRole('button', { name: /admin/i }).last()).toBeVisible();
   });
 
-  test('halaman Keyword Intelligence dapat diakses', async ({ page }) => {
-    // Link 'Keyword Intelligence' tidak lagi ada di navbar utama/dropdown
-    // (Management kini berisi Providers & Keywords) — navigasi langsung via URL.
-    await page.goto('/monitoring/keyword-intelligence');
-
-    await expectUrlPath(page, '/monitoring/keyword-intelligence');
-    await expect(page.getByRole('heading', { name: 'Keyword Intelligence', exact: true })).toBeVisible();
-  });
-
   test('tab On Demand & Scheduled ada di halaman keyword (On Demand default)', async ({ page }) => {
     await page.goto('/monitoring/keyword');
 
@@ -60,19 +51,11 @@ test.describe('Navigasi & Smoke', () => {
     await expect(tabScheduled).toHaveAttribute('aria-selected', 'true');
   });
 
-  test('halaman control protocol (alert, danger, green) dapat diakses', async ({ page }) => {
-    const walls: Array<{ path: string; title: string }> = [
-      { path: '/control/alert-protocol', title: 'Alert' },
-      { path: '/control/danger-protocol', title: 'Danger' },
-      { path: '/control/green-protocol', title: 'Green — Under Control' },
-    ];
-
-    for (const wall of walls) {
-      await page.goto(wall.path);
-      await expect(page.getByText('Active Protocol')).toBeVisible();
-      await expect(page.getByRole('heading', { name: wall.title })).toBeVisible();
-    }
-  });
+  // CATATAN SCOPE (2026-09-07): halaman Keyword Intelligence
+  // (/monitoring/keyword-intelligence) & Control Protocol walls
+  // (/control/*) DI LUAR LINGKUP testing — fitur belum digunakan produk &
+  // tidak ada tombol/link navigasinya di UI (hanya bisa diakses via URL
+  // langsung). Test-nya dihapus (tersedia di arsip git bila fitur dirilis).
 
   test('halaman profile menampilkan informasi user saat ini', async ({ page }) => {
     await page.goto('/profile');
@@ -88,6 +71,22 @@ test.describe('Navigasi & Smoke', () => {
     await expect(page.getByRole('heading', { name: 'User Management' })).toBeVisible();
     await expect(page.getByRole('button', { name: '+ Add user' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'User list' })).toBeVisible();
+  });
+
+  test('halaman home admin menampilkan 2 kartu monitoring view (live)', async ({ page }) => {
+    // Live 2026-09-07 (dev): /monitoring/home bisa diakses admin (bukan
+    // hanya client) — menampilkan 2 kartu navigasi ke monitoring view
+    // versi admin (/monitoring/*, bukan /display/*).
+    await page.goto('/monitoring/home');
+
+    await expect(page.getByRole('heading', { name: 'Select a monitoring view' })).toBeVisible();
+    const main = page.locator('main');
+    await expect(main.locator('a[href="/monitoring/conversation-overview"]')).toBeVisible();
+    await expect(main.locator('a[href="/monitoring/top-engagement"]')).toBeVisible();
+
+    // Kartu Conversation Overview menavigasi ke view admin (bukan /display/)
+    await main.locator('a[href="/monitoring/conversation-overview"]').click();
+    await expectUrlPath(page, '/monitoring/conversation-overview');
   });
 
   // ── Eksplorasi live 2026-09: dropdown navbar Display Wall ─────────────

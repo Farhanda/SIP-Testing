@@ -5,7 +5,6 @@ import { KeywordPage } from '../../src/pages/KeywordPage';
 import { LoginPage } from '../../src/pages/LoginPage';
 import { PostsPage } from '../../src/pages/PostsPage';
 import { ProfilePage } from '../../src/pages/ProfilePage';
-import { ProtocolPage } from '../../src/pages/ProtocolPage';
 import { ProviderPage } from '../../src/pages/ProviderPage';
 import { TopicDetailPage } from '../../src/pages/TopicDetailPage';
 import { UnscheduledDetailPage } from '../../src/pages/UnscheduledDetailPage';
@@ -29,7 +28,6 @@ export const test = base.extend<{
   keywordPage: KeywordPage;
   postsPage: PostsPage;
   profilePage: ProfilePage;
-  protocolPage: ProtocolPage;
   topicDetailPage: TopicDetailPage;
   userPage: UserManagementPage;
   providerPage: ProviderPage;
@@ -41,7 +39,6 @@ export const test = base.extend<{
   keywordPage: async ({ page }, use) => use(new KeywordPage(page)),
   postsPage: async ({ page }, use) => use(new PostsPage(page)),
   profilePage: async ({ page }, use) => use(new ProfilePage(page)),
-  protocolPage: async ({ page }, use) => use(new ProtocolPage(page)),
   topicDetailPage: async ({ page }, use) => use(new TopicDetailPage(page)),
   userPage: async ({ page }, use) => use(new UserManagementPage(page)),
   providerPage: async ({ page }, use) => use(new ProviderPage(page)),

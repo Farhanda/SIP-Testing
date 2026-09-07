@@ -8,17 +8,17 @@ import { Env } from '../../../src/config/env';
  * Client role TIDAK boleh mengakses halaman admin. Semua halaman berikut
  * harus redirect ke /monitoring/home.
  *
- * Halaman yang diuji:
+ * Halaman yang diuji (fitur dalam lingkup):
  * - /monitoring/dashboard
  * - /monitoring/keyword
- * - /monitoring/keyword-intelligence
  * - /monitoring/posts
- * - /control/alert-protocol
- * - /control/danger-protocol
- * - /control/green-protocol
  * - /profile
  * - /administration/user
  * - /administration/provider
+ *
+ * CATATAN SCOPE (2026-09-07): halaman Keyword Intelligence & Control
+ * Protocol walls DI LUAR LINGKUP testing (fitur belum digunakan) — tidak
+ * ikut diuji di sini.
  */
 test.describe('Client — Access Control (RBAC)', () => {
   test.beforeEach(async ({ page }) => {
@@ -30,11 +30,7 @@ test.describe('Client — Access Control (RBAC)', () => {
   const restrictedPages = [
     { path: '/monitoring/dashboard', name: 'Dashboard' },
     { path: '/monitoring/keyword', name: 'Keyword' },
-    { path: '/monitoring/keyword-intelligence', name: 'Keyword Intelligence' },
     { path: '/monitoring/posts', name: 'Posts' },
-    { path: '/control/alert-protocol', name: 'Alert Protocol' },
-    { path: '/control/danger-protocol', name: 'Danger Protocol' },
-    { path: '/control/green-protocol', name: 'Green Protocol' },
     { path: '/profile', name: 'Profile' },
     { path: '/administration/user', name: 'User Management' },
     { path: '/administration/provider', name: 'Provider Management' },

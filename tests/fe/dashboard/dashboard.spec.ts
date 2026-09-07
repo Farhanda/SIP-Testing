@@ -209,8 +209,8 @@ test.describe('Dashboard', () => {
 
     await dashboardPage.expectResultsRendered();
 
-    // Section tetap ada di dashboard (chart detailnya kini di halaman
-    // Keyword Intelligence — lihat keyword-intelligence.spec.ts)
+    // Section tetap ada di dashboard (halaman Keyword Intelligence tempat
+    // chart detailnya berada DI LUAR LINGKUP testing — fitur belum digunakan)
     await expect(dashboardPage.topicIntelligenceHeading).toBeVisible();
   });
 
