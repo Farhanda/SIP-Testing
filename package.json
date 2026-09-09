@@ -26,7 +26,8 @@
     "test-cases": "node scripts/generate-test-cases.mjs",
     "test-cases:fe": "node scripts/generate-test-cases.mjs --platform=fe",
     "test-cases:be": "node scripts/generate-test-cases.mjs --platform=be",
-    "test-cases:ai": "node scripts/generate-test-cases.mjs --platform=ai"
+    "test-cases:ai": "node scripts/generate-test-cases.mjs --platform=ai",
+    "record:video": "node scripts/record-video.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

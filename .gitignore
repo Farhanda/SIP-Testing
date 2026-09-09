@@ -31,3 +31,8 @@ scripts/tmp-*
 scripts/record-*
 scripts/verify-*
 scripts/print-pdfs.mjs
+
+# Dokumentasi & video demo internal (jangan commit)
+ALUR-PENGGUNAAN.md
+SCRIPT-VIDEO.md
+videos/
