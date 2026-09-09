@@ -3,13 +3,13 @@
 Test **API backend** (platform BE) dengan Playwright `APIRequestContext`
 (fixture `api`). Terpisah dari test UI (FE) dan generator hasil (AI).
 
-> ℹ️ **Kanonik untuk Dashboard Service (2026-08-18):** suite ini adalah
-> **satu-satunya** tempat test API dashboard-service (port `8080`). Case unik
-> dari eksplorasi sebelumnya (data-driven keyword×platform, varian period,
-> validasi hourly) sudah di-port ke sini (`summary.spec.ts`,
-> `conversation-trend.spec.ts`, data `test-data/be-dashboard-combos.json`).
-> Project test mock service terpisah sudah dihapus — jangan menambah test
-> dashboard di luar project ini.
+> ℹ️ **Kanonik untuk Dashboard Service (2026-09-09):** suite ini adalah
+> **satu-satunya** tempat test API dashboard-service (env `BASE_URL_BE`,
+> default `http://10.200.101.13:8091`). Case unik dari eksplorasi sebelumnya
+> (data-driven keyword×platform, varian period, validasi hourly) sudah
+> di-port ke sini (`summary.spec.ts`, `conversation-trend.spec.ts`, data
+> `test-data/be-dashboard-combos.json`). Project test mock service terpisah
+> sudah dihapus — jangan menambah test dashboard di luar project ini.
 
 ## Jalankan
 
@@ -26,20 +26,23 @@ Report: HTML di `playwright-report-be/` (`npm run report:be`), JSON di
 
 | Variabel | Default | Keterangan |
 |---|---|---|
-| `BASE_URL_BE` | `http://localhost:8080` | Base URL API backend |
+| `BASE_URL_BE` | `http://10.200.101.13:8091` | Base URL API backend (dashboard-service) |
 | `BE_API_PREFIX` | `/v1` | Prefiks versi API |
 | `BASE_URL_SCRAPER` | `http://10.200.101.13:8090` | Base URL Scraper Service API (folder `tests/be/scraper/`) |
 
 ## Sumber kebenaran: Swagger BE
 
-Spec OpenAPI live ada di **`http://localhost:8080/swagger/`**
+Spec OpenAPI live ada di **`{BASE_URL_BE}/swagger/`**
 (UI: `/swagger/index.html`, spec JSON: `/swagger/doc.json`).
 
-### Status endpoint (diverifikasi 2026-08-18 — eksplorasi ulang)
+### Status endpoint (diverifikasi 2026-09-09 — eksplorasi ulang dashboard-service)
 
-BE kini memiliki **10 endpoint** (Users/Tasks/Files/Provider sudah **dihapus**;
-5 endpoint terbaru **top-accounts, top-hashtags, top-posts, topic-intelligence,
-topic-intelligence-detail** ditambahkan saat eksplorasi ulang):
+Dashboard-service kini memiliki **21 endpoint** (audit `swagger/doc.json` live
+2026-09-09). Semua sudah di-cover test di `tests/be/dashboard/`. Endpoint yang
+ditambahkan/ditemukan sejak audit 2026-08-18: **posts/{id}, posts-export,
+top-keywords, top-posts-list, trending-topic-multi-period, protocol-status**,
+serta 5 ex-GAP (trending-topic, emotion-map, sentiment-map, sentiment-trend,
+sentiment-trend-hourly) yang kini **sudah diimplementasikan** (200).
 
 | Endpoint | Status | Spec Swagger |
 |---|---|---|
@@ -48,41 +51,60 @@ topic-intelligence-detail** ditambahkan saat eksplorasi ulang):
 | `GET /v1/dashboard/summary` | ✅ 200 | query opsional: keyword, platform, date_from, date_to |
 | `GET /v1/dashboard/conversation-trend` | ✅ 200 | query opsional: keyword, platform, period (`24h`/`3d`/`7d`/`1m`/`1y`/`YYYY-MM-DD`/range) — malformed → fallback 1 bulan |
 | `GET /v1/dashboard/conversation-trend-hourly` | ✅ 200 · 400 | query: date (`YYYY-MM-DD`, **wajib**) + keyword/platform opsional — tanpa date / format salah → 400 `invalid_request` |
-| `GET /v1/dashboard/top-accounts` | ✅ 200 | `{ data: [{ id, handle, platform, posts }] }` — deploy 2026-09: id = slug lowercase, handle = display name (tidak lagi selalu sama); urut posts desc; maks 5 |
+| `GET /v1/dashboard/top-accounts` | ✅ 200 | `{ data: [{ id, handle, platform, posts }] }` — id = slug lowercase, handle = display name; urut posts desc; maks 5 |
 | `GET /v1/dashboard/top-hashtags` | ✅ 200 | `{ data: [{ id, tag, count }] }` — tag `#Xxx`; urut count desc; maks 5 |
 | `GET /v1/dashboard/top-posts` | ✅ 200 | `{ data: [{ id, platform, post, emotion, topic, engagement }] }` — urut engagement desc; maks 5 |
-| `GET /v1/dashboard/topic-intelligence` | ✅ 200 | `{ data: [{ id, label, pct, count }] }` — id = label; pct = round(count/total*100) |
-| `GET /v1/dashboard/topic-intelligence-detail` | ✅ 200 · 400 · 404 | query: `topic` (**wajib**, exact) + keyword/search/sentiment/emotion/page/size — tanpa topic → 400; topic/keyword tidak cocok → 404; page/size di-clamp (size max 50, default 6) |
+| `GET /v1/dashboard/top-posts-list` | ✅ 200 | `{ data: { stats, posts }, meta: { page,size,total,totalPages } }` — paginated; filter: keyword/platform/period/search/emotion/**actor/hashtag/topic/sentiment**; sort: `sort_by=view\|engagement\|published_at`, `sort_order=asc\|desc` |
+| `GET /v1/dashboard/top-keywords` | ✅ 200 | `{ data: [{ id, keyword, count }], meta }` — urut count desc; `limit` 1-50 (default 10, clamp) |
+| `GET /v1/dashboard/posts/{id}` | ✅ 200 · 404 | detail satu post (metrics lengkap, hashtags[], keywords[]); id tak dikenal → 404 `not_found` |
+| `GET /v1/dashboard/posts-export` | ✅ 200 | export **xlsx** (Content-Type spreadsheetml.sheet, attachment `post-<kw?>-<period>-<YYYYMMDD>.xlsx`); filter keyword/platform/period; malformed period → fallback 1m |
+| `GET /v1/dashboard/topic-intelligence` | ✅ 200 | `{ data: [{ id, label, pct, count }], meta: { total } }` — id = label; pct = round(count/total*100); `limit` memotong `data` tapi `meta.total` tetap distribusi penuh |
+| `GET /v1/dashboard/topic-intelligence-detail` | ✅ 200 · 400 · 404 | query: `topic` (**wajib**, exact) + keyword/search/sentiment/emotion/page/size/`sort_by` — tanpa topic → 400; topic/keyword tidak cocok → 404; page/size di-clamp (size max 50, default 6) |
+| `GET /v1/dashboard/trending-topic` | ✅ 200 | `{ data: [{ id, topic, volume, delta }], meta: { period, total } }` — period `24H`/`7D` (lowercase di-uppercase) |
+| `GET /v1/dashboard/trending-topic-multi-period` | ✅ 200 | trending topic lintas beberapa period sekaligus |
+| `GET /v1/dashboard/emotion-map` | ✅ 200 | `{ data: [{ emotion, pct, color }], meta }` |
+| `GET /v1/dashboard/sentiment-map` | ✅ 200 | `{ data: [{ sentiment, pct, color }], meta }` |
+| `GET /v1/dashboard/sentiment-trend` | ✅ 200 | `{ data: [{ date, label, positive, negative }], meta }` |
+| `GET /v1/dashboard/sentiment-trend-hourly` | ✅ 200 | `{ data: [{ hour, label, positive, negative }], meta: { date } }` |
+| `GET /v1/dashboard/protocol-status` | ✅ 200 | status protokol/health internal dashboard-service |
 
-> 💡 **Quirk kontrak** (terdokumentasi sebagai test): `stats` di
-> topic-intelligence-detail **mengabaikan** filter search/sentiment/emotion —
-> hanya keyword/topic/platform/period yang memengaruhi scope stats, jadi nilai
-> yang tidak cocok pun tetap 200 (posts kosong), bukan 404.
+> 💡 **Quirk kontrak** (terdokumentasi sebagai test):
+> - `stats` di topic-intelligence-detail **mengabaikan** filter
+>   search/sentiment/emotion — hanya keyword/topic/platform/period yang
+>   memengaruhi scope stats, jadi nilai yang tidak cocok pun tetap 200
+>   (posts kosong), bukan 404.
+> - **`actor` di top-posts-list mencocokkan field `handle` (display name),
+>   case-sensitive — BUKAN `id` (slug).** `actor=SudutTakKasat` → 22 post,
+>   `actor=suduttakkasat` → 0. Swagger menyebut "values come from
+>   top-accounts"; yang cocok hanya `handle` persis (TC-BE-D248/D249).
+> - **`hashtag` ditulis tanpa `#` dan case-sensitive** (`hashtag=prabowo`
+>   → 116, `hashtag=Prabowo` → 0). `sentiment`/`emotion` case-insensitive dan
+>   menerima label Indonesia maupun Inggris (netral==neutral, positif==positive).
+> - **emotion-map `pct` dapat berjumlah 99** (bukan 100) karena pembulatan
+>   per-item; sentiment-map berjumlah 100. Quirk minor, bukan bug keras.
 
-> ✅ **Coverage parameter Swagger (2026-08-18):** audit ulang `swagger/doc.json`
-> — 10 endpoint aktif, semua sudah di-test. Kekosongan yang ditutup di sesi ini:
-> **top-accounts/hashtags/posts** kini diuji dengan `period=7d`, `period range
-> (date/date)`, dan `platform multi (comma-separated)` (sebelumnya hanya
-> filter tunggal) — 9 test baru (TC-BE-D94–D102); **topic-intelligence** kini
-> diuji dengan `period=3d/1y/date tunggal/range` — 4 test baru
-> (TC-BE-D103–D106). Total 108 case (Health 2 · Dashboard 106).
+> ✅ **Coverage parameter Swagger (2026-09-09):** audit ulang `swagger/doc.json`
+> — 21 endpoint aktif, semua sudah di-test. Kekosongan yang ditutup di sesi ini:
+> **posts/{id}** & **posts-export** (sebelumnya NOL coverage) — 14 test baru
+> (TC-BE-D232–D245); parameter baru **top-posts-list** (actor/hashtag/topic/
+> sentiment/sort_order/sort_by=published_at) — 8 test (TC-BE-D246–D253);
+> **top-keywords limit** — 5 test (TC-BE-D254–D258); **topic-intelligence
+> limit** & **detail sort_by** — 4 test (TC-BE-D259–D262).
 
-### ⚠️ GAP: endpoint dipanggil FE tapi belum ada di Go (dokumentasi audit FE↔BE 2026-08-18)
+### ✅ Ex-GAP endpoints (sudah diimplementasikan di Go — regression guard)
 
-FE dashboard (`localhost:3000`) memanggil 5 endpoint ini langsung ke
-dashboard-service (`env.dashboardApiUrl`), tapi **belum terdaftar di router Go**
-→ saat ini balas `404`. Konsekuensi: kartu terkait di FE menampilkan error
-state ("Failed to load ..."). Test di `missing-endpoints.spec.ts` (kategori **Gap**
-di Excel) mendokumentasikan gap ini — ekspektasi saat ini 404; begitu endpoint
-Go tersedia, update ekspektasi ke 200 + kontrak FE:
+Audit integrasi FE↔BE 2026-08-18 menemukan 5 endpoint dipanggil FE tapi tidak
+ada di router Go (semua 404). Sejak 2026-08-20 kelimanya **sudah aktif** (200).
+`missing-endpoints.spec.ts` kini menjadi **regression guard** (ekspektasi 200 +
+struktur), bukan lagi dokumentasi gap:
 
-| Endpoint (dipanggil `src/services/dashboard.ts`) | Status saat ini | Kontrak yang diharapkan FE |
+| Endpoint (dipanggil `src/services/dashboard.ts`) | Status | Kontrak |
 |---|---|---|
-| `GET /v1/dashboard/trending-topic?period=24H\|7D` | ❌ 404 | `{ data: [{ id, topic, volume, delta }], meta: { period, total, generated_at } }` |
-| `GET /v1/dashboard/emotion-map` | ❌ 404 | `{ data: { anger, neutral, fear, joy, sadness }, meta }` |
-| `GET /v1/dashboard/sentiment-map` | ❌ 404 | `{ data: { positive, neutral, negative }, meta }` |
-| `GET /v1/dashboard/sentiment-trend` | ❌ 404 | `{ data: [{ date, label, positive, negative }], meta }` |
-| `GET /v1/dashboard/sentiment-trend-hourly` | ❌ 404 | `{ data: [{ hour, label, positive, negative }], meta: { date } }` |
+| `GET /v1/dashboard/trending-topic?period=24H\|7D` | ✅ 200 | `{ data: [{ id, topic, volume, delta }], meta: { period, total, generated_at } }` |
+| `GET /v1/dashboard/emotion-map` | ✅ 200 | `{ data: [{ emotion, pct, color }], meta }` |
+| `GET /v1/dashboard/sentiment-map` | ✅ 200 | `{ data: [{ sentiment, pct, color }], meta }` |
+| `GET /v1/dashboard/sentiment-trend` | ✅ 200 | `{ data: [{ date, label, positive, negative }], meta }` |
+| `GET /v1/dashboard/sentiment-trend-hourly` | ✅ 200 | `{ data: [{ hour, label, positive, negative }], meta: { date } }` |
 
 Struktur respons `GET /v1/dashboard/summary` (dicek langsung ke BE):
 

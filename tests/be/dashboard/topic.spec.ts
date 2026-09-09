@@ -28,7 +28,9 @@ import { test, expect, apiUrl } from '../fixtures';
 // Bentuk response GET /v1/dashboard/topic-intelligence
 interface TopicIntelligenceResponse {
   data: Array<{ id: string; label: string; pct: number; count: number }>;
-  meta: { generated_at: string };
+  // meta.total = jumlah topic pada distribusi PENUH (tidak terpengaruh limit);
+  // data.length = jumlah item setelah limit diterapkan.
+  meta: { generated_at: string; total?: number };
 }
 
 // Bentuk response GET /v1/dashboard/topic-intelligence-detail
@@ -159,6 +161,35 @@ test.describe('Dashboard — GET /v1/dashboard/topic-intelligence', () => {
     const res = await api.get(apiUrl(`${TOPIC_PATH}?period=xyz`));
     expect(res.status()).toBe(200);
     expect(Array.isArray((await res.json() as TopicIntelligenceResponse).data)).toBe(true);
+  });
+
+  // ── Parameter limit (eksplorasi ulang dashboard-service 2026-09-09) ──
+  // Diverifikasi live: limit memotong jumlah item `data`, tetapi meta.total
+  // tetap melaporkan jumlah topic distribusi penuh (limit tidak mengubah total).
+
+  test('topic-intelligence limit=3 → 200, data 3 item tapi meta.total = distribusi penuh', async ({ api }) => {
+    const full = await api.get(apiUrl(TOPIC_PATH));
+    expect(full.status()).toBe(200);
+    const fullBody = (await full.json()) as TopicIntelligenceResponse;
+    test.skip(fullBody.data.length <= 3, 'distribusi topic <= 3, limit tidak bisa diverifikasi');
+
+    const res = await api.get(apiUrl(`${TOPIC_PATH}?limit=3`));
+    expect(res.status()).toBe(200);
+    const body = (await res.json()) as TopicIntelligenceResponse;
+    expect(body.data).toHaveLength(3);
+    // meta.total = distribusi penuh, bukan jumlah item setelah limit
+    expect(body.meta.total).toBe(fullBody.data.length);
+  });
+
+  test('topic-intelligence limit=0 → 200, kembalikan semua topic (tanpa potongan)', async ({ api }) => {
+    const full = await api.get(apiUrl(TOPIC_PATH));
+    expect(full.status()).toBe(200);
+    const fullCount = ((await full.json()) as TopicIntelligenceResponse).data.length;
+
+    const res = await api.get(apiUrl(`${TOPIC_PATH}?limit=0`));
+    expect(res.status()).toBe(200);
+    const body = (await res.json()) as TopicIntelligenceResponse;
+    expect(body.data).toHaveLength(fullCount);
   });
 });
 
@@ -340,6 +371,51 @@ test.describe('Dashboard — GET /v1/dashboard/topic-intelligence-detail', () =>
     if (res.status() === 200) {
       const body = (await res.json()) as TopicDetailResponse;
       expect(body.meta.size).toBe(6);
+    }
+  });
+
+  // ── Parameter sort_by (eksplorasi ulang dashboard-service 2026-09-09) ──
+  // Diverifikasi live: sort_by=view mengurutkan posts berdasarkan views desc.
+  // Pakai topic live dari topic-intelligence agar tidak bergantung seed mati.
+
+  test('topic-intelligence-detail sort_by=view → 200, posts urut views desc', async ({ api }) => {
+    // Ambil topic live (bukan EXISTING_TOPIC yang mungkin 404 di seed dev)
+    const topicRes = await api.get(apiUrl(TOPIC_PATH));
+    expect(topicRes.status()).toBe(200);
+    const topics = (await topicRes.json() as TopicIntelligenceResponse).data;
+    test.skip(topics.length === 0, 'tidak ada topic live untuk diuji');
+    const topic = topics[0].label;
+
+    const res = await api.get(
+      apiUrl(`${TOPIC_DETAIL_PATH}?topic=${encodeURIComponent(topic)}&sort_by=view&size=10`),
+    );
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TopicDetailResponse;
+    const views = body.data.posts.map((p) => (p as { views?: number }).views ?? 0);
+    if (views.length >= 2) {
+      const isDesc = views.every((v, i) => i === 0 || v <= views[i - 1]);
+      expect(isDesc, 'sort_by=view harus mengurutkan views desc').toBe(true);
+    }
+  });
+
+  test('topic-intelligence-detail sort_by=engagement → 200, posts urut engagement desc', async ({ api }) => {
+    const topicRes = await api.get(apiUrl(TOPIC_PATH));
+    expect(topicRes.status()).toBe(200);
+    const topics = (await topicRes.json() as TopicIntelligenceResponse).data;
+    test.skip(topics.length === 0, 'tidak ada topic live untuk diuji');
+    const topic = topics[0].label;
+
+    const res = await api.get(
+      apiUrl(`${TOPIC_DETAIL_PATH}?topic=${encodeURIComponent(topic)}&sort_by=engagement&size=10`),
+    );
+    expect(res.status()).toBe(200);
+
+    const body = (await res.json()) as TopicDetailResponse;
+    const eng = body.data.posts.map((p) => p.engagement);
+    if (eng.length >= 2) {
+      const isDesc = eng.every((v, i) => i === 0 || v <= eng[i - 1]);
+      expect(isDesc, 'sort_by=engagement harus mengurutkan engagement desc').toBe(true);
     }
   });
 });

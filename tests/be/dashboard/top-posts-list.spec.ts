@@ -259,4 +259,116 @@ test.describe('GET /v1/dashboard/top-posts-list', () => {
     expect(body.meta.page).toBe(body.meta.totalPages);
     expect(body.data.posts.length).toBeGreaterThan(0);
   });
+
+  // ── Parameter baru (eksplorasi ulang dashboard-service 2026-09-09) ──
+  // Swagger live menambah: actor, hashtag, sort_order, sort_by=published_at,
+  // topic, sentiment. Semua diverifikasi live sebelum test ditulis.
+
+  test('sort_order=asc → 200, views diurutkan menaik (kebalikan default)', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-posts-list?sort_order=asc&size=10'));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    const views = body.data.posts.map((p: { views: number }) => p.views);
+    if (views.length >= 2) {
+      const isAsc = views.every((v: number, i: number) => i === 0 || v >= views[i - 1]);
+      expect(isAsc, 'sort_order=asc harus mengurutkan views menaik').toBe(true);
+    }
+  });
+
+  test('sort_by=published_at → 200, diurutkan tanggal desc (default)', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-posts-list?sort_by=published_at&size=10'));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    const posts = body.data.posts;
+    expect(Array.isArray(posts)).toBe(true);
+    if (posts.length >= 2) {
+      const dates = posts.map((p: { published_at: string }) => new Date(p.published_at).getTime());
+      const isDesc = dates.every((d: number, i: number) => i === 0 || d <= dates[i - 1]);
+      expect(isDesc, 'sort_by=published_at default harus desc').toBe(true);
+    }
+  });
+
+  test('actor=<handle dari top-accounts> → 200 & total > 0', async ({ api }) => {
+    // actor mencocokkan field `handle` (display name), case-sensitive —
+    // BUKAN `id` (slug). Ambil handle live dari top-accounts agar tidak rapuh.
+    // Catatan: item top-posts-list TIDAK memuat field account/name, jadi
+    // verifikasi dilakukan lewat total > 0 (filter menyempitkan hasil).
+    const accRes = await api.get(apiUrl('/v1/dashboard/top-accounts'));
+    expect(accRes.status()).toBe(200);
+    const accounts = (await accRes.json()).data;
+    expect(accounts.length, 'top-accounts harus punya data untuk sampel actor').toBeGreaterThan(0);
+    const handle = accounts[0].handle as string;
+
+    const res = await api.get(apiUrl(`/v1/dashboard/top-posts-list?actor=${encodeURIComponent(handle)}`));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(body.meta.total, `actor=${handle} harus punya post`).toBeGreaterThan(0);
+    expect(Array.isArray(body.data.posts)).toBe(true);
+  });
+
+  test('actor=<id slug> (bukan handle) → 200 tapi total=0 (filter pakai handle, case-sensitive)', async ({ api }) => {
+    // Dokumentasi perilaku: actor TIDAK mencocokkan id/slug lowercase.
+    // Ini quirk terdokumentasi — swagger bilang "values come from top-accounts"
+    // tetapi yang cocok hanya `handle` persis (case-sensitive).
+    const accRes = await api.get(apiUrl('/v1/dashboard/top-accounts'));
+    expect(accRes.status()).toBe(200);
+    const accounts = (await accRes.json()).data;
+    // Cari account yang id (slug) != handle (punya huruf kapital di handle)
+    const mismatch = accounts.find((a: { id: string; handle: string }) => a.id !== a.handle);
+    test.skip(!mismatch, 'tidak ada account dengan id != handle untuk diuji');
+
+    const byId = await api.get(apiUrl(`/v1/dashboard/top-posts-list?actor=${encodeURIComponent(mismatch.id)}`));
+    expect(byId.status()).toBe(200);
+    expect((await byId.json()).meta.total, 'actor=<id slug> tidak cocok → total 0').toBe(0);
+  });
+
+  test('hashtag=<tag tanpa #> → 200 & total > 0 (case-sensitive)', async ({ api }) => {
+    // Ambil hashtag live dari top-hashtags agar tidak hardcode.
+    // Field aktual top-hashtags: { id, tag: "#xxx", count } — pakai `tag`.
+    const tagRes = await api.get(apiUrl('/v1/dashboard/top-hashtags'));
+    expect(tagRes.status()).toBe(200);
+    const tags = (await tagRes.json()).data;
+    expect(tags.length, 'top-hashtags harus punya data untuk sampel').toBeGreaterThan(0);
+    const clean = (tags[0].tag as string).replace(/^#/, '');
+
+    const res = await api.get(apiUrl(`/v1/dashboard/top-posts-list?hashtag=${encodeURIComponent(clean)}`));
+    expect(res.status()).toBe(200);
+    expect((await res.json()).meta.total, `hashtag=${clean} harus punya post`).toBeGreaterThan(0);
+  });
+
+  test('topic=<topic dari topic-intelligence> → 200', async ({ api }) => {
+    const topicRes = await api.get(apiUrl('/v1/dashboard/topic-intelligence'));
+    expect(topicRes.status()).toBe(200);
+    const topics = (await topicRes.json()).data;
+    expect(topics.length, 'topic-intelligence harus punya data untuk sampel').toBeGreaterThan(0);
+    const topic = topics[0].label as string;
+
+    const res = await api.get(apiUrl(`/v1/dashboard/top-posts-list?topic=${encodeURIComponent(topic)}`));
+    expect(res.status()).toBe(200);
+    expect(typeof (await res.json()).meta.total).toBe('number');
+  });
+
+  test('sentiment=positive → 200 & semua item sentiment positif', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-posts-list?sentiment=positive&size=10'));
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(body.meta.total, 'sentiment=positive harus punya post').toBeGreaterThan(0);
+    for (const p of body.data.posts) {
+      expect(p.sentiment.toLowerCase(), 'item harus sentiment positif').toMatch(/positif|positive/);
+    }
+  });
+
+  test('sentiment case-insensitive & terima label Indonesia (Netral == neutral)', async ({ api }) => {
+    const en = await api.get(apiUrl('/v1/dashboard/top-posts-list?sentiment=neutral&size=1'));
+    const id = await api.get(apiUrl('/v1/dashboard/top-posts-list?sentiment=netral&size=1'));
+    expect(en.status()).toBe(200);
+    expect(id.status()).toBe(200);
+
+    // Kedua label harus menghasilkan total yang sama (case-insensitive + alias ID)
+    expect((await en.json()).meta.total).toBe((await id.json()).meta.total);
+  });
 });

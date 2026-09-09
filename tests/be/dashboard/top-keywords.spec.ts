@@ -49,6 +49,42 @@ test.describe('GET /v1/dashboard/top-keywords', () => {
     expect(counts).toEqual(sorted);
   });
 
+  // ── Parameter limit (eksplorasi ulang dashboard-service 2026-09-09) ──
+  // Swagger: limit 1-50, default 10. Diverifikasi live sebelum test ditulis.
+
+  test('limit=2 → 200, tepat 2 item', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-keywords?limit=2'));
+    expect(res.status()).toBe(200);
+    expect((await res.json()).data).toHaveLength(2);
+  });
+
+  test('limit=0 → 200, fallback default 10', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-keywords?limit=0'));
+    expect(res.status()).toBe(200);
+    expect((await res.json()).data).toHaveLength(10);
+  });
+
+  test('limit negatif → 200, fallback default 10', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-keywords?limit=-3'));
+    expect(res.status()).toBe(200);
+    expect((await res.json()).data).toHaveLength(10);
+  });
+
+  test('limit tidak valid (abc) → 200, fallback default 10', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-keywords?limit=abc'));
+    expect(res.status()).toBe(200);
+    expect((await res.json()).data).toHaveLength(10);
+  });
+
+  test('limit besar (999) → 200, di-clamp ke total keyword tersedia (<=50)', async ({ api }) => {
+    const res = await api.get(apiUrl('/v1/dashboard/top-keywords?limit=999'));
+    expect(res.status()).toBe(200);
+    const data = (await res.json()).data;
+    // limit di-clamp ke max 50; jumlah aktual bisa kurang jika keyword < 50
+    expect(data.length).toBeLessThanOrEqual(50);
+    expect(data.length).toBeGreaterThan(0);
+  });
+
   for (const k of keywords) {
     test(`konsistensi (live): "${k.keyword}" muncul di top-keywords & count sama dgn summary`, async ({ api }) => {
       // Tanpa limit hanya ~10 keyword teratas yang dikembalikan — keyword
