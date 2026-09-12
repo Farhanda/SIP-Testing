@@ -161,7 +161,7 @@ test.describe('Dashboard', () => {
 
   // ── Top Posts table ──────────────────────────────────────────────────
 
-  test('Top Posts menampilkan tabel dengan kolom Platform, Post, Emotion, Topic, Engagement', async ({ dashboardPage }) => {
+  test('Top Posts menampilkan tabel dengan kolom Platform, Post, Views, Engagement', async ({ dashboardPage }) => {
     await mockDashboardApis(dashboardPage.page);
     await mockKeywordOptions(dashboardPage.page, ['RUU Digital']);
     await dashboardPage.goto();
@@ -171,22 +171,19 @@ test.describe('Dashboard', () => {
     // Heading "Top posts" terlihat
     await expect(dashboardPage.topPostsHeading).toBeVisible();
 
-    // Tabel ada dengan header kolom
+    // Tabel ada dengan header kolom (ringkas 4 kolom pada kartu preview dashboard)
     await expect(dashboardPage.topPostsTable).toBeVisible();
     const headers = dashboardPage.topPostsTable.locator('th');
-    await expect(headers).toHaveText(['Platform', 'Post', 'Emotion', 'Topic', 'Views', 'Engagement']);
+    await expect(headers).toHaveText(['Platform', 'Post', 'Views', 'Engagement']);
 
     // Data mock terrender di tabel
-    // Row 1: TikTok, "Transformasi layanan publik...", anger, Layanan publik, 201.61K, 8,432
+    // Row 1: TikTok, "Transformasi layanan publik...", 201.61K, 8,432
     await expect(dashboardPage.topPostsTable.getByText('TikTok', { exact: true }).first()).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('Transformasi layanan publik perlu dimulai dari data...')).toBeVisible();
-    await expect(dashboardPage.topPostsTable.getByText('anger', { exact: true }).first()).toBeVisible();
-    await expect(dashboardPage.topPostsTable.getByText('Layanan publik', { exact: true }).first()).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('201.61K')).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('8,432')).toBeVisible();
 
-    // Row 2: TikTok, "Antusiasme warga...", joy, Partisipasi, 147K, 6,208
-    await expect(dashboardPage.topPostsTable.getByText('joy', { exact: true }).first()).toBeVisible();
+    // Row 2: TikTok, "Antusiasme warga...", 147K, 6,208
     await expect(dashboardPage.topPostsTable.getByText('147K')).toBeVisible();
     await expect(dashboardPage.topPostsTable.getByText('6,208')).toBeVisible();
   });

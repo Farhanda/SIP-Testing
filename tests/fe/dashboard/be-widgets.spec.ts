@@ -19,9 +19,9 @@ import type { Page } from '@playwright/test';
  * (keyword tanpa data → empty state di Top accounts / Top hashtags).
  *
  * Prasyarat: FE di localhost:3000 & BE di localhost:8080 berjalan.
- * Catatan: endpoint /v1/dashboard/conversation-trend-hourly TIDAK dipanggil
- * web saat ini (klik chart tidak memicu request hourly) — sudah tercakup di
- * test API BE (tests/be/dashboard/conversation-trend.spec.ts).
+ * Catatan: endpoint /v1/dashboard/conversation-trend-hourly dipanggil web saat
+ * titik tanggal pada chart diklik (modal breakdown 24 jam) — divalidasi pada
+ * test suite tests/fe/dashboard/data-integrity.spec.ts serta test BE.
  */
 
 /** Tunggu respons BE untuk path tertentu & kembalikan body JSON-nya. */

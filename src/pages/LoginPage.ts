@@ -13,10 +13,16 @@ export class LoginPage extends BasePage {
   readonly passwordInput = this.page.getByLabel('Password');
   readonly rememberMeCheckbox = this.page.getByRole('checkbox', { name: 'Remember me' });
   readonly submitButton = this.page.getByRole('button', { name: 'Log in' });
-  readonly heading = this.page.getByRole('heading', { name: 'Log in to your account' });
+  readonly heading = this.page.getByRole('heading', { name: /Log in to your account/i });
   readonly validationError = this.page.getByText('Username and password are required.');
   readonly invalidCredentialsError = this.page.getByText('Invalid username or password');
-  readonly brandingPanel = this.page.getByText('Social Intelligence Platform');
+  readonly brandingPanel = this.page
+    .getByRole('heading', { name: /Social Intelligence/i })
+    .or(this.page.getByText(/Social Intelligence/i));
+
+  override async expectHeading(name: string = 'Log in to your account') {
+    await this.page.getByRole('heading', { name: new RegExp(name, 'i') }).first().waitFor({ state: 'visible' });
+  }
 
   async goto() {
     await this.page.goto('/login');

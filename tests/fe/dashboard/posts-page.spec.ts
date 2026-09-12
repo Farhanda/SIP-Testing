@@ -269,37 +269,17 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
       ).toBeVisible();
     });
 
-  test('select filter lengkap: Topic/Emotion/Sentiment + Sort by Views/Engagement + Rows per page (live)', async ({ postsPage }) => {
+  test('select filter lengkap: Topic/Emotion/Sentiment/Rows per page + tombol sort header kolom (live)', async ({ postsPage }) => {
     await postsPage.page.goto('/monitoring/dashboard/posts');
     await postsPage.page.waitForLoadState('domcontentloaded');
 
-    // UI 2026-09 (dev): select Topic/Emotion/Sentiment + Sort by (Views/
-    // Engagement/Published at — opsi "Published at" MUNCUL KEMBALI, terverifikasi
-    // run live 2026-09-07) + Rows per page (10/20/50). Platform pindah ke
-    // button dropdown; kontrol Sort order (Desc/Asc) tetap dihapus.
+    // UI dev: 4 select filter (Topic, Emotion, Sentiment, Rows per page).
+    // Fitur sort diintegrasikan langsung sebagai tombol interaktif pada
+    // header kolom tabel (VIEWS, ENGAGEMENT, PUBLISHED).
     const selects = postsPage.page.locator('select');
     await expect
       .poll(async () => selects.count(), { timeout: 15_000 })
       .toBeGreaterThanOrEqual(4);
-
-    // Sort by: Views/Engagement/Published at (run live 2026-09-07)
-    const sortSelect = postsPage.page
-      .locator('select')
-      .filter({ has: postsPage.page.locator('option', { hasText: 'Engagement' }) })
-      .first();
-    await expect(sortSelect).toBeVisible();
-    expect(await sortSelect.locator('option').allInnerTexts()).toEqual([
-      'Views',
-      'Engagement',
-      'Published at',
-    ]);
-
-    // Rows per page 10/20/50 — pindah ke bawah tabel (dekat pagination)
-    const sizeSelect = postsPage.page
-      .locator('select')
-      .filter({ has: postsPage.page.locator('option', { hasText: '50' }) })
-      .first();
-    await expect(sizeSelect).toBeVisible();
 
     // Topic & Emotion & Sentiment select ada
     const topicSelect = postsPage.page
@@ -317,6 +297,19 @@ test.describe('Posts Page — /monitoring/dashboard/posts', () => {
       .filter({ has: postsPage.page.locator('option', { hasText: 'All sentiments' }) })
       .first();
     await expect(sentimentSelect).toBeVisible();
+
+    // Rows per page 10/20/50 — pindah ke bawah tabel (dekat pagination)
+    const sizeSelect = postsPage.page
+      .locator('select')
+      .filter({ has: postsPage.page.locator('option', { hasText: '50' }) })
+      .first();
+    await expect(sizeSelect).toBeVisible();
+
+    // Tombol sort header kolom (VIEWS, ENGAGEMENT, PUBLISHED)
+    const tableHeaders = postsPage.page.locator('table th');
+    await expect(tableHeaders.getByRole('button', { name: /views/i })).toBeVisible();
+    await expect(tableHeaders.getByRole('button', { name: /engagement/i })).toBeVisible();
+    await expect(tableHeaders.getByRole('button', { name: /published/i })).toBeVisible();
   });
 
   test('mengubah page size mengirim size baru ke API (live)', async ({ postsPage }) => {

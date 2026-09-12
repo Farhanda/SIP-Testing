@@ -50,6 +50,10 @@ export class DashboardPage extends BasePage {
   readonly viewsCard = this.page.locator('article').filter({ hasText: 'Views' }).first();
   readonly engagementRateCard = this.page.locator('article').filter({ hasText: 'Engagement rate' }).first();
   readonly activePlatformsCard = this.page.locator('article').filter({ hasText: 'Active platforms' }).first();
+  // Modal drill-down detail per jam (hourly detail dari conversation-trend & sentiment-trend)
+  readonly trendModal = this.page.getByRole('dialog');
+  readonly trendModalHeading = this.trendModal.getByRole('heading');
+  readonly trendModalCloseButton = this.trendModal.getByRole('button', { name: /close|×/i });
 
   async goto() {
     await this.page.goto('/monitoring/dashboard');
@@ -137,5 +141,62 @@ export class DashboardPage extends BasePage {
   /** Data dari mock API benar-benar ter-render (bukti integrasi UI↔API). */
   async expectTextVisible(text: string) {
     await expect(this.page.getByText(text, { exact: true })).toBeVisible();
+  }
+
+  /**
+   * Buka modal drill-down hourly untuk Conversation Trend berdasarkan indeks titik tanggal.
+   */
+  async openConversationTrendHourly(pointIndex = 0) {
+    await this.page.evaluate((idx) => {
+      const heading = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+        .find((h) => /conversation trend/i.test(h.textContent || ''));
+      const card = heading?.closest('article, section, div.border, div.rounded');
+      const canvas = card?.querySelector('canvas');
+      if (!canvas) throw new Error('Canvas Conversation Trend tidak ditemukan');
+
+      const fiberKey = Object.keys(canvas).find((k) => k.startsWith('__reactFiber'));
+      let curr = fiberKey ? (canvas as any)[fiberKey] : null;
+      while (curr) {
+        if (curr.memoizedProps?.options?.onClick) {
+          curr.memoizedProps.options.onClick({}, [{ index: idx, datasetIndex: 0 }]);
+          return;
+        }
+        curr = curr.return;
+      }
+      throw new Error('Handler onClick pada chart Conversation Trend tidak ditemukan');
+    }, pointIndex);
+  }
+
+  /**
+   * Buka modal drill-down hourly untuk Sentiment Trend berdasarkan indeks titik tanggal.
+   */
+  async openSentimentTrendHourly(pointIndex = 0) {
+    await this.page.evaluate((idx) => {
+      const heading = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+        .find((h) => /sentiment trend/i.test(h.textContent || ''));
+      const card = heading?.closest('article, section, div.border, div.rounded');
+      const canvas = card?.querySelector('canvas');
+      if (!canvas) throw new Error('Canvas Sentiment Trend tidak ditemukan');
+
+      const fiberKey = Object.keys(canvas).find((k) => k.startsWith('__reactFiber'));
+      let curr = fiberKey ? (canvas as any)[fiberKey] : null;
+      while (curr) {
+        if (curr.memoizedProps?.options?.onClick) {
+          curr.memoizedProps.options.onClick({}, [{ index: idx, datasetIndex: 0 }]);
+          return;
+        }
+        curr = curr.return;
+      }
+      throw new Error('Handler onClick pada chart Sentiment Trend tidak ditemukan');
+    }, pointIndex);
+  }
+
+  /**
+   * Tutup modal detail trend per jam.
+   */
+  async closeTrendModal() {
+    await expect(this.trendModal).toBeVisible();
+    await this.trendModalCloseButton.click();
+    await expect(this.trendModal).toBeHidden();
   }
 }

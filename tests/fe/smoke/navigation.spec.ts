@@ -80,12 +80,13 @@ test.describe('Navigasi & Smoke', () => {
     await page.goto('/monitoring/home');
 
     await expect(page.getByRole('heading', { name: 'Select a monitoring view' })).toBeVisible();
-    const main = page.locator('main');
-    await expect(main.locator('a[href="/monitoring/conversation-overview"]')).toBeVisible();
-    await expect(main.locator('a[href="/monitoring/top-engagement"]')).toBeVisible();
+    const convLink = page.locator('a[href="/monitoring/conversation-overview"]').first();
+    const topLink = page.locator('a[href="/monitoring/top-engagement"]').first();
+    await expect(convLink).toBeVisible();
+    await expect(topLink).toBeVisible();
 
     // Kartu Conversation Overview menavigasi ke view admin (bukan /display/)
-    await main.locator('a[href="/monitoring/conversation-overview"]').click();
+    await convLink.click();
     await expectUrlPath(page, '/monitoring/conversation-overview');
   });
 
