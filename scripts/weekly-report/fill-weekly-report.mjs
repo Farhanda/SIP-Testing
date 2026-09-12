@@ -44,7 +44,14 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..', '..');
-const XLSX_PATH = path.join(ROOT, 'SIP_Weekly_Developer_Report.xlsx');
+const DEFAULT_XLSX = fs.existsSync(path.join(ROOT, 'SIP_Weekly_Developer_Report_Farhan.xlsx'))
+  ? path.join(ROOT, 'SIP_Weekly_Developer_Report_Farhan.xlsx')
+  : path.join(ROOT, 'SIP_Weekly_Developer_Report.xlsx');
+const XLSX_PATH = process.env.REPORT_XLSX
+  ? path.resolve(process.env.REPORT_XLSX)
+  : (process.argv[3]
+      ? (path.isAbsolute(process.argv[3]) ? process.argv[3] : path.join(ROOT, process.argv[3]))
+      : DEFAULT_XLSX);
 
 // ===== Layout template (jaga sinkron dengan template Excel) =====
 const SHEET_NAME = 'Weekly Report';
