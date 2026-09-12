@@ -26,11 +26,16 @@ tools/
 *.log
 .DS_Store
 
-# Script one-off lokal (recon/record/verify — jangan commit)
+# Script one-off lokal (recon/record/verify/debug/inspect — jangan commit)
 scripts/tmp-*
 scripts/record-*
 scripts/verify-*
+scripts/debug-*
+scripts/inspect-*
 scripts/print-pdfs.mjs
+
+# AI agent chat logs (jangan commit)
+*freebuff*.md
 
 # Dokumentasi & video demo internal (jangan commit)
 ALUR-PENGGUNAAN.md
