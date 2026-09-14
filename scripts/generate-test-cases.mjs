@@ -1194,6 +1194,33 @@ function buildDashboardCases() {
       assertions: 'Lihat spec dashboard/data-integrity.spec.ts',
       source: 'tests/fe/dashboard/data-integrity.spec.ts', notes: 'Auto-sync 2026-09-12',
     },
+    {
+      id: 'TC-UI-D79', name: 'pergantian period (7 Days) memicu reload data dan akumulasi volume harian tetap konsisten dengan summary (live)', category: 'Data Integrity', priority: 'High',
+      method: 'Action', endpoint: '/monitoring/dashboard', headers: '—', params: 'period=7D', requestBody: '—',
+      precondition: 'Sesuai skenario di spec (source)',
+      expectedStatus: 'Sesuai skenario', expectedResponse: 'Sesuai assertions di spec',
+      specTitle: 'pergantian period (7 Days) memicu reload data dan akumulasi volume harian tetap konsisten dengan summary (live)',
+      assertions: 'Lihat spec dashboard/data-integrity.spec.ts',
+      source: 'tests/fe/dashboard/data-integrity.spec.ts', notes: 'Auto-sync 2026-09-14 — validasi relasi data multi-periode',
+    },
+    {
+      id: 'TC-UI-D80', name: 'distribusi Emotion Map mencakup seluruh post (termasuk kategori others) sinkron dengan total post (live)', category: 'Data Integrity', priority: 'High',
+      method: 'View', endpoint: '/monitoring/dashboard', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Sesuai skenario di spec (source)',
+      expectedStatus: 'Sesuai skenario', expectedResponse: 'Sesuai assertions di spec',
+      specTitle: 'distribusi Emotion Map mencakup seluruh post (termasuk kategori others) sinkron dengan total post (live)',
+      assertions: 'Lihat spec dashboard/data-integrity.spec.ts',
+      source: 'tests/fe/dashboard/data-integrity.spec.ts', notes: 'Auto-sync 2026-09-14 — validasi kelengkapan data Emotion Map',
+    },
+    {
+      id: 'TC-UI-D81', name: 'gap analisis Sentiment Map: mendeteksi data unclassified (others) yang belum masuk ke agregasi sentimen (live)', category: 'Data Integrity', priority: 'High',
+      method: 'View', endpoint: '/monitoring/dashboard', headers: '—', params: '—', requestBody: '—',
+      precondition: 'Sesuai skenario di spec (source)',
+      expectedStatus: 'Sesuai skenario', expectedResponse: 'Sesuai assertions di spec',
+      specTitle: 'gap analisis Sentiment Map: mendeteksi data unclassified (others) yang belum masuk ke agregasi sentimen (live)',
+      assertions: 'Lihat spec dashboard/data-integrity.spec.ts',
+      source: 'tests/fe/dashboard/data-integrity.spec.ts', notes: 'Auto-sync 2026-09-14 — gap analysis missing others di Sentiment Map',
+    },
   ];
 }
 

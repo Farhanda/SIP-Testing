@@ -5,7 +5,11 @@ import type { Response } from '@playwright/test';
 /**
  * Helper untuk menunggu response JSON dari endpoint dashboard tertentu.
  */
-function waitDashboardResponse<T = any>(page: any, endpointName: string): Promise<T> {
+function waitDashboardResponse<T = any>(
+  page: any,
+  endpointName: string,
+  predicate?: (url: URL) => boolean,
+): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(
       () => reject(new Error(`Timeout menunggu response /v1/dashboard/${endpointName}`)),
@@ -14,6 +18,8 @@ function waitDashboardResponse<T = any>(page: any, endpointName: string): Promis
     page.on('response', async (res: Response) => {
       if (res.url().includes(`/v1/dashboard/${endpointName}`)) {
         try {
+          const url = new URL(res.url());
+          if (predicate && !predicate(url)) return;
           const json = await res.json();
           clearTimeout(timeout);
           resolve(json);
@@ -225,7 +231,8 @@ test.describe('Dashboard — Data Integrity & Cross-Validation (Live)', () => {
     ).toBeLessThanOrEqual(0.05);
 
     // Verifikasi nilai teks pada kartu KPI Engagement rate di UI
-    await expect(dashboardPage.engagementRateCard).toContainText(`${reportedRate}%`);
+    const expectedLabel = summaryJson.data.engagement_rate.label ?? `${reportedRate.toFixed(2)}%`;
+    await expect(dashboardPage.engagementRateCard).toContainText(expectedLabel);
   });
 
   test('urutan data pada top posts, top accounts, dan top hashtags konsisten menurun (descending) (live)', async ({
@@ -275,5 +282,106 @@ test.describe('Dashboard — Data Integrity & Cross-Validation (Live)', () => {
         ).toBeLessThanOrEqual(hashtags[i - 1].count);
       }
     }
+  });
+
+  test('pergantian period (7 Days) memicu reload data dan akumulasi volume harian tetap konsisten dengan summary (live)', async ({
+    dashboardPage,
+  }) => {
+    const page = dashboardPage.page;
+    await dashboardPage.goto();
+    await dashboardPage.expectResultsRendered();
+
+    // Siapkan promise respons untuk period 7D
+    const summary7dPromise = waitDashboardResponse(page, 'summary', (u) => u.searchParams.get('period') === '7D');
+    const trend7dPromise = waitDashboardResponse(page, 'conversation-trend', (u) => u.searchParams.get('period') === '7D');
+
+    // Ubah periode ke 7 Days dan terapkan
+    await dashboardPage.selectPeriod('7 Days');
+    await dashboardPage.applyFilter();
+
+    const [summary7d, trend7d] = await Promise.all([summary7dPromise, trend7dPromise]);
+
+    const expectedPosts = summary7d.data.total_post.value;
+    const expectedEngagement = summary7d.data.total_engagement.value;
+
+    const dailyPoints = trend7d.data ?? [];
+    expect(dailyPoints.length, 'Harus ada data harian pada rentang 7 Days').toBeGreaterThan(0);
+
+    const sumDailyVolume = dailyPoints.reduce((acc: number, cur: any) => acc + (cur.volume ?? 0), 0);
+    const sumDailyEngagement = dailyPoints.reduce((acc: number, cur: any) => acc + (cur.engagement ?? 0), 0);
+
+    expect(
+      sumDailyVolume,
+      `Akumulasi volume 7D (${sumDailyVolume}) harus tepat sama dengan total_post di summary (${expectedPosts})`,
+    ).toBe(expectedPosts);
+
+    expect(
+      sumDailyEngagement,
+      `Akumulasi engagement 7D (${sumDailyEngagement}) harus tepat sama dengan total_engagement di summary (${expectedEngagement})`,
+    ).toBe(expectedEngagement);
+  });
+
+  test('distribusi Emotion Map mencakup seluruh post (termasuk kategori others) sinkron dengan total post (live)', async ({
+    dashboardPage,
+  }) => {
+    const page = dashboardPage.page;
+    const summaryPromise = waitDashboardResponse(page, 'summary');
+    const emotionPromise = waitDashboardResponse(page, 'emotion-map');
+
+    await dashboardPage.goto();
+    const [summaryJson, emotionJson] = await Promise.all([summaryPromise, emotionPromise]);
+
+    const totalPost = summaryJson.data.total_post.value;
+    const emotionItems = emotionJson.data ?? [];
+    expect(emotionItems.length, 'Emotion items harus terisi').toBeGreaterThan(0);
+
+    // Akumulasi total item emosi (termasuk others)
+    const sumEmotionTotal = emotionItems.reduce((acc: number, cur: any) => acc + (cur.total ?? 0), 0);
+
+    // Toleransi roundoff maksimal 1 post
+    expect(
+      Math.abs(sumEmotionTotal - totalPost),
+      `Total post di Emotion Map (${sumEmotionTotal}) harus sinkron dengan summary total_post (${totalPost})`,
+    ).toBeLessThanOrEqual(1);
+
+    // Akumulasi persentase emosi harus mendekati 100% (rentang 98% - 102% karena pembulatan integer pct)
+    const sumEmotionPct = emotionItems.reduce((acc: number, cur: any) => acc + (cur.pct ?? 0), 0);
+    expect(
+      sumEmotionPct,
+      `Total persentase Emotion Map (${sumEmotionPct}%) harus berada di sekitar 100%`,
+    ).toBeGreaterThanOrEqual(98);
+    expect(sumEmotionPct).toBeLessThanOrEqual(102);
+  });
+
+  test('gap analisis Sentiment Map: mendeteksi data unclassified (others) yang belum masuk ke agregasi sentimen (live)', async ({
+    dashboardPage,
+  }) => {
+    const page = dashboardPage.page;
+    const summaryPromise = waitDashboardResponse(page, 'summary');
+    const sentimentPromise = waitDashboardResponse(page, 'sentiment-map');
+    const emotionPromise = waitDashboardResponse(page, 'emotion-map');
+
+    await dashboardPage.goto();
+    const [summaryJson, sentimentJson, emotionJson] = await Promise.all([
+      summaryPromise,
+      sentimentPromise,
+      emotionPromise,
+    ]);
+
+    const totalPost = summaryJson.data.total_post.value;
+    const sentimentItems = sentimentJson.data ?? [];
+    const sumSentimentTotal = sentimentItems.reduce((acc: number, cur: any) => acc + (cur.total ?? 0), 0);
+
+    // Hitung gap / selisih data yang belum terklasifikasi ke sentimen
+    const missingSentimentCount = totalPost - sumSentimentTotal;
+
+    // Cari jumlah post berlabel 'others' di Emotion Map
+    const emoOthers = emotionJson.data?.find((e: any) => e.emotion === 'others')?.total ?? 0;
+
+    // Verifikasi bukti matematis: data yang belum muncul di sentimen map sesuai dengan jumlah unclassified ('others')
+    expect(
+      missingSentimentCount,
+      `Selisih post di Sentiment Map (${missingSentimentCount}) harus persis sama dengan jumlah post 'others' di Emotion Map (${emoOthers})`,
+    ).toBe(emoOthers);
   });
 });

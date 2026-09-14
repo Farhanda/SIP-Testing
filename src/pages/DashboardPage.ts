@@ -17,7 +17,7 @@ export class DashboardPage extends BasePage {
   readonly period24hButton = this.page.getByRole('button', { name: '24 Hours' });
   readonly period7dButton = this.page.getByRole('button', { name: '7 Days' });
   readonly searchFiltersHeading = this.page.getByRole('heading', { name: 'Search filters' });
-  readonly periodButton = this.page.getByRole('button', { name: 'Period' });
+  readonly periodButton = this.page.locator('#dashboard-period, button:has-text("Period")').first();
   readonly applyFilterButton = this.page.getByRole('button', { name: 'Apply filter' });
   readonly resetFiltersButton = this.page.getByRole('button', { name: 'Reset filters' });
   readonly keywordInput = this.page.getByRole('combobox', { name: 'Keyword' });
@@ -116,6 +116,16 @@ export class DashboardPage extends BasePage {
 
   async resetFilters() {
     await this.resetFiltersButton.click();
+  }
+
+  /** Pilih opsi periode dari dropdown popover (mis. '24 Hours', '3 Days', '7 Days', '1 Month'). */
+  async selectPeriod(periodName: string) {
+    await this.periodButton.click();
+    await this.page
+      .locator('div[id*="headlessui-popover-panel"] button, [role="option"]')
+      .filter({ hasText: periodName })
+      .first()
+      .click();
   }
 
   // ---- Ekspektasi siap pakai ----
