@@ -4,7 +4,7 @@
   "name": "Farhan",
   "role": "QA / Automation Engineer",
   "roleSummary": "QA SIP Insight — Verifikasi bug hunt (Dashboard, Post List, Keyword, Trend Hourly, Emotion Map), re-testing migrasi DB sentimen & topik, penambahan coverage BE (:8091), refactor scope test suite, serta dokumentasi video panduan operator & client",
-  "executiveSummary": "Verifikasi & testing minggu ini: 10 temuan utama berhasil dituntaskan (100% Done) meliputi perbaikan tombol keyword scrollable, error client-side detail post, sort by & filter sentiment presisi, sinkronisasi data hourly Conversation & Sentiment Trend, perbaikan angka Emotion Map, dan re-testing menyeluruh perubahan skema DB. Dokumentasi: penyelesaian 2 video panduan (alur operator & alur role client). Automation & engineering: penambahan 31 TC BE dashboard-service (:8091), refactor scope test suite menjadi 261 TC stabil, serta migrasi kredensial ke .env.",
+  "executiveSummary": "Verifikasi & testing minggu ini: 10 temuan utama berhasil dituntaskan (100% Done) meliputi perbaikan tombol keyword scrollable, error client-side detail post, sort by & filter sentiment presisi, sinkronisasi data hourly Conversation & Sentiment Trend, perbaikan angka Emotion Map, dan re-testing menyeluruh perubahan skema DB. Testing manual validasi data lintas komponen serta regression testing terkait tampilan UI terbaru saat ini masih berjalan (On Progress). Dokumentasi: penyelesaian 2 video panduan (alur operator & alur role client). Automation & engineering: penambahan 31 TC BE dashboard-service (:8091), penambahan suite data integrity & unscheduled detail FE, refactor scope test suite menjadi 261 TC stabil, serta migrasi kredensial ke .env.",
   "status": "On Track",
   "duration": "7 days",
   "approver": "Pa Anang",
@@ -12,6 +12,7 @@
     "• Verifikasi 10 temuan bug hunt & re-testing tuntas (100% Done): Tombol Keyword scrollable, Post List Detail & Detail Post client-side error resolved, Tombol Sort By rapih, Tombol Filter Sentiment presisi, Conversation & Sentiment Trend Hourly valid, Emotion Map data sinkron, dan re-test DB.",
     "• 2 bug Open minggu lalu berhasil terselesaikan: Tombol Keyword di dashboard (tampilan rapih max ±5 data + scroll) dan Sentiment Trend Hourly (data hari terakhir valid).",
     "• Regression testing menyeluruh pasca perubahan database pada modul sentimen, topic, dan emotion — query analitik & klasifikasi live terverifikasi konsisten.",
+    "• On Progress: Testing manual validasi data (konsistensi metrik Summary, Trend, dan Post) serta regression testing adaptasi tampilan UI terbaru masih berjalan.",
     "• Dokumentasi video panduan lengkap: Video alur operator (Keyword & Dashboard) dan video alur role Client (Login, Conversation Overview, Top Engagement, Display) selesai direkam resolusi 1080p beserta file subtitle SRT.",
     "• Automation BE: Penambahan coverage 31 test case baru pada dashboard-service (:8091) untuk endpoint posts/{id}, posts-export, serta query parameter baru.",
     "• Test Harness & Security: Perbaikan false-pass regresi R4, penyesuaian scope test suite (261 TC stabil), selector navbar adaptif dev & staging, dan migrasi kredensial aman ke .env."
@@ -198,6 +199,32 @@
       "blocker": "—",
       "next": "—",
       "evidence": "commit 71ac692 · ef38b19 · b09741f"
+    },
+    {
+      "no": 15,
+      "task": "Testing manual — Validasi integritas data & metrik dashboard",
+      "cat": "Testing",
+      "priority": "High",
+      "target": "Validasi manual kesesuaian data lintas komponen (Summary KPI, total post, grafik tren, hourly modal, dan kalkulasi engagement rate)",
+      "status": "In Progress",
+      "progress": "75%",
+      "actual": "Sebagian besar metrik sudah terverifikasi sinkron; validasi manual cross-check data dan skenario variasi rentang tanggal masih on progress",
+      "blocker": "—",
+      "next": "Selesaikan checklist pengujian manual untuk seluruh rentang waktu dan skenario drill-down data",
+      "evidence": "Manual Validation Checklist / data-integrity.spec.ts"
+    },
+    {
+      "no": 16,
+      "task": "Regression testing — Tampilan UI terbaru dan penyesuaian komponen dashboard",
+      "cat": "Testing",
+      "priority": "High",
+      "target": "Regression testing menyeluruh tampilan UI dev/staging terbaru (navbar, preview 4 kolom top posts, tombol sort kolom posts, dan slice sentimen)",
+      "status": "In Progress",
+      "progress": "80%",
+      "actual": "Pengecekan adaptasi layout dan responsivitas UI baru telah berjalan; verifikasi regression visual & interaksi komponen terbaru masih on progress",
+      "blocker": "—",
+      "next": "Lanjutkan regression pass menyeluruh pada seluruh resolusi layar dan modul terdampak",
+      "evidence": "UI Regression Checklist / Verifikasi UI Dev & Staging"
     }
   ],
   "achievements": [
@@ -210,9 +237,10 @@
   ],
   "planNextWeek": [
     "1. Monitoring berkala hasil query dan performa analitik database baru pada modul sentiment, topic, dan emotion",
-    "2. Verifikasi sisa bug backlog developer: Provider raw error codes (PROVIDER_PERMANENT_ERROR) dan permission delete user Super Admin (R4)",
-    "3. Finalisasi editing & sulih suara (voiceover/caption) video panduan operator dan client di CapCut untuk kebutuhan deliverable tim",
-    "4. Pemeliharaan dan integrasi test automation suite FE & BE pada pipeline CI/CD staging",
-    "5. Review laporan mingguan Week 36 bersama Lead/PM (Pa Anang)"
+    "2. Selesaikan testing manual validasi data dashboard dan regression testing tampilan UI terbaru yang masih on progress",
+    "3. Verifikasi sisa bug backlog developer: Provider raw error codes (PROVIDER_PERMANENT_ERROR) dan permission delete user Super Admin (R4)",
+    "4. Finalisasi editing & sulih suara (voiceover/caption) video panduan operator dan client di CapCut untuk kebutuhan deliverable tim",
+    "5. Pemeliharaan dan integrasi test automation suite FE & BE pada pipeline CI/CD staging",
+    "6. Review laporan mingguan Week 36 bersama Lead/PM (Pa Anang)"
   ]
 }
