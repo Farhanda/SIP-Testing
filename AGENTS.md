@@ -38,8 +38,10 @@ Instruksi sistem/platform dan instruksi eksplisit pengguna tetap diutamakan.
 | `src/helpers/api-mock.ts` | Mock response dan intercept API |
 | `src/helpers/auth.ts`, `src/helpers/client-auth.ts` | Login dan storage state per role |
 | `src/helpers/data.ts`, `test-data/` | Loader dan dataset JSON/CSV |
+| `src/helpers/db.ts` | Singleton pool & query helper PostgreSQL (sip_db) |
 | `tests/fe/fixtures.ts`, `tests/fe/client/fixtures.ts` | Fixture UI admin dan client |
 | `tests/be/fixtures.ts`, `tests/ai/fixtures.ts` | Request context, URL helper, header autentikasi |
+| `tests/be/dashboard/db-validation.spec.ts` | Test cross-validation data API vs PostgreSQL |
 | `tests/be/README.md`, `tests/ai/README.md` | Konteks suite; cocokkan dengan implementasi terkini |
 | `scripts/generate-test-cases.mjs` | Mapping spec dan generator test case Excel |
 | `scripts/weekly-report/` | Generator workbook laporan mingguan |
@@ -68,6 +70,7 @@ Jangan commit, push, amend, reset, atau membuang perubahan lokal tanpa permintaa
 - Nama project dapat bersuffix browser saat multi-browser aktif. Periksa discovery sebelum mengandalkan shortcut project satu browser.
 - Pasang mock sebelum request dipicu. Pertahankan bentuk response sesuai kontrak dan jangan mengubah smoke/integration test menjadi mocked test hanya agar hijau.
 - Adanya mock tidak menjamin isolasi jaringan: handler dapat memakai `fallback()` atau `continue()`.
+- Validasi data UI: Jangan hanya mengecek elemen `toBeVisible()`. Selaraskan dan validasi angka, label metrik, chart, paginasi, dan baris tabel UI terhadap payload API atau data sumber terkait agar tidak hanya menguji layout visual, melainkan juga kebenaran isi datanya.
 
 ### BE dan AI
 
@@ -77,6 +80,7 @@ Jangan commit, push, amend, reset, atau membuang perubahan lokal tanpa permintaa
 - SIP AI memakai `X-Service-Token`; Intelligence AI memakai `X-AI-Service-Token`. Gunakan auth/header helper yang tersedia, bukan menyalin token atau membuat header dari dugaan.
 - Dispose request context tambahan sesuai pola fixture; jangan bocorkan resource.
 - Verifikasi status, bentuk response, dan invariants sesuai kontrak. Jangan memperluas expected status menjadi sembarang `2xx/4xx/5xx` demi meloloskan test.
+- Wajib validasi silang data ke Database (DB Alignment): Jangan hanya memverifikasi status 200 atau skema JSON semata. Lakukan validasi silang (*cross-validation*) nilai angka metrik, formula agregasi, tren harian, paginasi, dan ranking API terhadap data mentah di database PostgreSQL (`sip_db` via `src/helpers/db.ts`).
 
 ### Integritas Test
 
@@ -86,6 +90,18 @@ Jangan commit, push, amend, reset, atau membuang perubahan lokal tanpa permintaa
 - Gunakan dataset/helper yang tersedia untuk skenario data-driven. Hindari data acak tanpa kontrol atau dependency tersembunyi pada urutan test.
 - Judul spec dapat dipakai sebagai `specTitle` pada generator Excel. Cari pemakaiannya sebelum mengganti judul atau menambah coverage yang harus masuk laporan.
 - Helper atau probe yang tidak dimaksudkan menjadi test jangan diberi suffix `.spec.ts`. Nama `*.tmp.spec.ts` masih bisa terdiscovery.
+
+### Wajib Validasi Data Selaras (FE, BE, DB Alignment)
+
+- **Prinsip Keselarasan Data**: Setiap penambahan atau pembaruan test case WAJIB menyertakan validasi data konkret yang selaras antarlayer (FE UI $\leftrightarrow$ API Backend $\leftrightarrow$ Database PostgreSQL), bukan sekadar tes ada/tidaknya elemen atau status HTTP 200 semata.
+- **Lapisan FE (Frontend)**:
+  - Validasi bahwa angka metrik (total percakapan, engagement, views), grafik tren, daftar ranking, dan paginasi yang tampil di antarmuka web benar-benar mencerminkan nilai data aktual dari API/DB, bukan teks placeholder atau angka statis.
+- **Lapisan BE (Backend)**:
+  - Validasi bahwa respon API memiliki nilai yang terbukti secara matematis dan relasional identik (*exact match*) dengan data di tabel database.
+- **Lapisan DB (Database)**:
+  - Gunakan helper kueri terpusat di `src/helpers/db.ts` untuk validasi langsung ke database PostgreSQL (`sip_db`).
+  - Pastikan formula matematis (misal engagement 5 komponen), filter tanggal berbasis UTC, dan relasi JOIN tabel (seperti `scraped_contents` dengan `scraped_tiktok_contents`) merefleksikan spesifikasi bisnis yang benar.
+- **Uji Konsistensi Menyeluruh**: Saat menguji alur data, verifikasi bahwa apa yang tersimpan di DB adalah apa yang diolah oleh BE, dan apa yang disajikan ke pengguna di FE adalah representasi akurat dari data tersebut.
 
 ## Environment dan Keselamatan
 
