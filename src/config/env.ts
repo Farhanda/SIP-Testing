@@ -172,4 +172,12 @@ export const Env = {
   // :8000, header X-AI-Service-Token). Token per-service dari .env.
   aiIntelligenceBaseUrl: process.env.BASE_URL_AI_INTELLIGENCE ?? 'http://10.200.102.2:8000',
   aiIntelligenceToken: process.env.AI_INTELLIGENCE_TOKEN ?? '',
+
+  // ----- Database Direct Connection (Platform BE) -----
+  dbHost: process.env.DB_HOST || '10.200.101.13',
+  dbPort: Number(process.env.DB_PORT || 5432),
+  dbName: process.env.DB_NAME || '',
+  dbUser: process.env.DB_USER || '',
+  dbPassword: process.env.DB_PASSWORD || '',
+  dbSsl: process.env.DB_SSL === 'true',
 };
