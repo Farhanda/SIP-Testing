@@ -357,3 +357,62 @@ export async function getDbTopPostsByPlatform(
   }));
 }
 
+/**
+ * Ambil daftar ID post dengan paginasi (LIMIT & OFFSET) terurut berdasarkan engagement.
+ */
+export async function getDbTopPostsPagination(
+  limit: number,
+  offset: number,
+  startUtc: string,
+  endUtc: string
+): Promise<string[]> {
+  const rows = await query<{ id: string }>(
+    `SELECT id
+     FROM scraped_contents
+     WHERE published_at >= $1 AND published_at <= $2
+     ORDER BY (COALESCE(like_count,0)+COALESCE(comment_count,0)+COALESCE(share_count,0)+COALESCE(save_count,0)+COALESCE(repost_count,0)) DESC
+     LIMIT $3 OFFSET $4`,
+    [startUtc, endUtc, limit, offset]
+  );
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Ambil akun TikTok teratas dengan me-resolve username author_unique_id dari tabel scraped_tiktok_contents.
+ */
+export async function getDbTopTikTokAccount(
+  startUtc: string,
+  endUtc: string
+): Promise<DbTopAccount | null> {
+  const rows = await query<any>(
+    `SELECT 
+       COALESCE(t.author_unique_id, c.account) AS account_name,
+       COUNT(*) AS posts,
+       SUM(COALESCE(c.like_count,0)+COALESCE(c.comment_count,0)+COALESCE(c.share_count,0)+COALESCE(c.save_count,0)+COALESCE(c.repost_count,0)) AS engagement,
+       SUM(COALESCE(c.view_count,0)) AS views
+     FROM scraped_contents c
+     LEFT JOIN scraped_tiktok_contents t ON c.id = t.scraped_content_id
+     WHERE LOWER(c.provider) LIKE '%tiktok%' AND c.published_at >= $1 AND c.published_at <= $2
+     GROUP BY account_name
+     ORDER BY posts DESC, engagement DESC
+     LIMIT 1`,
+    [startUtc, endUtc]
+  );
+  if (rows.length === 0) return null;
+  return {
+    account: rows[0].account_name,
+    posts: parseInt(rows[0].posts, 10),
+    engagement: parseInt(rows[0].engagement, 10),
+    views: parseInt(rows[0].views, 10),
+  };
+}
+
+/**
+ * Ambil seluruh kolom baris mentah dari scraped_contents berdasarkan ID.
+ */
+export async function getDbPostRawById(id: string): Promise<any | null> {
+  const rows = await query<any>(`SELECT * FROM scraped_contents WHERE id = $1 LIMIT 1`, [id]);
+  return rows[0] || null;
+}
+
+

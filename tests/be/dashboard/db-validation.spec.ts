@@ -11,6 +11,9 @@ import {
   getDbTopPostsByEngagement,
   getDbTopPostsByViews,
   getDbPostById,
+  getDbTopPostsPagination,
+  getDbTopTikTokAccount,
+  getDbPostRawById,
   getDbAiAnalyzedCount,
   closeDbPool,
 } from '../../../src/helpers/db';
@@ -426,5 +429,101 @@ test.describe('Direct DB Validation — API vs PostgreSQL Database', () => {
 
     // Total post pada endpoint sentiment harus sama persis dengan COUNT(*) di database untuk rentang waktu tersebut
     expect(apiBody.data.total).toBe(dbMetrics.total_posts);
+  });
+
+  test('TC-DB-25: validasi paginasi Top Posts (page=2, limit=3) — ID post cocok 100% dengan SQL LIMIT 3 OFFSET 3', async ({ api }) => {
+    const limit = 3;
+    const page = 2;
+    const offset = (page - 1) * limit;
+
+    const apiRes = await api.get(apiUrl('/v2/dashboard/top-posts'), {
+      params: { period, limit, page },
+    });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbPostIds = await getDbTopPostsPagination(limit, offset, startUtc, endUtc);
+
+    expect(apiBody.data.length).toBe(limit);
+    expect(dbPostIds.length).toBe(limit);
+
+    for (let i = 0; i < limit; i++) {
+      expect(apiBody.data[i].id).toBe(dbPostIds[i]);
+    }
+  });
+
+  test('TC-DB-26: validasi Top Accounts TikTok via relasi tabel scraped_tiktok_contents — author_unique_id exact match', async ({ api }) => {
+    const apiRes = await api.get(apiUrl('/v2/dashboard/top-accounts'), {
+      params: { platform: 'tiktok', period, limit: 1 },
+    });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+    const topApiAccount = apiBody.data[0];
+
+    const dbAccount = await getDbTopTikTokAccount(startUtc, endUtc);
+    expect(dbAccount).not.toBeNull();
+
+    // Akun TikTok API ('metro_tv') harus cocok dengan JOIN tabel scraped_tiktok_contents
+    expect(topApiAccount.account).toBe(dbAccount!.account);
+    expect(topApiAccount.posts).toBe(dbAccount!.posts);
+    expect(topApiAccount.engagement).toBe(dbAccount!.engagement);
+    expect(topApiAccount.views).toBe(dbAccount!.views);
+  });
+
+  test('TC-DB-27: validasi presisi format timestamp published_at ISO UTC antara post teratas API dan database', async ({ api }) => {
+    const apiRes = await api.get(apiUrl('/v2/dashboard/top-posts'), {
+      params: { period, limit: 1 },
+    });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+    const topPost = apiBody.data[0];
+
+    const dbRow = await getDbPostRawById(topPost.id);
+    expect(dbRow).not.toBeNull();
+
+    // Timestamp published_at di API harus cocok persis dengan timestamp baris database
+    const dbPublishedIso = new Date(dbRow.published_at).toISOString();
+    expect(topPost.published_at).toBe(dbPublishedIso);
+  });
+
+  test('TC-DB-28: validasi volume sentimen per-platform (TikTok & Twitter/X) cocok dengan COUNT(*) database', async ({ api }) => {
+    const [tiktokRes, xRes] = await Promise.all([
+      api.get(apiUrl('/v2/dashboard/sentiment'), { params: { platform: 'tiktok', period } }),
+      api.get(apiUrl('/v2/dashboard/sentiment'), { params: { platform: 'x', period } }),
+    ]);
+
+    const tiktokBody = await tiktokRes.json();
+    const xBody = await xRes.json();
+
+    const [dbTiktok, dbX] = await Promise.all([
+      getDbPlatformMetrics('%tiktok%', startUtc, endUtc),
+      getDbPlatformMetrics('%twitter%', startUtc, endUtc),
+    ]);
+
+    expect(tiktokBody.data.total).toBe(dbTiktok.total_posts);
+    expect(xBody.data.total).toBe(dbX.total_posts);
+  });
+
+  test('TC-DB-29: validasi konsistensi zero-state pada periode tanpa data — API dan database sama-sama 0', async ({ api }) => {
+    const emptyPeriod = '1999-01-01/1999-01-07';
+    const emptyStart = '1999-01-01 00:00:00+00';
+    const emptyEnd = '1999-01-07 23:59:59+00';
+
+    const apiRes = await api.get(apiUrl('/v2/dashboard/summary'), {
+      params: { period: emptyPeriod },
+    });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbMetrics = await getDbSummaryMetrics(emptyStart, emptyEnd);
+
+    // Keduanya harus 0
+    expect(dbMetrics.total_posts).toBe(0);
+    expect(dbMetrics.total_engagement).toBe(0);
+    expect(dbMetrics.total_views).toBe(0);
+
+    expect(apiBody.data.total_conversation.value).toBe(0);
+    expect(apiBody.data.engagement.value).toBe(0);
+    expect(apiBody.data.views.value).toBe(0);
   });
 });
