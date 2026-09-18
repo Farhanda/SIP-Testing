@@ -415,4 +415,37 @@ export async function getDbPostRawById(id: string): Promise<any | null> {
   return rows[0] || null;
 }
 
+export interface DbRegisteredKeyword {
+  id: string;
+  keyword: string;
+  status: string;
+  created_at: string;
+}
+
+/**
+ * Ambil daftar keyword terdaftar dari tabel scrape_keywords.
+ */
+export async function getDbRegisteredKeywords(
+  limit: number = 10,
+  status?: string
+): Promise<DbRegisteredKeyword[]> {
+  let sql = `SELECT id, keyword, status, created_at FROM scrape_keywords`;
+  const params: any[] = [];
+  if (status) {
+    params.push(status.toUpperCase());
+    sql += ` WHERE UPPER(status) = $1`;
+  }
+  params.push(limit);
+  sql += ` ORDER BY created_at DESC LIMIT $${params.length}`;
+
+  const rows = await query<any>(sql, params);
+  return rows.map((r) => ({
+    id: r.id,
+    keyword: r.keyword,
+    status: r.status,
+    created_at: new Date(r.created_at).toISOString(),
+  }));
+}
+
+
 

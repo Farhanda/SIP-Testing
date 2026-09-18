@@ -143,7 +143,7 @@ export const Env = {
 
   // ----- Backend API (testing platform BE & AI) -----
   // Base URL API backend target (deployed)
-  beBaseUrl: process.env.BASE_URL_BE ?? 'http://10.200.101.13:8091',
+  beBaseUrl: process.env.BASE_URL_BE ?? 'http://10.200.101.13:8092',
 
   // Prefiks versi API backend (default /v1)
   beApiPrefix: process.env.BE_API_PREFIX ?? '/v1',

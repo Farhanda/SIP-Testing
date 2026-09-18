@@ -1,4 +1,5 @@
 import { test, expect, apiUrl } from '../fixtures';
+import ExcelJS from 'exceljs';
 import {
   isDbConfigured,
   getDbSummaryMetrics,
@@ -14,6 +15,7 @@ import {
   getDbTopPostsPagination,
   getDbTopTikTokAccount,
   getDbPostRawById,
+  getDbRegisteredKeywords,
   getDbAiAnalyzedCount,
   closeDbPool,
 } from '../../../src/helpers/db';
@@ -525,5 +527,64 @@ test.describe('Direct DB Validation — API vs PostgreSQL Database', () => {
     expect(apiBody.data.total_conversation.value).toBe(0);
     expect(apiBody.data.engagement.value).toBe(0);
     expect(apiBody.data.views.value).toBe(0);
+  });
+
+  test('TC-DB-30: validasi data keyword latest-keywords langsung terhadap tabel scrape_keywords di database', async ({ api }) => {
+    const limit = 5;
+    const apiRes = await api.get(apiUrl('/v2/dashboard/latest-keywords'), {
+      params: { limit },
+    });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbKeywords = await getDbRegisteredKeywords(limit);
+
+    expect(apiBody.data.length).toBe(dbKeywords.length);
+    for (let i = 0; i < dbKeywords.length; i++) {
+      expect(apiBody.data[i].id).toBe(dbKeywords[i].id);
+      expect(apiBody.data[i].keyword).toBe(dbKeywords[i].keyword);
+      expect(apiBody.data[i].status).toBe(dbKeywords[i].status);
+    }
+  });
+
+  test('TC-DB-31: validasi total baris data file Excel posts-export sama persis dengan COUNT(*) tabel scraped_contents', async ({ api }) => {
+    const apiRes = await api.get(apiUrl('/v2/dashboard/posts-export'), {
+      params: { period },
+    });
+    expect(apiRes.status()).toBe(200);
+
+    const bodyBuffer = await apiRes.body();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(bodyBuffer as any);
+    const sheet = workbook.getWorksheet('Data Post');
+    expect(sheet).toBeDefined();
+
+    // Jumlah baris data post (rowCount - 1 baris header)
+    const exportDataCount = sheet!.rowCount - 1;
+
+    const dbMetrics = await getDbSummaryMetrics(startUtc, endUtc);
+
+    // Total post dalam file Excel harus persis sama dengan COUNT(*) di database
+    expect(exportDataCount).toBe(dbMetrics.total_posts);
+  });
+
+  test('TC-DB-32: validasi total baris data file Excel posts-export per-platform (TikTok) sama persis dengan DB TikTok count', async ({ api }) => {
+    const apiRes = await api.get(apiUrl('/v2/dashboard/posts-export'), {
+      params: { platform: 'tiktok', period },
+    });
+    expect(apiRes.status()).toBe(200);
+
+    const bodyBuffer = await apiRes.body();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(bodyBuffer as any);
+    const sheet = workbook.getWorksheet('Data Post');
+    expect(sheet).toBeDefined();
+
+    const exportDataCount = sheet!.rowCount - 1;
+
+    const dbMetrics = await getDbPlatformMetrics('%tiktok%', startUtc, endUtc);
+
+    // Total post TikTok dalam file Excel harus persis sama dengan COUNT(*) TikTok di database
+    expect(exportDataCount).toBe(dbMetrics.total_posts);
   });
 });
