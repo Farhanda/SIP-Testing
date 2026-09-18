@@ -16,9 +16,23 @@ import {
   getDbTopTikTokAccount,
   getDbPostRawById,
   getDbRegisteredKeywords,
+  getDbKeywordsCount,
+  getDbKeywordDetail,
+  getDbPlatformPostCounts,
+  getDbPostDetailById,
   getDbAiAnalyzedCount,
+  query,
   closeDbPool,
 } from '../../../src/helpers/db';
+
+/**
+ * Normalisasi `provider` DB ke kode platform API, mengikuti pola
+ * `matchesPlatformFilter` di tests/be/fixtures.ts (mis. `tiktok_live` → `tiktok`).
+ */
+function normalizePlatform(provider: string): string {
+  const n = provider.toLowerCase().replace(/_(live|dead)$/i, '');
+  return n === 'twitterx' || n === 'twitter' ? 'x' : n;
+}
 
 /**
  * Test Suite: Comprehensive Direct Database Validation (API vs PostgreSQL Database)
@@ -587,4 +601,248 @@ test.describe('Direct DB Validation — API vs PostgreSQL Database', () => {
     // Total post TikTok dalam file Excel harus persis sama dengan COUNT(*) TikTok di database
     expect(exportDataCount).toBe(dbMetrics.total_posts);
   });
+
+  test('TC-DB-33: validasi total keywords dan status ACTIVE/INACTIVE pada GET /v2/dashboard/keywords — exact match API vs scrape_keywords', async ({ api }) => {
+    // 1. Total all keywords
+    const resAll = await api.get(apiUrl('/v2/dashboard/keywords'));
+    expect(resAll.status()).toBe(200);
+    const bodyAll = await resAll.json();
+    const dbTotal = await getDbKeywordsCount();
+    expect(bodyAll.meta.total).toBe(dbTotal);
+
+    // 2. Status ACTIVE
+    const resActive = await api.get(apiUrl('/v2/dashboard/keywords'), { params: { status: 'ACTIVE' } });
+    expect(resActive.status()).toBe(200);
+    const bodyActive = await resActive.json();
+    const dbActive = await getDbKeywordsCount({ status: 'ACTIVE' });
+    expect(bodyActive.meta.total).toBe(dbActive);
+
+    // 3. Status INACTIVE
+    const resInactive = await api.get(apiUrl('/v2/dashboard/keywords'), { params: { status: 'INACTIVE' } });
+    expect(resInactive.status()).toBe(200);
+    const bodyInactive = await resInactive.json();
+    const dbInactive = await getDbKeywordsCount({ status: 'INACTIVE' });
+    expect(bodyInactive.meta.total).toBe(dbInactive);
+
+    // Konsistensi matematis: ACTIVE + INACTIVE = TOTAL
+    expect(bodyActive.meta.total + bodyInactive.meta.total).toBe(bodyAll.meta.total);
+  });
+
+  test('TC-DB-34: validasi filtering platform (tiktok, x, instagram) pada GET /v2/dashboard/keywords — exact match API vs scrape_keywords', async ({ api }) => {
+    for (const plat of ['tiktok', 'x', 'instagram']) {
+      const res = await api.get(apiUrl('/v2/dashboard/keywords'), { params: { platform: plat } });
+      expect(res.status()).toBe(200);
+      const body = await res.json();
+
+      const dbCount = await getDbKeywordsCount({ platform: plat });
+      expect(body.meta.total).toBe(dbCount);
+    }
+  });
+
+  test('TC-DB-35: validasi pencarian search keyword pada GET /v2/dashboard/keywords — exact match API vs scrape_keywords', async ({ api }) => {
+    for (const kw of ['APBN', 'bandung']) {
+      const res = await api.get(apiUrl('/v2/dashboard/keywords'), { params: { search: kw } });
+      expect(res.status()).toBe(200);
+      const body = await res.json();
+
+      const dbCount = await getDbKeywordsCount({ search: kw });
+      expect(body.meta.total).toBe(dbCount);
+    }
+  });
+
+  test('TC-DB-36: validasi konfigurasi schedule dan metadata keyword spesifik (APBN) terhadap tabel scrape_keywords', async ({ api }) => {
+    const res = await api.get(apiUrl('/v2/dashboard/keywords'), { params: { search: 'APBN' } });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.data.length).toBe(1);
+
+    const apiItem = body.data[0];
+    const dbItem = await getDbKeywordDetail('APBN');
+
+    expect(dbItem).not.toBeNull();
+    expect(apiItem.id).toBe(dbItem!.id);
+    expect(apiItem.keyword).toBe(dbItem!.keyword);
+    expect(apiItem.status).toBe(dbItem!.status);
+    expect(apiItem.schedule.enabled).toBe(dbItem!.schedule_enabled);
+    expect(apiItem.schedule.value).toBe(dbItem!.schedule_frequency_value);
+    expect(apiItem.schedule.unit?.toLowerCase()).toBe(dbItem!.schedule_frequency_unit?.toLowerCase());
+    if (dbItem!.schedule_next_run_at) {
+      expect(apiItem.schedule.next_run_at).toBe(dbItem!.schedule_next_run_at);
+    }
+  });
+
+  test('TC-DB-37: validasi total posture protokol (overall.total & per platform) pada GET /v2/dashboard/protocol-status — exact match COUNT(*) provider di DB', async ({ api }) => {
+    const apiRes = await api.get(apiUrl('/v2/dashboard/protocol-status'), { params: { period } });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbCounts = await getDbPlatformPostCounts(startUtc, endUtc);
+    const dbTotal = dbCounts.instagram + dbCounts.tiktok + dbCounts.x;
+
+    // Total post posture harus sama persis dengan COUNT(*) seluruh platform di DB
+    expect(apiBody.data.overall.total).toBe(dbTotal);
+
+    const apiPlatformTotals: Record<string, number> = {};
+    for (const p of apiBody.data.platforms) {
+      apiPlatformTotals[p.platform] = p.total;
+    }
+
+    for (const key of ['instagram', 'tiktok', 'x'] as const) {
+      expect(apiPlatformTotals[key]).toBe(dbCounts[key]);
+    }
+  });
+
+  test('TC-DB-38: validasi formula share_pct posture protokol — round(total platform / total keseluruhan dari DB × 100)', async ({ api }) => {
+    const apiRes = await api.get(apiUrl('/v2/dashboard/protocol-status'), { params: { period } });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbCounts = await getDbPlatformPostCounts(startUtc, endUtc);
+    const dbTotal = dbCounts.instagram + dbCounts.tiktok + dbCounts.x;
+    expect(dbTotal).toBeGreaterThan(0);
+
+    for (const p of apiBody.data.platforms) {
+      const expectedShare = Math.round((dbCounts[p.platform as keyof typeof dbCounts] / dbTotal) * 100);
+      expect(p.share_pct).toBe(expectedShare);
+    }
+
+    // Akumulasi share seluruh platform = 100% (toleransi pembulatan integer ±1%)
+    const sumShare = apiBody.data.platforms.reduce((acc: number, p: { share_pct: number }) => acc + p.share_pct, 0);
+    expect(sumShare).toBeGreaterThanOrEqual(99);
+    expect(sumShare).toBeLessThanOrEqual(101);
+  });
+
+  test('TC-DB-39: validasi total percakapan sentimen per-platform pada GET /v2/dashboard/sentiment — exact match COUNT(*) platform di DB', async ({ api }) => {
+    const dbCounts = await getDbPlatformPostCounts(startUtc, endUtc);
+
+    for (const plat of ['x', 'tiktok', 'instagram'] as const) {
+      const apiRes = await api.get(apiUrl('/v2/dashboard/sentiment'), {
+        params: { period, platform: plat },
+      });
+      expect(apiRes.status()).toBe(200);
+      const apiBody = await apiRes.json();
+
+      expect(apiBody.data.total).toBe(dbCounts[plat]);
+    }
+  });
+
+  test('TC-DB-40: validasi zero-state posture protokol pada periode tanpa data — API dan database sama-sama 0', async ({ api }) => {
+    const emptyPeriod = '1999-01-01/1999-01-07';
+    const emptyStart = '1999-01-01 00:00:00+00';
+    const emptyEnd = '1999-01-07 23:59:59+00';
+
+    const apiRes = await api.get(apiUrl('/v2/dashboard/protocol-status'), { params: { period: emptyPeriod } });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbCounts = await getDbPlatformPostCounts(emptyStart, emptyEnd);
+    expect(dbCounts.instagram + dbCounts.tiktok + dbCounts.x).toBe(0);
+    expect(apiBody.data.overall.total).toBe(0);
+
+    for (const p of apiBody.data.platforms) {
+      expect(dbCounts[p.platform as keyof typeof dbCounts]).toBe(0);
+      expect(p.total).toBe(0);
+      expect(p.share_pct).toBe(0);
+    }
+  });
+
+  test('TC-DB-41: validasi pemetaan field post teratas (teks, akun handle, platform, source_url) API top-posts vs baris tabel scraped_contents', async ({ api }) => {
+    const apiRes = await api.get(apiUrl('/v2/dashboard/top-posts'), { params: { period, limit: 1 } });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+    const topPost = apiBody.data[0];
+
+    const dbPost = await getDbPostDetailById(topPost.id);
+    expect(dbPost).not.toBeNull();
+
+    // Teks post API = kolom description (bukan title)
+    expect(topPost.post).toBe(dbPost!.description);
+    expect(topPost.source_url).toBe(dbPost!.source_url);
+    expect(topPost.platform).toBe(normalizePlatform(dbPost!.provider));
+    expect(topPost.published_at).toBe(dbPost!.published_at);
+    expect(topPost.views).toBe(dbPost!.views);
+    expect(topPost.engagement).toBe(dbPost!.engagement);
+
+    // `account` API = handle (author_unique_id/author_username/owner_username), bukan ID numerik DB
+    expect(topPost.account).toBe(dbPost!.account);
+  });
+
+  test('TC-DB-42: validasi created_at dan urutan latest-keywords — exact match kolom scrape_keywords.created_at (DESC)', async ({ api }) => {
+    const limit = 3;
+    const apiRes = await api.get(apiUrl('/v2/dashboard/latest-keywords'), { params: { limit } });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbKeywords = await getDbRegisteredKeywords(limit);
+
+    expect(apiBody.data.length).toBe(dbKeywords.length);
+    for (let i = 0; i < dbKeywords.length; i++) {
+      expect(apiBody.data[i].id).toBe(dbKeywords[i].id);
+      expect(apiBody.data[i].created_at).toBe(dbKeywords[i].created_at);
+    }
+
+    // Urutan API mengikuti ORDER BY created_at DESC di database
+    for (let i = 0; i < dbKeywords.length - 1; i++) {
+      expect(new Date(dbKeywords[i].created_at).getTime()).toBeGreaterThanOrEqual(
+        new Date(dbKeywords[i + 1].created_at).getTime()
+      );
+    }
+  });
+
+  test('TC-DB-43: validasi detail post GET /v2/dashboard/posts/{id} cocok 100% dengan row tabel scraped_contents', async ({ api }) => {
+    // Ambil 1 sample post teratas dari Top Posts API
+    const listRes = await api.get(apiUrl('/v2/dashboard/top-posts'), { params: { period } });
+    expect(listRes.status()).toBe(200);
+    const listBody = await listRes.json();
+    expect(listBody.data.length).toBeGreaterThan(0);
+
+    const samplePostId = listBody.data[0].id;
+
+    // Panggil endpoint baru GET /v2/dashboard/posts/{id}
+    const detailRes = await api.get(apiUrl(`/v2/dashboard/posts/${samplePostId}`));
+    expect(detailRes.status()).toBe(200);
+    const detailBody = await detailRes.json();
+    const postData = detailBody.data;
+
+    // Ambil raw record langsung dari database
+    const dbRaw = await getDbPostRawById(samplePostId);
+    expect(dbRaw).not.toBeNull();
+
+    // Verifikasi ID dan metrik terperinci
+    expect(postData.id).toBe(dbRaw.id);
+    expect(postData.metrics.views).toBe(parseInt(dbRaw.view_count || '0', 10));
+    expect(postData.metrics.likes).toBe(parseInt(dbRaw.like_count || '0', 10));
+    expect(postData.metrics.comments).toBe(parseInt(dbRaw.comment_count || '0', 10));
+    expect(postData.metrics.shares).toBe(parseInt(dbRaw.share_count || '0', 10));
+    expect(postData.metrics.saves).toBe(parseInt(dbRaw.save_count || '0', 10));
+    expect(postData.metrics.reposts).toBe(parseInt(dbRaw.repost_count || '0', 10));
+
+    // Verifikasi formula agregasi engagement: likes + comments + shares + saves + reposts
+    const expectedEngagement =
+      postData.metrics.likes +
+      postData.metrics.comments +
+      postData.metrics.shares +
+      postData.metrics.saves +
+      postData.metrics.reposts;
+    expect(postData.metrics.engagement).toBe(expectedEngagement);
+  });
+
+  test('TC-DB-44: validasi filter account pada GET /v2/dashboard/top-posts cocok 100% dengan COUNT(*) akun di database', async ({ api }) => {
+    const targetAccount = 'infoBMKG';
+    const apiRes = await api.get(apiUrl('/v2/dashboard/top-posts'), {
+      params: { period, account: targetAccount },
+    });
+    expect(apiRes.status()).toBe(200);
+    const apiBody = await apiRes.json();
+
+    const dbRows = await query<{ count: string }>(
+      `SELECT COUNT(*) FROM scraped_contents 
+       WHERE account = $1 AND published_at >= $2 AND published_at <= $3`,
+      [targetAccount, startUtc, endUtc]
+    );
+    const dbCount = parseInt(dbRows[0]?.count ?? '0', 10);
+
+    expect(apiBody.meta.total).toBe(dbCount);
+  });
 });
+

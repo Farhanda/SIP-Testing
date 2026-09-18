@@ -166,5 +166,19 @@ test.describe('GET /v2/dashboard/top-posts (v2)', () => {
     expect(body.data).toEqual([]);
     expect(body.meta.total).toBe(0);
   });
+
+  test('TC-V2-PST-10: filter account menyaring post berdasarkan handle akun tertentu (misal infoBMKG)', async ({ api }) => {
+    const res = await api.get(apiUrl('/v2/dashboard/top-posts'), {
+      params: { account: 'infoBMKG' },
+    });
+    expect(res.status()).toBe(200);
+
+    const body = await res.json();
+    expect(body.meta.total).toBeGreaterThan(0);
+    expect(Array.isArray(body.data)).toBe(true);
+    for (const post of body.data) {
+      expect(post.account).toBe('infoBMKG');
+    }
+  });
 });
 

@@ -3,7 +3,9 @@
 - **Target Service**: Dashboard Service API (`http://10.200.101.13:8092`)
 - **Dokumentasi API**: [Swagger UI v2](http://10.200.101.13:8092/swagger/index.html) (`/swagger/doc.json`)
 - **Tanggal Pengujian**: 18 September 2026
-- **Lingkup Pengujian**: Seluruh 9 endpoint `GET /v2/dashboard/*` (Summary, Conversation Trend, Sentiment, Protocol Status, Top Accounts, Top Posts, Top Topics, Latest Keywords, Posts Export)
+- **Lingkup Pengujian**: Seluruh 11 endpoint v2 di bawah `/v2/dashboard/*`:
+  - 10 endpoint Agregasi & Analisis: `summary`, `conversation-trend`, `sentiment`, `protocol-status`, `top-accounts`, `top-posts`, `top-topics`, `latest-keywords`, `posts-export`, `keywords` (Data Collection Monitor)
+  - 1 endpoint Detail Konten Tunggal: `GET /v2/dashboard/posts/{id}`
 - **Metode Pengujian**: Automation Testing (Playwright APIRequestContext), Boundary Testing, SQL/Payload Injection Probing, Fuzzing, Memory/Size Probing, dan Cross-Endpoint Database Verification.
 
 ---
@@ -12,9 +14,9 @@
 
 | ID | Severity | Judul Temuan | Status di Port 8092 | Dampak |
 |---|:---:|---|:---:|---|
-| **BUG-BE-01** | **HIGH** | Server Crash `HTTP 500` saat Query Memuat Null Byte (`%00`) | **TERBUKTI PADA ENDPOINT BARU**<br>• Fixed di 7 endpoint lama (HTTP 400)<br>• **CRASH di `latest-keywords` & `posts-export`** | Unhandled exception di Go/Database driver, memicu HTTP 500 internal error. |
+| **BUG-BE-01** | **HIGH** | Server Crash `HTTP 500` saat Query Memuat Null Byte (`%00`) | **TERBUKTI PADA 3 ENDPOINT**<br>• Fixed di endpoint dashboard lama (HTTP 400)<br>• **Aman di `GET /v2/dashboard/keywords` (HTTP 400)**<br>• **CRASH di `latest-keywords`, `posts-export`, dan `posts/{id}`** | Unhandled exception di Go/Database driver, memicu HTTP 500 internal error. |
 | **BUG-BE-02** | **HIGH** | Uncontrolled Excel Generation / Risiko DoS pada `posts-export` | **BARU DITEMUKAN** | `period` invalid tidak di-reject HTTP 400, melainkan men-generate file Excel 2.2 MB di RAM. |
-| **BUG-BE-03** | **MEDIUM** | SQL Wildcard Injection pada Query `search` dan `status` (`%` dan `_` tidak di-escape) | **MASIH TERJADI** | Karakter `%` membocorkan seluruh data database tanpa filtering. |
+| **BUG-BE-03** | **MEDIUM** | SQL Wildcard Injection pada Query `search` dan `status` (`%` dan `_` tidak di-escape) | **MASIH TERJADI (Termasuk di `/v2/dashboard/keywords`)** | Karakter `%` membocorkan seluruh data database tanpa filtering. |
 | **BUG-BE-04** | **MEDIUM** | Logika Rentang Tanggal Terbalik (*Reversed Date*) Diam-diam Jatuh ke Fallback 32 Hari | **MASIH TERJADI** | `period=2026-09-07/2026-09-01` tidak melempar 400, melainkan memberi data 32 hari. |
 | **BUG-BE-05** | **LOW** | Method HTTP non-GET merespons `404 Not Found` bukan `405 Method Not Allowed` | **MASIH TERJADI** | Tidak memenuhi standar kepatuhan RFC 9110 (RESTful specification). |
 
@@ -22,12 +24,12 @@
 
 ## 2. Rincian Temuan Bug
 
-### BUG-BE-01: [HIGH] Server Crash `HTTP 500` pada Endpoint Baru (`latest-keywords` & `posts-export`)
+### BUG-BE-01: [HIGH] Server Crash `HTTP 500` pada Endpoint Baru (`latest-keywords`, `posts-export`, & `posts/{id}`)
 
 #### Deskripsi
-Tim backend telah menambahkan sanitasi input Null Byte (`%00`) pada endpoint lama (`summary`, `top-posts`, `top-topics`, `sentiment`, `top-accounts`, `protocol-status`) sehingga sekarang merespons aman dengan **`HTTP 400 Bad Request`**.
+Tim backend telah menambahkan sanitasi input Null Byte (`%00`) pada endpoint lama (`summary`, `top-posts`, `top-topics`, `sentiment`, `top-accounts`, `protocol-status`) serta endpoint `GET /v2/dashboard/keywords`, sehingga semuanya merespons aman dengan **`HTTP 400 Bad Request`** (`invalid_request: query parameters must be valid UTF-8 without null characters`).
 
-**Namun, sanitasi ini lupa dipasang pada 2 endpoint baru di v2 (`latest-keywords` dan `posts-export`)**. Akibatnya, saat parameter dikirim karakter null byte `%00`, server mengalami crash internal dan mengembalikan **`HTTP 500 Internal Server Error`**.
+**Namun, sanitasi ini belum dipasang pada 3 endpoint v2 (`latest-keywords`, `posts-export`, dan `posts/{id}`)**. Akibatnya, saat parameter dikirim karakter null byte `%00`, server mengalami crash internal dan mengembalikan **`HTTP 500 Internal Server Error`**.
 
 #### Bukti Request & Respons Aktual
 ```http
@@ -46,6 +48,20 @@ Content-Type: application/json
 
 ```http
 GET /v2/dashboard/posts-export?keyword=%00 HTTP/1.1
+Host: 10.200.101.13:8092
+
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+{
+  "error": {
+    "code": "internal_error",
+    "message": "internal server error"
+  }
+}
+```
+
+```http
+GET /v2/dashboard/posts/%00 HTTP/1.1
 Host: 10.200.101.13:8092
 
 HTTP/1.1 500 Internal Server Error
@@ -119,9 +135,12 @@ Jika nilai `period` tidak sesuai token standar (`24h`, `7d`, dsb.) atau format t
 ### BUG-BE-03: [MEDIUM] SQL Wildcard LIKE Injection pada `search` dan `status`
 
 #### Deskripsi
-Karakter `%` dan `_` pada query pencarian tidak di-escape. Ketika user mencari `search=%`, backend mengeksekusi SQL `ILIKE '%'` yang mencocokkan **100% seluruh post di database** alih-alih mencari teks tanda persen literal `"%"`.
+Karakter `%` dan `_` pada query pencarian tidak di-escape. Ketika user mencari `search=%`, backend mengeksekusi SQL `ILIKE '%'` yang mencocokkan **100% seluruh post/keyword di database** alih-alih mencari teks tanda persen literal `"%"`.
 
-Hal yang sama terjadi pada `GET /v2/dashboard/latest-keywords?status=%`, yang mengembalikan seluruh status baik `ACTIVE` maupun `INACTIVE`.
+Hal ini terbukti terjadi pada:
+1. `GET /v2/dashboard/top-posts?search=%` — mengembalikan seluruh post tanpa filter literal `%`.
+2. `GET /v2/dashboard/latest-keywords?status=%` — mengembalikan seluruh status baik `ACTIVE` maupun `INACTIVE`.
+3. `GET /v2/keywords?search=%25` — mengembalikan total 49 seluruh keyword di sistem alih-alih mencari kata kunci bertanda `%`.
 
 #### Rekomendasi Solusi
 Lakukan *escaping* karakter khusus SQL LIKE sebelum dimasukkan ke query:

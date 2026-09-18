@@ -447,5 +447,156 @@ export async function getDbRegisteredKeywords(
   }));
 }
 
+export interface DbKeywordMonitorCountFilter {
+  status?: string;
+  platform?: string;
+  search?: string;
+}
+
+/**
+ * Hitung total keyword pada tabel scrape_keywords dengan filter opsional (status, platform, search).
+ */
+export async function getDbKeywordsCount(
+  filter?: DbKeywordMonitorCountFilter
+): Promise<number> {
+  let sql = `SELECT COUNT(*) AS total FROM scrape_keywords WHERE 1=1`;
+  const params: any[] = [];
+
+  if (filter?.status) {
+    params.push(filter.status.toUpperCase());
+    sql += ` AND UPPER(status) = $${params.length}`;
+  }
+
+  if (filter?.platform) {
+    const p = filter.platform.toLowerCase();
+    const platPattern = p === 'x' ? '%twitter%' : `%${p}%`;
+    params.push(platPattern);
+    sql += ` AND platforms::text ILIKE $${params.length}`;
+  }
+
+  if (filter?.search) {
+    params.push(`%${filter.search}%`);
+    sql += ` AND keyword ILIKE $${params.length}`;
+  }
+
+  const rows = await query<{ total: string }>(sql, params);
+  return parseInt(rows[0]?.total ?? '0', 10);
+}
+
+export type DbPlatformKey = 'instagram' | 'tiktok' | 'x';
+
+/**
+ * Hitung jumlah post per platform (instagram/tiktok/x) dalam rentang UTC.
+ * Normalisasi mengikuti pola `matchesPlatformFilter` di tests/be/fixtures.ts:
+ * `provider` di DB berbentuk `tiktok_live` / `twitterx_live` / `instagram_live`.
+ */
+export async function getDbPlatformPostCounts(
+  startUtc: string,
+  endUtc: string
+): Promise<Record<DbPlatformKey, number>> {
+  const rows = await query<{ platform: DbPlatformKey; posts: string }>(
+    `SELECT
+       CASE
+         WHEN LOWER(provider) LIKE '%tiktok%' THEN 'tiktok'
+         WHEN LOWER(provider) LIKE '%twitter%' THEN 'x'
+         WHEN LOWER(provider) LIKE '%instagram%' THEN 'instagram'
+       END AS platform,
+       COUNT(*) AS posts
+     FROM scraped_contents
+     WHERE published_at >= $1 AND published_at <= $2
+       AND (LOWER(provider) LIKE '%tiktok%' OR LOWER(provider) LIKE '%twitter%' OR LOWER(provider) LIKE '%instagram%')
+     GROUP BY 1`,
+    [startUtc, endUtc]
+  );
+  const out: Record<DbPlatformKey, number> = { instagram: 0, tiktok: 0, x: 0 };
+  for (const r of rows) out[r.platform] = parseInt(r.posts, 10);
+  return out;
+}
+
+export interface DbPostDetail {
+  id: string;
+  account: string;
+  provider: string;
+  description: string;
+  source_url: string;
+  published_at: string;
+  views: number;
+  engagement: number;
+}
+
+/**
+ * Ambil satu baris post secara presisi + resolusi handle akun.
+ * `scraped_contents.account` menyimpan ID numerik platform, sedangkan API
+ * menampilkan handle — handle diambil dari tabel platform spesifik
+ * (tiktok: author_unique_id, twitter/x: author_username, instagram: owner_username).
+ */
+export async function getDbPostDetailById(id: string): Promise<DbPostDetail | null> {
+  const rows = await query<any>(
+    `SELECT c.id, c.provider, c.description, c.source_url, c.published_at, c.view_count,
+            (COALESCE(c.like_count,0)+COALESCE(c.comment_count,0)+COALESCE(c.share_count,0)+COALESCE(c.save_count,0)+COALESCE(c.repost_count,0)) AS engagement,
+            COALESCE(
+              (SELECT author_unique_id FROM scraped_tiktok_contents t WHERE t.scraped_content_id = c.id LIMIT 1),
+              (SELECT author_username FROM scraped_twitterx_contents x WHERE x.scraped_content_id = c.id LIMIT 1),
+              (SELECT owner_username FROM scraped_instagram_contents i WHERE i.scraped_content_id = c.id LIMIT 1),
+              c.account
+            ) AS account
+     FROM scraped_contents c
+     WHERE c.id = $1
+     LIMIT 1`,
+    [id]
+  );
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    account: r.account,
+    provider: r.provider,
+    description: r.description || '',
+    source_url: r.source_url || '',
+    published_at: new Date(r.published_at).toISOString(),
+    views: Number(r.view_count || 0),
+    engagement: Number(r.engagement || 0),
+  };
+}
+
+export interface DbKeywordMonitorDetail {
+  id: string;
+  keyword: string;
+  status: string;
+  platforms: string[];
+  schedule_enabled: boolean;
+  schedule_frequency_value: number | null;
+  schedule_frequency_unit: string | null;
+  schedule_next_run_at: string | null;
+}
+
+/**
+ * Ambil detail keyword berdasarkan keyword text atau ID dari tabel scrape_keywords.
+ */
+export async function getDbKeywordDetail(
+  keywordOrId: string
+): Promise<DbKeywordMonitorDetail | null> {
+  const rows = await query<any>(
+    `SELECT id, keyword, status, platforms, schedule_enabled, schedule_frequency_value, schedule_frequency_unit, schedule_next_run_at 
+     FROM scrape_keywords 
+     WHERE id::text = $1 OR LOWER(keyword) = LOWER($1) 
+     LIMIT 1`,
+    [keywordOrId]
+  );
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    keyword: r.keyword,
+    status: r.status,
+    platforms: Array.isArray(r.platforms) ? r.platforms : [],
+    schedule_enabled: Boolean(r.schedule_enabled),
+    schedule_frequency_value: r.schedule_frequency_value ? parseInt(r.schedule_frequency_value, 10) : null,
+    schedule_frequency_unit: r.schedule_frequency_unit,
+    schedule_next_run_at: r.schedule_next_run_at ? new Date(r.schedule_next_run_at).toISOString() : null,
+  };
+}
+
+
 
 
