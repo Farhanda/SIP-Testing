@@ -25,6 +25,7 @@ const MODULES = [
   { name: 'login', testMatch: /login\/.*\.spec\.ts/ },
   { name: 'dashboard', testMatch: /dashboard\/.*\.spec\.ts/ },
   { name: 'topics', testMatch: /topics\/.*\.spec\.ts/ },
+  { name: 'content', testMatch: /content\/.*\.spec\.ts/ },
   { name: 'keyword', testMatch: /keyword\/.*\.spec\.ts/ },
   { name: 'control', testMatch: /control\/.*\.spec\.ts/ },
   { name: 'user', testMatch: /administration\/.*\.spec\.ts/ },

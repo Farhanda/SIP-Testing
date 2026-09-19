@@ -12,12 +12,29 @@ import { BasePage } from './BasePage';
  */
 export class KeywordPage extends BasePage {
   readonly heading = this.page.getByRole('heading', { name: /Keyword (Management|Monitoring)/ });
+  readonly subtitle = this.page.getByText('Manage scheduled and on-demand keywords for scraping and AI analysis.');
   readonly tabOnDemand = this.page.getByRole('tab', { name: 'On Demand' });
+  readonly tabScheduled = this.page.getByRole('tab', { name: 'Scheduled' });
   readonly searchInput = this.page.getByPlaceholder('Search keyword');
   readonly applyFilterButton = this.page.getByRole('button', { name: 'Apply filter' });
   readonly resetFilterButton = this.page.getByRole('button', { name: 'Reset filter' });
   readonly paginationText = this.page.getByText(/Page \d+ of \d+/);
   readonly emptyState = this.page.getByText('No keywords match your search/filter.');
+
+  // Summary cards (On Demand & Scheduled) — menggunakan article.p-4 untuk menghindari collision dengan container tabel
+  readonly cardTotalKeywords = this.page.locator('article.p-4').filter({ hasText: 'Total keywords' });
+  readonly cardCurrentlyProcessing = this.page.locator('article.p-4').filter({ hasText: 'Currently processing' });
+  readonly cardCompleted = this.page.locator('article.p-4').filter({ hasText: 'Completed' });
+  readonly cardFailedCancelled = this.page.locator('article.p-4').filter({ hasText: 'Failed / Cancelled' });
+  readonly cardActiveKeywords = this.page.locator('article.p-4').filter({ hasText: 'Active keywords' });
+  readonly cardJobsToday = this.page.locator('article.p-4').filter({ hasText: 'Jobs today' });
+  readonly cardPostsProcessed = this.page.locator('article.p-4').filter({ hasText: 'Posts processed' });
+  readonly cardJobsOnHold = this.page.locator('article.p-4').filter({ hasText: 'Jobs on hold' });
+
+  // Table & headers
+  readonly table = this.page.locator('table');
+  readonly tableHeaders = this.page.locator('table thead th');
+  readonly tableRows = this.page.locator('table tbody tr');
 
   // Locate select berdasarkan option-nya (bukan indeks DOM) supaya tetap
   // benar di tab Scheduled maupun On Demand (pagination juga punya <select>).
@@ -29,6 +46,11 @@ export class KeywordPage extends BasePage {
 
   readonly statusSelect = this.selectWithOption('All statuses');
   readonly platformSelect = this.selectWithOption('All platforms');
+
+  async getCardNumber(card: import('@playwright/test').Locator): Promise<number> {
+    const text = await card.locator('div.text-3xl').innerText();
+    return parseInt(text.replace(/[^0-9]/g, ''), 10);
+  }
 
   // ---- Modal "Add keyword" (tab On Demand) ----
   readonly addKeywordButton = this.page.getByRole('button', { name: '+ Add keyword' });
@@ -68,7 +90,6 @@ export class KeywordPage extends BasePage {
   // ---------------------------------------------------------------------------
   // Tab Scheduled (kembali aktif di deploy 2026-09) & dialog-dialog jadwal
   // ---------------------------------------------------------------------------
-  readonly tabScheduled = this.page.getByRole('tab', { name: 'Scheduled' });
 
   /** Baris tabel Scheduled yang memuat teks `keyword`. */
   scheduledRowOf(keyword: string) {

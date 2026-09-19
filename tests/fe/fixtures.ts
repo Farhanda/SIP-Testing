@@ -2,7 +2,9 @@ import { test as base, expect } from '@playwright/test';
 import { DashboardPage } from '../../src/pages/DashboardPage';
 import { DisplayWallPage } from '../../src/pages/DisplayWallPage';
 import { KeywordPage } from '../../src/pages/KeywordPage';
+import { KeywordMonitorPage } from '../../src/pages/KeywordMonitorPage';
 import { LoginPage } from '../../src/pages/LoginPage';
+import { ContentPage } from '../../src/pages/ContentPage';
 import { PostsPage } from '../../src/pages/PostsPage';
 import { ProfilePage } from '../../src/pages/ProfilePage';
 import { ProviderPage } from '../../src/pages/ProviderPage';
@@ -27,6 +29,8 @@ export const test = base.extend<{
   dashboardPage: DashboardPage;
   displayWallPage: DisplayWallPage;
   keywordPage: KeywordPage;
+  keywordMonitorPage: KeywordMonitorPage;
+  contentPage: ContentPage;
   postsPage: PostsPage;
   profilePage: ProfilePage;
   topicsPage: TopicsPage;
@@ -39,6 +43,8 @@ export const test = base.extend<{
   dashboardPage: async ({ page }, use) => use(new DashboardPage(page)),
   displayWallPage: async ({ page }, use) => use(new DisplayWallPage(page)),
   keywordPage: async ({ page }, use) => use(new KeywordPage(page)),
+  keywordMonitorPage: async ({ page }, use) => use(new KeywordMonitorPage(page)),
+  contentPage: async ({ page }, use) => use(new ContentPage(page)),
   postsPage: async ({ page }, use) => use(new PostsPage(page)),
   profilePage: async ({ page }, use) => use(new ProfilePage(page)),
   topicsPage: async ({ page }, use) => use(new TopicsPage(page)),
