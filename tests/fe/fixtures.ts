@@ -7,6 +7,7 @@ import { PostsPage } from '../../src/pages/PostsPage';
 import { ProfilePage } from '../../src/pages/ProfilePage';
 import { ProviderPage } from '../../src/pages/ProviderPage';
 import { TopicDetailPage } from '../../src/pages/TopicDetailPage';
+import { TopicsPage } from '../../src/pages/TopicsPage';
 import { UnscheduledDetailPage } from '../../src/pages/UnscheduledDetailPage';
 import { UserManagementPage } from '../../src/pages/UserManagementPage';
 
@@ -28,6 +29,7 @@ export const test = base.extend<{
   keywordPage: KeywordPage;
   postsPage: PostsPage;
   profilePage: ProfilePage;
+  topicsPage: TopicsPage;
   topicDetailPage: TopicDetailPage;
   userPage: UserManagementPage;
   providerPage: ProviderPage;
@@ -39,6 +41,7 @@ export const test = base.extend<{
   keywordPage: async ({ page }, use) => use(new KeywordPage(page)),
   postsPage: async ({ page }, use) => use(new PostsPage(page)),
   profilePage: async ({ page }, use) => use(new ProfilePage(page)),
+  topicsPage: async ({ page }, use) => use(new TopicsPage(page)),
   topicDetailPage: async ({ page }, use) => use(new TopicDetailPage(page)),
   userPage: async ({ page }, use) => use(new UserManagementPage(page)),
   providerPage: async ({ page }, use) => use(new ProviderPage(page)),
