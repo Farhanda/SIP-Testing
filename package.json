@@ -11,6 +11,7 @@
     "test:smoke": "playwright test -c playwright.fe.config.ts --project=smoke --reporter=list",
     "test:login": "playwright test -c playwright.fe.config.ts --project=login --reporter=list",
     "test:dashboard": "playwright test -c playwright.fe.config.ts --project=dashboard --reporter=list",
+    "test:topics": "playwright test -c playwright.fe.config.ts --project=topics --reporter=list",
     "test:keyword": "playwright test -c playwright.fe.config.ts --project=keyword --reporter=list",
     "test:control": "playwright test -c playwright.fe.config.ts --project=control --reporter=list",
     "test:user": "playwright test -c playwright.fe.config.ts --project=user --reporter=list",
